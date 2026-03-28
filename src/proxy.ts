@@ -4,7 +4,7 @@ import { updateSession } from '@/lib/supabase/middleware';
 // Routes accessibles sans authentification
 const PUBLIC_PATHS = ['/login', '/register', '/forgot-password'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const { supabaseResponse, user } = await updateSession(request);
 
