@@ -1,6 +1,6 @@
-import { redirect }        from 'next/navigation';
-import { Suspense }         from 'react';
-import { createClient }     from '@/lib/supabase/server';
+import { redirect }                       from 'next/navigation';
+import { Suspense }                        from 'react';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { fetchKPIs, fetchActivity, fetchAlerts, type Period } from '@/lib/dashboard-data';
 import { KPICard }          from '@/components/dashboard/KPICard';
 import { ActivityFeed }     from '@/components/dashboard/ActivityFeed';
@@ -81,11 +81,34 @@ export default async function PilotagePage({ searchParams }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
+  // Nom : client régulier d'abord, admin en fallback si RLS bloque
+  let profileName: string | null = null;
+
+  const { data: regularProfile } = await supabase
     .from('users')
     .select('name')
     .eq('id', user.id)
     .single();
+
+  if (regularProfile?.name) {
+    profileName = regularProfile.name;
+  } else {
+    try {
+      const admin = await createAdminClient();
+      const { data: adminProfile } = await admin
+        .from('users')
+        .select('name')
+        .eq('id', user.id)
+        .single();
+      if (adminProfile?.name) profileName = adminProfile.name;
+    } catch { /* service role key absent en dev */ }
+  }
+
+  // Fallbacks : users.name → user_metadata.name → préfixe email → vide
+  const rawName = profileName
+    ?? (user.user_metadata?.name as string | undefined)
+    ?? user.email?.split('@')[0]
+    ?? '';
 
   const params    = await searchParams;
   const rawPeriod = params?.period ?? '30j';
@@ -99,7 +122,7 @@ export default async function PilotagePage({ searchParams }: PageProps) {
     fetchAlerts(),
   ]);
 
-  const prenom   = profile?.name?.split(' ')[0] ?? 'là';
+  const prenom   = rawName.split(' ')[0] || null;
   const isDashboardEmpty = kpis.ca.value === 0 && kpis.devis.count === 0;
 
   return (
@@ -109,7 +132,7 @@ export default async function PilotagePage({ searchParams }: PageProps) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-oxi-text">
-            Bonjour {prenom}&nbsp;👋
+            {prenom ? <>Bonjour {prenom}&nbsp;👋</> : <>Bonjour&nbsp;👋</>}
           </h1>
           <p className="mt-0.5 text-sm capitalize text-oxi-text-secondary">
             {fmtDate()}
