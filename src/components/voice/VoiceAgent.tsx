@@ -300,12 +300,12 @@ export function VoiceAgent({ userName, userRole }: Props) {
         title={title}
         aria-label={title}
         className={[
-          'fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center',
+          'fixed right-4 z-40 flex h-14 w-14 items-center justify-center',
           'rounded-full shadow-lg transition-all duration-200 select-none',
           'text-xl hover:scale-110 active:scale-95',
           bg, ring,
-          // Hide default mic button when agent panel is open (it's in the panel)
-          agentOpen ? 'bottom-[calc(60vh+1rem)]' : 'md:bottom-6',
+          // Reposition above the panel when open, clear mobile nav otherwise
+          agentOpen ? 'bottom-[calc(60vh+1rem)]' : 'bottom-20 md:bottom-6',
         ].join(' ')}
       >
         {icon}
@@ -321,9 +321,9 @@ export function VoiceAgent({ userName, userRole }: Props) {
       {/* Agent panel */}
       {agentOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop — above sidebar (z-30) but below modals (z-50) */}
           <div
-            className="fixed inset-0 z-30 bg-black/20"
+            className="fixed inset-0 z-40 bg-black/20"
             onClick={handleClose}
             aria-hidden
           />
