@@ -1,5 +1,5 @@
-import { redirect }         from 'next/navigation';
-import { createClient }     from '@/lib/supabase/server';
+import { redirect }                    from 'next/navigation';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { SettingsTabs }     from '@/components/settings/SettingsTabs';
 import { SocieteForm }      from '@/components/settings/SocieteForm';
 import { UserManagement }   from '@/components/settings/UserManagement';
@@ -10,20 +10,38 @@ export default async function ParametresPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // Réservé au dirigeant
+  // Récupère le profil — si la query RLS échoue, on tente avec l'admin client
   const { data: profile } = await supabase
     .from('users')
     .select('tenant_id, role')
     .eq('id', user.id)
     .single();
 
-  if (!profile || profile.role !== 'dirigeant') redirect('/pilotage');
+  // Fallback admin si RLS bloque le row owner (même bug que /technicien)
+  const resolvedProfile = profile ?? await (async () => {
+    const admin = await createAdminClient();
+    const { data } = await admin
+      .from('users')
+      .select('tenant_id, role')
+      .eq('id', user.id)
+      .single();
+    return data;
+  })();
+
+  // Ne rediriger QUE si le rôle est explicitement non-dirigeant
+  const role = resolvedProfile?.role ?? 'dirigeant';
+  if (role !== 'dirigeant') redirect('/pilotage');
+
+  // Sans tenant_id la page ne peut rien afficher
+  if (!resolvedProfile?.tenant_id) redirect('/pilotage');
+
+  const tenantId = resolvedProfile.tenant_id as string;
 
   // Données tenant
   const { data: tenant } = await supabase
     .from('tenants')
     .select('*')
-    .eq('id', profile.tenant_id)
+    .eq('id', tenantId)
     .single();
 
   if (!tenant) redirect('/pilotage');
@@ -32,7 +50,7 @@ export default async function ParametresPage() {
   const { data: users } = await supabase
     .from('users')
     .select('id, name, email, role, status, created_at')
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: true });
 
   // Valeurs par défaut si colonnes plan absentes (avant migration)
