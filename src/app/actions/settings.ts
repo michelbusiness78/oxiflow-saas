@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server'; // createAdminClient used in getDirigentContext
 
 const PATH = '/pilotage/parametres';
 
@@ -12,7 +12,10 @@ async function getDirigentContext() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error('Non authentifié');
 
-  const { data: profile } = await supabase
+  // Admin client pour bypass RLS sur la table users
+  const admin = await createAdminClient();
+
+  const { data: profile } = await admin
     .from('users')
     .select('tenant_id, role')
     .eq('id', user.id)
@@ -20,7 +23,7 @@ async function getDirigentContext() {
   if (!profile) throw new Error('Profil introuvable');
   if (profile.role !== 'dirigeant') throw new Error('Accès refusé');
 
-  return { supabase, user, tenant_id: profile.tenant_id as string };
+  return { supabase, admin, user, tenant_id: profile.tenant_id as string };
 }
 
 // ── SOCIÉTÉ ────────────────────────────────────────────────────────────────────
@@ -42,8 +45,8 @@ export type SocieteInput = {
 
 export async function updateSocieteAction(input: SocieteInput) {
   try {
-    const { supabase, tenant_id } = await getDirigentContext();
-    const { error } = await supabase
+    const { admin, tenant_id } = await getDirigentContext();
+    const { error } = await admin
       .from('tenants')
       .update(input)
       .eq('id', tenant_id);
@@ -57,25 +60,24 @@ export async function updateSocieteAction(input: SocieteInput) {
 
 export async function uploadLogoAction(formData: FormData) {
   try {
-    const { supabase, tenant_id } = await getDirigentContext();
+    const { admin, tenant_id } = await getDirigentContext();
     const file = formData.get('file') as File | null;
     if (!file) return { error: 'Fichier manquant' };
 
     const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'png';
     const path = `${tenant_id}/logo.${ext}`;
 
-    const adminClient = await createAdminClient();
-    const { error: uploadError } = await adminClient.storage
+    const { error: uploadError } = await admin.storage
       .from('logos')
       .upload(path, file, { upsert: true, contentType: file.type });
     if (uploadError) return { error: uploadError.message };
 
-    const { data: { publicUrl } } = adminClient.storage
+    const { data: { publicUrl } } = admin.storage
       .from('logos')
       .getPublicUrl(path);
 
     const logo_url = `${publicUrl}?t=${Date.now()}`;
-    await supabase.from('tenants').update({ logo_url }).eq('id', tenant_id);
+    await admin.from('tenants').update({ logo_url }).eq('id', tenant_id);
     revalidatePath(PATH);
     return { success: true, logo_url };
   } catch (e) {
@@ -93,11 +95,10 @@ export type InviteUserInput = {
 
 export async function inviteUserAction(input: InviteUserInput) {
   try {
-    const { tenant_id } = await getDirigentContext();
-    const adminClient   = await createAdminClient();
+    const { admin, tenant_id } = await getDirigentContext();
 
     // Invite via Supabase Auth (envoie l'email de définition de mot de passe)
-    const { data: authData, error: authError } = await adminClient.auth.admin.inviteUserByEmail(
+    const { data: authData, error: authError } = await admin.auth.admin.inviteUserByEmail(
       input.email,
       {
         data:       { name: input.name },
@@ -107,7 +108,7 @@ export async function inviteUserAction(input: InviteUserInput) {
     if (authError) return { error: authError.message };
 
     // Insert dans la table publique users
-    const { error: dbError } = await adminClient
+    const { error: dbError } = await admin
       .from('users')
       .insert({
         id:        authData.user.id,
@@ -128,8 +129,8 @@ export async function inviteUserAction(input: InviteUserInput) {
 
 export async function updateUserRoleAction(userId: string, role: string) {
   try {
-    const { supabase } = await getDirigentContext();
-    const { error } = await supabase
+    const { admin } = await getDirigentContext();
+    const { error } = await admin
       .from('users')
       .update({ role })
       .eq('id', userId);
@@ -143,9 +144,9 @@ export async function updateUserRoleAction(userId: string, role: string) {
 
 export async function toggleUserStatusAction(userId: string, status: 'active' | 'inactive') {
   try {
-    const { supabase, user } = await getDirigentContext();
+    const { admin, user } = await getDirigentContext();
     if (userId === user.id) return { error: 'Impossible de modifier votre propre statut' };
-    const { error } = await supabase
+    const { error } = await admin
       .from('users')
       .update({ status })
       .eq('id', userId);
@@ -159,15 +160,14 @@ export async function toggleUserStatusAction(userId: string, status: 'active' | 
 
 export async function deleteUserAction(userId: string) {
   try {
-    const { user, supabase } = await getDirigentContext();
+    const { admin, user } = await getDirigentContext();
     if (userId === user.id) return { error: 'Vous ne pouvez pas vous supprimer vous-même' };
 
-    const adminClient = await createAdminClient();
-    const { error: authError } = await adminClient.auth.admin.deleteUser(userId);
+    const { error: authError } = await admin.auth.admin.deleteUser(userId);
     if (authError) return { error: authError.message };
 
     // Supprime aussi dans public.users si la FK CASCADE ne le fait pas
-    await supabase.from('users').delete().eq('id', userId);
+    await admin.from('users').delete().eq('id', userId);
 
     revalidatePath(PATH);
     return { success: true };
