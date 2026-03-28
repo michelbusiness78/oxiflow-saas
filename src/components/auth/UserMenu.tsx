@@ -79,7 +79,7 @@ export function UserMenu({ name, email }: UserMenuProps) {
               Mon profil
             </a>
             <a
-              href="/parametres"
+              href="/pilotage/parametres"
               onClick={() => setOpen(false)}
               className="flex items-center gap-3 px-4 py-2 text-sm text-oxi-text hover:bg-oxi-bg transition-colors"
             >
