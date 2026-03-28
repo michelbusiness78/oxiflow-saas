@@ -114,7 +114,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
         },
         margin: { left: 14, right: 14 },
       });
-      y = (doc as JsPDFInstance & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+      y = (doc as unknown as JsPDFInstance & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
 
       // ── Checklist ──
       if (intervention.checklist.length > 0) {
@@ -137,7 +137,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
           columnStyles: { 0: { cellWidth: 10, halign: 'center' } },
           margin: { left: 14, right: 14 },
         });
-        y = (doc as JsPDFInstance & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = (doc as unknown as JsPDFInstance & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       // ── Matériel ──
@@ -162,7 +162,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
           columnStyles: { 2: { halign: 'center', cellWidth: 15 } },
           margin: { left: 14, right: 14 },
         });
-        y = (doc as JsPDFInstance & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = (doc as unknown as JsPDFInstance & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       // ── Notes ──
@@ -227,7 +227,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
       }
 
       // ── Footer ──
-      const pageCount = (doc as JsPDFInstance & { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages();
+      const pageCount = (doc as unknown as JsPDFInstance & { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFillColor(...BLUE);
