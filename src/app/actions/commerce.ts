@@ -132,10 +132,43 @@ export async function changeDevisStatutAction(
   id: string,
   statut: 'brouillon' | 'envoye' | 'accepte' | 'refuse',
 ) {
-  const { supabase } = await getAuthContext();
+  const { supabase, tenant_id, user } = await getAuthContext();
   const { error } = await supabase.from('devis').update({ statut }).eq('id', id);
   if (error) return { error: error.message };
+
+  // Création automatique d'un projet quand le devis est accepté
+  if (statut === 'accepte') {
+    const { data: devis } = await supabase
+      .from('devis')
+      .select('id, num, client_id, montant_ht, clients(nom)')
+      .eq('id', id)
+      .single();
+
+    if (devis) {
+      const { data: existing } = await supabase
+        .from('projets')
+        .select('id')
+        .eq('devis_id', id)
+        .maybeSingle();
+
+      if (!existing) {
+        const clientNom = (devis.clients as unknown as { nom: string } | null)?.nom ?? '';
+        await supabase.from('projets').insert({
+          tenant_id,
+          client_id:      devis.client_id,
+          devis_id:       devis.id,
+          chef_projet_id: user.id,
+          nom:            `Projet ${clientNom} — ${devis.num}`,
+          statut:         'en_attente',
+          pct_avancement: 0,
+          montant_ht:     devis.montant_ht,
+        });
+      }
+    }
+  }
+
   revalidatePath(PATH);
+  revalidatePath('/projets');
   return { success: true };
 }
 
