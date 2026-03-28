@@ -79,10 +79,10 @@ export function VoiceAgent({ userName, userRole }: Props) {
       },
     });
 
-    // SpeechSynthesis needs voices loaded (async in Chrome)
+    // Chrome: voices load async — trigger the load and cache them on change
     if (isTTSSupported()) {
-      speechSynthesis.onvoiceschanged = () => {};
-      speechSynthesis.getVoices();
+      speechSynthesis.getVoices(); // trigger first load
+      speechSynthesis.onvoiceschanged = () => { speechSynthesis.getVoices(); };
     }
 
     return () => {

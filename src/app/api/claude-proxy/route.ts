@@ -41,21 +41,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── 3. Récupère le tenant_id ───────────────────────────────────────────────
-  const { data: profile, error: profileError } = await supabase
+  // ── 3. Récupère le tenant_id (non-bloquant — sert uniquement au logging) ──
+  const { data: profile } = await supabase
     .from('users')
     .select('tenant_id')
     .eq('id', user.id)
     .single();
 
-  if (profileError || !profile) {
-    return NextResponse.json(
-      { error: 'Profil utilisateur introuvable.' },
-      { status: 403 },
-    );
-  }
-
-  const { tenant_id } = profile;
+  const tenant_id: string | null = profile?.tenant_id ?? null;
 
   // ── 4. Parse et valide le body entrant ────────────────────────────────────
   let body: {

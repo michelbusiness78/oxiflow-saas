@@ -60,12 +60,20 @@ export class TTSQueue {
     utterance.rate   = this.rate;
     utterance.pitch  = 1;
 
-    // Prefer a local French voice over a Google/cloud one (lower latency)
-    const voices = speechSynthesis.getVoices();
-    const frVoice =
-      voices.find((v) => v.lang === 'fr-FR' && v.localService) ??
-      voices.find((v) => v.lang.startsWith('fr'));
+    // Chrome bug: getVoices() returns [] before onvoiceschanged — try twice
+    const pickFrVoice = () => {
+      const voices = speechSynthesis.getVoices();
+      return (
+        voices.find((v) => v.lang === 'fr-FR' && v.localService) ??
+        voices.find((v) => v.lang === 'fr-FR') ??
+        voices.find((v) => v.lang.startsWith('fr'))
+      );
+    };
+    const frVoice = pickFrVoice();
     if (frVoice) utterance.voice = frVoice;
+
+    // Chrome bug: speechSynthesis can be suspended silently after inactivity
+    if (speechSynthesis.paused) speechSynthesis.resume();
 
     utterance.onstart = () => {
       if (this.queue.length === 0) this.onStart?.();
