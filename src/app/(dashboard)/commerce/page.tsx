@@ -4,17 +4,22 @@ import { createClient } from '@/lib/supabase/server';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { ClientList }  from '@/components/commerce/ClientList';
 import { DevisList }   from '@/components/commerce/DevisList';
-import type { Client } from '@/components/commerce/ClientList';
-import type { Devis }  from '@/components/commerce/DevisForm';
+import { FactureList } from '@/components/commerce/FactureList';
+import { ContratList } from '@/components/commerce/ContratList';
+import type { Client }   from '@/components/commerce/ClientList';
+import type { Devis }    from '@/components/commerce/DevisForm';
+import type { Facture }  from '@/components/commerce/FactureForm';
+import type { Contrat }  from '@/components/commerce/ContratForm';
+import type { DevisLigne } from '@/app/actions/commerce';
 
-// ─── Fetch data ───────────────────────────────────────────────────────────────
+// ─── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchCommerceData() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const [clientsRes, devisRes] = await Promise.all([
+  const [clientsRes, devisRes, facturesRes, contratsRes] = await Promise.all([
     supabase
       .from('clients')
       .select('id, nom, contact, email, tel, adresse, cp, ville, notes, created_at')
@@ -23,41 +28,75 @@ async function fetchCommerceData() {
       .from('devis')
       .select('id, num, client_id, date, validite, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
       .order('created_at', { ascending: false }),
+    supabase
+      .from('factures')
+      .select('id, num, client_id, devis_id, date, echeance, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('contrats')
+      .select('id, client_id, type, date_debut, date_fin, montant_mensuel, actif, created_at, clients(nom)')
+      .order('created_at', { ascending: false }),
   ]);
 
   const clients = (clientsRes.data ?? []) as Client[];
 
-  // Enrichit chaque devis avec le nom du client
   const devis = (devisRes.data ?? []).map((d) => ({
     ...d,
     lignes:     (d.lignes as Devis['lignes']) ?? [],
     client_nom: (d.clients as unknown as { nom: string } | null)?.nom ?? '—',
   }));
 
-  return { clients, devis };
+  const factures = (facturesRes.data ?? []).map((f) => ({
+    ...f,
+    lignes:     (f.lignes as Facture['lignes']) ?? [],
+    client_nom: (f.clients as unknown as { nom: string } | null)?.nom ?? '—',
+  }));
+
+  const contrats = (contratsRes.data ?? []).map((c) => ({
+    ...c,
+    client_nom: (c.clients as unknown as { nom: string } | null)?.nom ?? '—',
+  }));
+
+  return { clients, devis, factures, contrats };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; from_devis?: string }>;
 }
 
 export default async function CommercePage({ searchParams }: PageProps) {
-  const { clients, devis } = await fetchCommerceData();
+  const { clients, devis, factures, contrats } = await fetchCommerceData();
   const params = await searchParams;
   const tab    = params?.tab ?? 'clients';
+
+  // Pré-remplissage facture depuis un devis accepté
+  const fromDevisId = params?.from_devis;
+  const fromDevis = fromDevisId
+    ? devis.find((d) => d.id === fromDevisId) ?? null
+    : null;
+
+  const fromDevisData = fromDevis
+    ? {
+        id:          fromDevis.id,
+        client_id:   fromDevis.client_id,
+        lignes:      fromDevis.lignes as DevisLigne[],
+        montant_ht:  fromDevis.montant_ht,
+        tva:         fromDevis.tva,
+        montant_ttc: fromDevis.montant_ttc,
+      }
+    : null;
 
   const tabs: TabItem[] = [
     { key: 'clients',  label: 'Clients',  count: clients.length  },
     { key: 'devis',    label: 'Devis',    count: devis.length    },
-    { key: 'factures', label: 'Factures'                         },
-    { key: 'contrats', label: 'Contrats'                         },
+    { key: 'factures', label: 'Factures', count: factures.length },
+    { key: 'contrats', label: 'Contrats', count: contrats.length },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Titre */}
       <div>
         <h1 className="text-xl font-semibold text-oxi-text">Commerce</h1>
         <p className="mt-0.5 text-sm text-oxi-text-secondary">
@@ -65,44 +104,24 @@ export default async function CommercePage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      {/* Onglets */}
       <Suspense>
         <Tabs tabs={tabs} current={tab} />
       </Suspense>
 
-      {/* Contenu */}
       <div className="space-y-4">
-        {tab === 'clients' && (
-          <ClientList clients={clients} />
-        )}
+        {tab === 'clients' && <ClientList clients={clients} />}
 
-        {tab === 'devis' && (
-          <DevisList devis={devis} clients={clients} />
-        )}
+        {tab === 'devis' && <DevisList devis={devis} clients={clients} />}
 
         {tab === 'factures' && (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-oxi-border bg-oxi-surface py-16 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-oxi-bg">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-6 w-6 text-oxi-text-muted" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-              </svg>
-            </div>
-            <p className="text-sm font-medium text-oxi-text-secondary">Module Factures</p>
-            <p className="mt-1 text-xs text-oxi-text-muted">Bientôt disponible — Session 7</p>
-          </div>
+          <FactureList
+            factures={factures}
+            clients={clients}
+            fromDevis={fromDevisData}
+          />
         )}
 
-        {tab === 'contrats' && (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-oxi-border bg-oxi-surface py-16 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-oxi-bg">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-6 w-6 text-oxi-text-muted" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-            </div>
-            <p className="text-sm font-medium text-oxi-text-secondary">Module Contrats</p>
-            <p className="mt-1 text-xs text-oxi-text-muted">Bientôt disponible — Session 8</p>
-          </div>
-        )}
+        {tab === 'contrats' && <ContratList contrats={contrats} clients={clients} />}
       </div>
     </div>
   );
