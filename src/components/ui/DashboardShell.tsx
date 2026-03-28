@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { MobileNav } from './MobileNav';
 import { NavIcon } from './NavIcon';
 import { UserMenu } from '@/components/auth/UserMenu';
+import { VoiceAgent } from '@/components/voice/VoiceAgent';
 import { usePathname } from 'next/navigation';
 import { navModules } from '@/lib/theme';
 
@@ -40,10 +41,11 @@ interface DashboardShellProps {
   children:      React.ReactNode;
   userName:      string;
   userEmail:     string;
+  userRole:      string;
   allowedHrefs?: string[];
 }
 
-export function DashboardShell({ children, userName, userEmail, allowedHrefs }: DashboardShellProps) {
+export function DashboardShell({ children, userName, userEmail, userRole, allowedHrefs }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -78,6 +80,7 @@ export function DashboardShell({ children, userName, userEmail, allowedHrefs }: 
         </main>
       </div>
 
+      <VoiceAgent userName={userName} userRole={userRole} />
       <MobileNav allowedHrefs={allowedHrefs} />
     </div>
   );

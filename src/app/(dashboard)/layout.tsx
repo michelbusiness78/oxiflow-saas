@@ -38,6 +38,7 @@ export default async function DashboardLayout({
     <DashboardShell
       userName={userName}
       userEmail={userEmail}
+      userRole={role}
       allowedHrefs={allowedHrefs}
     >
       {children}
