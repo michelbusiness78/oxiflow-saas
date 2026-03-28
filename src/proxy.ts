@@ -33,7 +33,8 @@ function isDashboardModule(pathname: string) {
 }
 
 function isAllowed(role: string, pathname: string): boolean {
-  const allowed = ROLE_MODULES[role] ?? ROLE_MODULES.dirigeant;
+  if (role === 'dirigeant') return true;  // dirigeant = accès total
+  const allowed = ROLE_MODULES[role] ?? [];
   return allowed.some((m) => pathname === m || pathname.startsWith(m + '/'));
 }
 
@@ -83,7 +84,7 @@ export async function proxy(request: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    const role = profile?.role ?? 'commercial';
+    const role = profile?.role ?? 'dirigeant';  // fallback = accès total si profil manquant
 
     if (!isAllowed(role, pathname)) {
       const url = request.nextUrl.clone();

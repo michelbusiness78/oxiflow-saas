@@ -27,10 +27,12 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .single();
 
-  const userName     = profile?.name  ?? user.email ?? 'Utilisateur';
-  const userEmail    = profile?.email ?? user.email ?? '';
-  const role         = profile?.role  ?? 'commercial';
-  const allowedHrefs = ROLE_MODULES[role] ?? ROLE_MODULES.commercial;
+  const userName  = profile?.name  ?? user.email ?? 'Utilisateur';
+  const userEmail = profile?.email ?? user.email ?? '';
+  const role      = profile?.role  ?? 'dirigeant';  // fallback = accès total si profil manquant
+
+  // dirigeant = aucune restriction (undefined = tout afficher)
+  const allowedHrefs = role === 'dirigeant' ? undefined : (ROLE_MODULES[role] ?? ROLE_MODULES.commercial);
 
   return (
     <DashboardShell
