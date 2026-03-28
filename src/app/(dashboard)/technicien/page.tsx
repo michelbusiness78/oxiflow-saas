@@ -12,10 +12,11 @@ async function fetchTechnicienData() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('tenant_id, name')
+    .select('name')
     .eq('id', user.id)
     .single();
-  if (!profile) redirect('/login');
+
+  const profileName = profile?.name ?? user.email ?? 'Technicien';
 
   const [interventionsRes, clientsRes, catalogueRes] = await Promise.all([
     supabase
@@ -49,14 +50,14 @@ async function fetchTechnicienData() {
     checklist:      (i.checklist as Intervention['checklist'])   ?? [],
     materiel:       (i.materiel  as Intervention['materiel'])    ?? [],
     client_nom:     (i.clients as unknown as { nom: string } | null)?.nom ?? '—',
-    technicien_nom: (i.users   as unknown as { name: string } | null)?.name ?? profile.name,
+    technicien_nom: (i.users   as unknown as { name: string } | null)?.name ?? profileName,
   })) as Intervention[];
 
   return {
     interventions,
     clients:     clientsRes.data   ?? [],
     catalogue:   catalogueRes.data ?? [],
-    currentUser: { id: user.id, name: profile.name },
+    currentUser: { id: user.id, name: profileName },
   };
 }
 
