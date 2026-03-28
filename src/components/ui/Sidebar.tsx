@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { navModules } from '@/lib/theme';
 import { NavIcon } from './NavIcon';
+import { createClient } from '@/lib/supabase/client';
 
 interface SidebarProps {
   isOpen:         boolean;
@@ -14,6 +15,14 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose, allowedHrefs, showSettings }: SidebarProps) {
   const pathname = usePathname();
+  const router   = useRouter();
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  }
   const visibleModules = allowedHrefs
     ? navModules.filter((m) => allowedHrefs.includes(m.href))
     : navModules;
@@ -118,7 +127,11 @@ export function Sidebar({ isOpen, onClose, allowedHrefs, showSettings }: Sidebar
               <span>Paramètres</span>
             </Link>
           )}
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+          >
             <NavIcon name="logout" className="w-5 h-5 shrink-0" />
             <span>Déconnexion</span>
           </button>
