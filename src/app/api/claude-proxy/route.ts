@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -147,8 +147,9 @@ export async function POST(request: NextRequest) {
   const tokensIn  = anthropicData.usage?.input_tokens  ?? 0;
   const tokensOut = anthropicData.usage?.output_tokens ?? 0;
 
-  // Fire-and-forget : on n'attend pas le log pour répondre au client
-  supabase
+  // Fire-and-forget avec admin client (contourne la policy no_client_insert)
+  createAdminClient().then((admin) =>
+  admin
     .from('api_usage')
     .insert({
       tenant_id,
@@ -159,7 +160,8 @@ export async function POST(request: NextRequest) {
     })
     .then(({ error }) => {
       if (error) console.error('[claude-proxy] log usage error:', error.message);
-    });
+    })
+  );
 
   // ── 9. Retourne la réponse au client ──────────────────────────────────────
   return NextResponse.json(anthropicData, {
