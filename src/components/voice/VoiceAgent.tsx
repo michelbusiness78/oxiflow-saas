@@ -49,6 +49,7 @@ export function VoiceAgent({ userName, userRole }: Props) {
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const statusRef      = useRef<AgentStatus>('idle');    // mirrors state — safe in callbacks
+  const agentOpenRef   = useRef(false);                  // mirrors agentOpen — safe in callbacks
   const recognitionRef = useRef<SpeechRecognitionHandle | null>(null);
   const ttsRef         = useRef<TTSQueue | null>(null);
   const historyRef     = useRef<AgentMessage[]>([]);     // Claude message history
@@ -58,8 +59,9 @@ export function VoiceAgent({ userName, userRole }: Props) {
   const closeTimer     = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isAgentMode    = useRef(false);                  // single vs agent mode
 
-  // Keep statusRef in sync
+  // Keep refs in sync with state
   useEffect(() => { statusRef.current = status; }, [status]);
+  useEffect(() => { agentOpenRef.current = agentOpen; }, [agentOpen]);
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
@@ -70,8 +72,8 @@ export function VoiceAgent({ userName, userRole }: Props) {
     ttsRef.current = new TTSQueue({
       onStart: () => setStatus('speaking'),
       onEnd:   () => {
-        // After speaking, go back to listening in agent mode
-        if (isAgentMode.current && agentOpen) {
+        // After speaking, loop back to listening in agent mode
+        if (isAgentMode.current && agentOpenRef.current) {
           startListening();
         } else {
           safeSetStatus('idle');
