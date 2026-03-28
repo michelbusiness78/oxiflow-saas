@@ -6,12 +6,16 @@ import { navModules } from '@/lib/theme';
 import { NavIcon } from './NavIcon';
 
 interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen:        boolean;
+  onClose:       () => void;
+  allowedHrefs?: string[];
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, allowedHrefs }: SidebarProps) {
   const pathname = usePathname();
+  const visibleModules = allowedHrefs
+    ? navModules.filter((m) => allowedHrefs.includes(m.href))
+    : navModules;
 
   return (
     <>
@@ -61,7 +65,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             Modules
           </p>
           <ul className="space-y-0.5">
-            {navModules.map((module) => {
+            {visibleModules.map((module) => {
               const isActive =
                 pathname === module.href ||
                 pathname.startsWith(module.href + '/');

@@ -37,17 +37,22 @@ function Breadcrumb() {
 }
 
 interface DashboardShellProps {
-  children: React.ReactNode;
-  userName: string;
-  userEmail: string;
+  children:      React.ReactNode;
+  userName:      string;
+  userEmail:     string;
+  allowedHrefs?: string[];
 }
 
-export function DashboardShell({ children, userName, userEmail }: DashboardShellProps) {
+export function DashboardShell({ children, userName, userEmail, allowedHrefs }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex h-full bg-oxi-bg">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        allowedHrefs={allowedHrefs}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b border-oxi-border bg-oxi-surface px-4 md:px-6">
@@ -73,7 +78,7 @@ export function DashboardShell({ children, userName, userEmail }: DashboardShell
         </main>
       </div>
 
-      <MobileNav />
+      <MobileNav allowedHrefs={allowedHrefs} />
     </div>
   );
 }

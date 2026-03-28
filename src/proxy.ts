@@ -1,8 +1,43 @@
+import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
-// Routes accessibles sans authentification
+// ─── Routes publiques (pas d'auth requise) ────────────────────────────────────
+
 const PUBLIC_PATHS = ['/login', '/register', '/forgot-password'];
+
+// ─── Accès par rôle ───────────────────────────────────────────────────────────
+
+const ROLE_MODULES: Record<string, string[]> = {
+  dirigeant:   ['/pilotage', '/commerce', '/projets', '/technicien', '/chef-projet', '/rh'],
+  commercial:  ['/pilotage', '/commerce'],
+  technicien:  ['/technicien'],
+  chef_projet: ['/pilotage', '/projets', '/chef-projet'],
+  rh:          ['/pilotage', '/rh'],
+};
+
+// Module par défaut si accès refusé
+const ROLE_DEFAULT: Record<string, string> = {
+  dirigeant:   '/pilotage',
+  commercial:  '/commerce',
+  technicien:  '/technicien',
+  chef_projet: '/projets',
+  rh:          '/pilotage',
+};
+
+// Tous les modules dashboard (pour détecter si la route est un module)
+const ALL_MODULES = ['/pilotage', '/commerce', '/projets', '/technicien', '/chef-projet', '/rh'];
+
+function isDashboardModule(pathname: string) {
+  return ALL_MODULES.some((m) => pathname === m || pathname.startsWith(m + '/'));
+}
+
+function isAllowed(role: string, pathname: string): boolean {
+  const allowed = ROLE_MODULES[role] ?? ROLE_MODULES.dirigeant;
+  return allowed.some((m) => pathname === m || pathname.startsWith(m + '/'));
+}
+
+// ─── Proxy function ───────────────────────────────────────────────────────────
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -12,7 +47,7 @@ export async function proxy(request: NextRequest) {
     (p) => pathname === p || pathname.startsWith(p + '/'),
   );
 
-  // Pas connecté → redirige vers /login (sauf pages publiques)
+  // Pas connecté → redirige vers /login
   if (!user && !isPublicPath) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
@@ -22,10 +57,40 @@ export async function proxy(request: NextRequest) {
 
   // Déjà connecté → redirige hors des pages auth
   if (user && isPublicPath) {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = '/pilotage';
-    dashboardUrl.search = '';
-    return NextResponse.redirect(dashboardUrl);
+    const url = request.nextUrl.clone();
+    url.pathname = '/pilotage';
+    url.search   = '';
+    return NextResponse.redirect(url);
+  }
+
+  // Vérification du rôle pour les modules dashboard
+  if (user && isDashboardModule(pathname)) {
+    // Récupère le rôle depuis la DB (même client auth que updateSession)
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => request.cookies.getAll(),
+          setAll: () => {},  // lecture seule ici — les cookies sont gérés par updateSession
+        },
+      },
+    );
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const role = profile?.role ?? 'commercial';
+
+    if (!isAllowed(role, pathname)) {
+      const url = request.nextUrl.clone();
+      url.pathname = ROLE_DEFAULT[role] ?? '/pilotage';
+      url.search   = '';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;
@@ -33,12 +98,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Toutes les routes sauf :
-     * - _next/static, _next/image (assets)
-     * - favicon.ico
-     * - fichiers statiques (svg, png…)
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

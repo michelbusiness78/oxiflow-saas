@@ -5,11 +5,15 @@ import { usePathname } from 'next/navigation';
 import { navModules } from '@/lib/theme';
 import { NavIcon } from './NavIcon';
 
-// 5 items max pour la bottom nav mobile
-const mobileItems = navModules.slice(0, 5);
+interface MobileNavProps {
+  allowedHrefs?: string[];
+}
 
-export function MobileNav() {
+export function MobileNav({ allowedHrefs }: MobileNavProps) {
   const pathname = usePathname();
+  const mobileItems = (
+    allowedHrefs ? navModules.filter((m) => allowedHrefs.includes(m.href)) : navModules
+  ).slice(0, 5);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 flex h-16 items-stretch border-t border-oxi-border bg-oxi-surface md:hidden">

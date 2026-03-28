@@ -21,17 +21,17 @@ async function fetchProjetsData() {
     await Promise.all([
       supabase
         .from('projets')
-        .select('id, client_id, nom, type_projet, statut, date_debut, date_fin_prevue, pct_avancement, montant_ht, devis_id, facture_id, chef_projet_id, created_at, clients(nom), users(nom, prenom)')
+        .select('id, client_id, nom, type_projet, statut, date_debut, date_fin_prevue, pct_avancement, montant_ht, devis_id, facture_id, chef_projet_id, created_at, clients(nom), users(name)')
         .order('created_at', { ascending: false }),
 
       supabase
         .from('taches')
-        .select('id, projet_id, titre, description, assigne_a, priorite, etat, date_echeance, pct_avancement, created_at, projets(nom), users(nom, prenom)')
+        .select('id, projet_id, titre, description, assigne_a, priorite, etat, date_echeance, pct_avancement, created_at, projets(nom), users(name)')
         .order('created_at', { ascending: false }),
 
       supabase
         .from('sav_tickets')
-        .select('id, client_id, titre, description, priorite, statut, contrat_id, assigne_a, date_ouverture, date_resolution, created_at, clients(nom), users(nom, prenom)')
+        .select('id, client_id, titre, description, priorite, statut, contrat_id, assigne_a, date_ouverture, date_resolution, created_at, clients(nom), users(name)')
         .order('date_ouverture', { ascending: false }),
 
       supabase
@@ -56,15 +56,19 @@ async function fetchProjetsData() {
 
       supabase
         .from('users')
-        .select('id, nom, prenom')
-        .order('nom'),
+        .select('id, name')
+        .order('name'),
     ]);
 
   const clients  = clientsRes.data  ?? [];
   const contrats = contratsRes.data ?? [];
   const devis    = devisRes.data    ?? [];
   const factures = facturesRes.data ?? [];
-  const users    = usersRes.data    ?? [];
+  const users    = (usersRes.data ?? []).map((u) => ({
+    id:     u.id,
+    nom:    u.name,   // alias pour les composants qui attendent nom/prenom
+    prenom: '',
+  }));
 
   const dossiers = (projetsRes.data ?? []).map((p) => ({
     ...p,
@@ -73,20 +77,14 @@ async function fetchProjetsData() {
     facture_id:     p.facture_id     ?? null,
     chef_projet_id: p.chef_projet_id ?? null,
     client_nom: (p.clients as unknown as { nom: string } | null)?.nom ?? '—',
-    chef_nom:   (() => {
-      const u = p.users as unknown as { nom: string; prenom: string } | null;
-      return u ? `${u.prenom} ${u.nom}` : '—';
-    })(),
+    chef_nom:   (p.users   as unknown as { name: string } | null)?.name ?? '—',
   })) as (Dossier & { client_id: string; client_nom: string; chef_nom: string; devis_num?: string })[];
 
   const taches = (tachesRes.data ?? []).map((t) => ({
     ...t,
     description: t.description ?? null,
     projet_nom:  (t.projets as unknown as { nom: string } | null)?.nom,
-    assigne_nom: (() => {
-      const u = t.users as unknown as { nom: string; prenom: string } | null;
-      return u ? `${u.prenom} ${u.nom}` : undefined;
-    })(),
+    assigne_nom: (t.users   as unknown as { name: string } | null)?.name,
   })) as (Tache & { client_id?: string; projet_nom?: string; assigne_nom?: string })[];
 
   const savTickets = (savRes.data ?? []).map((s) => ({
@@ -95,14 +93,10 @@ async function fetchProjetsData() {
     assigne_a:    s.assigne_a  ?? null,
     contrat_id:   s.contrat_id ?? null,
     client_nom:   (s.clients as unknown as { nom: string } | null)?.nom ?? '—',
-    assigne_nom:  (() => {
-      const u = s.users as unknown as { nom: string; prenom: string } | null;
-      return u ? `${u.prenom} ${u.nom}` : undefined;
-    })(),
+    assigne_nom:  (s.users   as unknown as { name: string } | null)?.name,
     sous_contrat: !!s.contrat_id,
   })) as (SAVTicket & { client_id: string; client_nom?: string; assigne_nom?: string; sous_contrat?: boolean })[];
 
-  // Liste des devis pour le formulaire dossier (id + num + client_id)
   const devisForForm = devis.map((d) => ({ id: d.id, num: d.num, client_id: d.client_id }));
 
   return { dossiers, taches, savTickets, clients, contrats, devis, factures, users, devisForForm };
@@ -122,10 +116,10 @@ export default async function ProjetsPage({ searchParams }: PageProps) {
   const tab    = params?.tab ?? 'dossiers';
 
   const tabs: TabItem[] = [
-    { key: 'dossiers',      label: 'Dossiers',     count: dossiers.length    },
-    { key: 'taches',        label: 'Tâches',        count: taches.length      },
-    { key: 'sav',           label: 'SAV',           count: savTickets.filter((t) => t.statut === 'ouvert' || t.statut === 'en_cours').length },
-    { key: 'fiche-client',  label: 'Fiche Client'                              },
+    { key: 'dossiers',     label: 'Dossiers',    count: dossiers.length    },
+    { key: 'taches',       label: 'Tâches',       count: taches.length      },
+    { key: 'sav',          label: 'SAV',          count: savTickets.filter((t) => t.statut === 'ouvert' || t.statut === 'en_cours').length },
+    { key: 'fiche-client', label: 'Fiche Client'                             },
   ];
 
   return (
