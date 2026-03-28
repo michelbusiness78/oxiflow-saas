@@ -54,6 +54,7 @@ export function DashboardShell({ children, userName, userEmail, userRole, allowe
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         allowedHrefs={allowedHrefs}
+        showSettings={userRole === 'dirigeant'}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">

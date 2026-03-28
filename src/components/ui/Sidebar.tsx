@@ -6,12 +6,13 @@ import { navModules } from '@/lib/theme';
 import { NavIcon } from './NavIcon';
 
 interface SidebarProps {
-  isOpen:        boolean;
-  onClose:       () => void;
-  allowedHrefs?: string[];
+  isOpen:         boolean;
+  onClose:        () => void;
+  allowedHrefs?:  string[];
+  showSettings?:  boolean;
 }
 
-export function Sidebar({ isOpen, onClose, allowedHrefs }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, allowedHrefs, showSettings }: SidebarProps) {
   const pathname = usePathname();
   const visibleModules = allowedHrefs
     ? navModules.filter((m) => allowedHrefs.includes(m.href))
@@ -100,16 +101,23 @@ export function Sidebar({ isOpen, onClose, allowedHrefs }: SidebarProps) {
         </nav>
 
         {/* Footer sidebar */}
-        <div className="shrink-0 border-t border-white/10 p-3">
-          <div className="mb-2 flex items-center gap-3 rounded-lg px-3 py-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-oxi-primary/20 text-sm font-semibold text-oxi-primary">
-              M
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-white">Mon Compte</p>
-              <p className="truncate text-xs text-white/40">admin@oxiflow.fr</p>
-            </div>
-          </div>
+        <div className="shrink-0 border-t border-white/10 p-3 space-y-0.5">
+          {/* Paramètres — visible uniquement pour le dirigeant */}
+          {showSettings && (
+            <Link
+              href="/pilotage/parametres"
+              onClick={onClose}
+              className={[
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                pathname === '/pilotage/parametres'
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/60 hover:bg-white/10 hover:text-white',
+              ].join(' ')}
+            >
+              <NavIcon name="settings" className="w-5 h-5 shrink-0" />
+              <span>Paramètres</span>
+            </Link>
+          )}
           <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors">
             <NavIcon name="logout" className="w-5 h-5 shrink-0" />
             <span>Déconnexion</span>
