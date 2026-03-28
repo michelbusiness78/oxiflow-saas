@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { DashboardShell } from '@/components/ui/DashboardShell';
+import { ensureUserProfile } from '@/lib/ensure-profile';
 
 // Modules autorisés par rôle (en sync avec proxy.ts)
 const ROLE_MODULES: Record<string, string[]> = {
@@ -20,6 +21,9 @@ export default async function DashboardLayout({
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
+
+  // Crée le profil dans public.users si absent (premier login, compte importé, etc.)
+  await ensureUserProfile(user);
 
   const { data: profile } = await supabase
     .from('users')

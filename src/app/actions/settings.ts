@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient, createAdminClient } from '@/lib/supabase/server'; // createAdminClient used in getDirigentContext
+import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { ensureUserProfile } from '@/lib/ensure-profile';
 
 const PATH = '/pilotage/parametres';
 
@@ -12,6 +13,9 @@ async function getDirigentContext() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error('Non authentifié');
 
+  // Garantit l'existence du profil (crée si absent — ex: compte créé hors signup)
+  await ensureUserProfile(user);
+
   // Admin client pour bypass RLS sur la table users
   const admin = await createAdminClient();
 
@@ -20,7 +24,7 @@ async function getDirigentContext() {
     .select('tenant_id, role')
     .eq('id', user.id)
     .single();
-  if (!profile) throw new Error('Profil introuvable');
+  if (!profile) throw new Error('Profil introuvable après création automatique');
   if (profile.role !== 'dirigeant') throw new Error('Accès refusé');
 
   return { supabase, admin, user, tenant_id: profile.tenant_id as string };
