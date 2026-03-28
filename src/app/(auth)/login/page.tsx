@@ -8,7 +8,8 @@ import { Suspense } from 'react';
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const next = searchParams.get('next') ?? '/pilotage';
+  const next      = searchParams.get('next') ?? '/pilotage';
+  const activated = searchParams.get('activated') === '1';
 
   const [state, action, pending] = useActionState(signIn, null);
 
@@ -23,6 +24,12 @@ function LoginForm() {
 
       <form action={action} className="space-y-4">
         <input type="hidden" name="next" value={next} />
+
+        {activated && (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            ✓ Compte activé avec succès. Connectez-vous avec votre mot de passe.
+          </div>
+        )}
 
         {state?.error && (
           <div className="rounded-lg bg-oxi-danger-light px-4 py-3 text-sm text-oxi-danger">

@@ -106,7 +106,7 @@ export async function inviteUserAction(input: InviteUserInput) {
       input.email,
       {
         data:       { name: input.name },
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/login`,
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/auth/setup-password`,
       },
     );
     if (authError) return { error: authError.message };
