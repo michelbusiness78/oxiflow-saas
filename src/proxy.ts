@@ -2,9 +2,13 @@ import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
-// ─── Routes publiques (pas d'auth requise) ────────────────────────────────────
+// ─── Routes toujours accessibles (connecté ou non, jamais redirigé) ──────────
 
-const PUBLIC_PATHS = ['/login', '/register', '/forgot-password'];
+const ALWAYS_PUBLIC = ['/', '/cgv', '/rgpd', '/mentions-legales', '/confidentialite'];
+
+// ─── Pages d'authentification (redirige vers /pilotage si déjà connecté) ─────
+
+const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/setup-password'];
 
 // ─── Accès par rôle ───────────────────────────────────────────────────────────
 
@@ -44,24 +48,33 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const { supabaseResponse, user } = await updateSession(request);
 
-  const isPublicPath = PUBLIC_PATHS.some(
+  const isAlwaysPublic = ALWAYS_PUBLIC.some(
+    (p) => pathname === p || pathname.startsWith(p + '/'),
+  );
+  const isAuthPath = AUTH_PATHS.some(
     (p) => pathname === p || pathname.startsWith(p + '/'),
   );
 
-  // Pas connecté → redirige vers /login
-  if (!user && !isPublicPath) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/login';
-    loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
+  // Landing & pages légales → accessibles à tous, aucune redirection
+  if (isAlwaysPublic) {
+    supabaseResponse.headers.set('x-pathname', pathname);
+    return supabaseResponse;
   }
 
-  // Déjà connecté → redirige hors des pages auth
-  if (user && isPublicPath) {
+  // Déjà connecté sur une page d'auth → redirige vers le dashboard
+  if (user && isAuthPath) {
     const url = request.nextUrl.clone();
     url.pathname = '/pilotage';
     url.search   = '';
     return NextResponse.redirect(url);
+  }
+
+  // Pas connecté sur une route protégée → redirige vers /login
+  if (!user && !isAuthPath) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    loginUrl.searchParams.set('next', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   // Vérification du rôle pour les modules dashboard
