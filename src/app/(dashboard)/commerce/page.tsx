@@ -2,15 +2,17 @@ import { redirect } from 'next/navigation';
 import { Suspense }  from 'react';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
-import { ClientList }  from '@/components/commerce/ClientList';
-import { DevisList }   from '@/components/commerce/DevisList';
-import { FactureList } from '@/components/commerce/FactureList';
-import { ContratList } from '@/components/commerce/ContratList';
-import type { Client }   from '@/components/commerce/ClientList';
-import type { Devis }    from '@/components/commerce/DevisForm';
-import type { Facture }  from '@/components/commerce/FactureForm';
-import type { Contrat }  from '@/components/commerce/ContratForm';
-import type { DevisLigne } from '@/app/actions/commerce';
+import { ClientList }    from '@/components/commerce/ClientList';
+import { DevisList }     from '@/components/commerce/DevisList';
+import { FactureList }   from '@/components/commerce/FactureList';
+import { ContratList }   from '@/components/commerce/ContratList';
+import { CatalogueList } from '@/components/commerce/CatalogueList';
+import type { Client }       from '@/components/commerce/ClientList';
+import type { Devis }        from '@/components/commerce/DevisForm';
+import type { Facture }      from '@/components/commerce/FactureForm';
+import type { Contrat }      from '@/components/commerce/ContratForm';
+import type { DevisLigne }   from '@/app/actions/commerce';
+import type { CatalogueItem } from '@/app/actions/catalogue';
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +34,7 @@ async function fetchCommerceData() {
 
   const tenantId = profile?.tenant_id;
 
-  const [clientsRes, devisRes, facturesRes, contratsRes] = await Promise.all([
+  const [clientsRes, devisRes, facturesRes, contratsRes, catalogueRes] = await Promise.all([
     admin
       .from('clients')
       .select('id, nom, contact, email, tel, adresse, cp, ville, notes, created_at')
@@ -53,6 +55,11 @@ async function fetchCommerceData() {
       .select('id, client_id, type, date_debut, date_fin, montant_mensuel, actif, created_at, clients(nom)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
+    admin
+      .from('catalogue')
+      .select('id, ref, designation, description, type, prix_achat, prix_vente, tva, unite, actif, created_at')
+      .eq('tenant_id', tenantId)
+      .order('designation'),
   ]);
 
   const clients = (clientsRes.data ?? []) as Client[];
@@ -74,7 +81,9 @@ async function fetchCommerceData() {
     client_nom: (c.clients as unknown as { nom: string } | null)?.nom ?? '—',
   }));
 
-  return { clients, devis, factures, contrats };
+  const catalogue = (catalogueRes.data ?? []) as CatalogueItem[];
+
+  return { clients, devis, factures, contrats, catalogue };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -84,7 +93,7 @@ interface PageProps {
 }
 
 export default async function CommercePage({ searchParams }: PageProps) {
-  const { clients, devis, factures, contrats } = await fetchCommerceData();
+  const { clients, devis, factures, contrats, catalogue } = await fetchCommerceData();
   const params = await searchParams;
   const tab    = params?.tab ?? 'clients';
 
@@ -106,10 +115,11 @@ export default async function CommercePage({ searchParams }: PageProps) {
     : null;
 
   const tabs: TabItem[] = [
-    { key: 'clients',  label: 'Clients',  count: clients.length  },
-    { key: 'devis',    label: 'Devis',    count: devis.length    },
-    { key: 'factures', label: 'Factures', count: factures.length },
-    { key: 'contrats', label: 'Contrats', count: contrats.length },
+    { key: 'clients',   label: 'Clients',   count: clients.length   },
+    { key: 'devis',     label: 'Devis',     count: devis.length     },
+    { key: 'factures',  label: 'Factures',  count: factures.length  },
+    { key: 'contrats',  label: 'Contrats',  count: contrats.length  },
+    { key: 'catalogue', label: 'Catalogue', count: catalogue.length },
   ];
 
   return (
@@ -117,7 +127,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
       <div>
         <h1 className="text-xl font-semibold text-oxi-text">Commerce</h1>
         <p className="mt-0.5 text-sm text-oxi-text-secondary">
-          Clients, devis, factures et contrats
+          Clients, devis, factures, contrats et catalogue
         </p>
       </div>
 
@@ -126,11 +136,13 @@ export default async function CommercePage({ searchParams }: PageProps) {
       </Suspense>
 
       <div className="space-y-4">
-        {tab === 'clients' && <ClientList clients={clients} />}
+        {tab === 'clients'   && <ClientList clients={clients} />}
 
-        {tab === 'devis' && <DevisList devis={devis} clients={clients} />}
+        {tab === 'devis'     && (
+          <DevisList devis={devis} clients={clients} catalogue={catalogue} />
+        )}
 
-        {tab === 'factures' && (
+        {tab === 'factures'  && (
           <FactureList
             factures={factures}
             clients={clients}
@@ -138,7 +150,9 @@ export default async function CommercePage({ searchParams }: PageProps) {
           />
         )}
 
-        {tab === 'contrats' && <ContratList contrats={contrats} clients={clients} />}
+        {tab === 'contrats'  && <ContratList contrats={contrats} clients={clients} />}
+
+        {tab === 'catalogue' && <CatalogueList catalogue={catalogue} />}
       </div>
     </div>
   );

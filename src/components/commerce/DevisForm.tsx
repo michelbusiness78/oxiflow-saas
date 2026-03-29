@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { SlideOver } from '@/components/ui/SlideOver';
 import { fmtEur, todayISO, addDays } from '@/lib/format';
 import {
@@ -9,6 +9,7 @@ import {
   type DevisInput,
   type DevisLigne,
 } from '@/app/actions/commerce';
+import type { CatalogueItem } from '@/app/actions/catalogue';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,10 +29,11 @@ export interface Devis {
 }
 
 interface DevisFormProps {
-  open:     boolean;
-  onClose:  () => void;
-  clients:  Client[];
-  editing?: Devis | null;
+  open:      boolean;
+  onClose:   () => void;
+  clients:   Client[];
+  catalogue?: CatalogueItem[];
+  editing?:  Devis | null;
 }
 
 // ─── Ligne vide ───────────────────────────────────────────────────────────────
@@ -64,19 +66,22 @@ function calcTotaux(lignes: LigneLocal[]) {
   return { ht, tva, ttc: ht + tva };
 }
 
-// ─── Champ texte simple ───────────────────────────────────────────────────────
+// ─── Champ texte / numérique simple ──────────────────────────────────────────
 
 function Input({
-  value, onChange, type = 'text', placeholder = '', className = '', min, max, step, required,
+  value, onChange, onBlur, type = 'text', placeholder = '', className = '',
+  min, max, step, required,
 }: {
-  value: string | number; onChange: (v: string) => void; type?: string;
-  placeholder?: string; className?: string; min?: string; max?: string; step?: string; required?: boolean;
+  value: string | number; onChange: (v: string) => void; onBlur?: () => void;
+  type?: string; placeholder?: string; className?: string;
+  min?: string; max?: string; step?: string; required?: boolean;
 }) {
   return (
     <input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
       onFocus={type === 'number' ? (e) => e.target.select() : undefined}
       placeholder={placeholder}
       min={min}
@@ -95,7 +100,9 @@ function Input({
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export function DevisForm({ open, onClose, clients, editing }: DevisFormProps) {
+type AutocompleteState = { ligneId: string; results: CatalogueItem[] } | null;
+
+export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisFormProps) {
   const today = todayISO();
 
   const initLignes = useCallback((): LigneLocal[] => {
@@ -112,9 +119,14 @@ export function DevisForm({ open, onClose, clients, editing }: DevisFormProps) {
   const [error,     setError]     = useState('');
   const [saving,    setSaving]    = useState(false);
 
+  // ── Autocomplétion catalogue ────────────────────────────────────────────────
+  const [autocomplete, setAutocomplete] = useState<AutocompleteState>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Nettoyage du timer au démontage
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
   // Re-sync tous les states à chaque ouverture du panneau.
-  // Nécessaire car DevisForm reste monté en permanence dans DevisList
-  // (SlideOver retourne null quand !open sans démonter le parent).
   useEffect(() => {
     if (!open) return;
     const t = todayISO();
@@ -128,6 +140,7 @@ export function DevisForm({ open, onClose, clients, editing }: DevisFormProps) {
     );
     setError('');
     setSaving(false);
+    setAutocomplete(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -143,6 +156,47 @@ export function DevisForm({ open, onClose, clients, editing }: DevisFormProps) {
         return { ...l, [key]: num };
       }),
     );
+  }
+
+  // Déclenche la recherche catalogue avec debounce 300ms
+  function handleDesignationChange(ligneId: string, value: string) {
+    updateLigne(ligneId, 'designation', value);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (!value.trim() || !catalogue?.length) {
+      setAutocomplete(null);
+      return;
+    }
+
+    debounceRef.current = setTimeout(() => {
+      const q = value.toLowerCase();
+      const results = catalogue
+        .filter((p) =>
+          p.actif &&
+          (p.designation.toLowerCase().includes(q) ||
+           (p.ref ?? '').toLowerCase().includes(q))
+        )
+        .slice(0, 8);
+      setAutocomplete({ ligneId, results });
+    }, 300);
+  }
+
+  // Sélection d'un produit du catalogue → remplit la ligne
+  function selectFromCatalogue(ligneId: string, item: CatalogueItem) {
+    setLignes((prev) =>
+      prev.map((l) => {
+        if (l._id !== ligneId) return l;
+        return {
+          ...l,
+          designation: item.designation,
+          prix_ht:     item.prix_vente,
+          tva_pct:     item.tva,
+        };
+      }),
+    );
+    setAutocomplete(null);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
   }
 
   function addLigne() { setLignes((p) => [...p, newLigne()]); }
@@ -177,6 +231,49 @@ export function DevisForm({ open, onClose, clients, editing }: DevisFormProps) {
     setSaving(false);
     if ('error' in res && res.error) { setError(res.error); return; }
     onClose();
+  }
+
+  // ── Render champ désignation avec dropdown autocomplete ──────────────────────
+
+  function renderDesignation(ligne: LigneLocal, placeholder: string, extraCls = '') {
+    const isOpen = autocomplete?.ligneId === ligne._id;
+    return (
+      <div className="relative">
+        <Input
+          value={ligne.designation}
+          onChange={(v) => handleDesignationChange(ligne._id, v)}
+          onBlur={() => setTimeout(() => setAutocomplete(null), 150)}
+          placeholder={placeholder}
+          className={`w-full ${extraCls}`}
+          required
+        />
+        {isOpen && (
+          <div className="absolute left-0 top-full z-30 mt-1 w-full min-w-[220px] rounded-lg border border-oxi-border bg-oxi-surface shadow-lg overflow-hidden">
+            {autocomplete!.results.length > 0 ? (
+              autocomplete!.results.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()} // empêche onBlur de se déclencher avant onClick
+                  onClick={() => selectFromCatalogue(ligne._id, item)}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-oxi-bg transition-colors"
+                >
+                  <span className="flex-1 truncate text-oxi-text">{item.designation}</span>
+                  <span className="shrink-0 text-xs text-oxi-text-muted">
+                    {item.ref ? <span className="font-mono mr-2">{item.ref}</span> : null}
+                    {item.prix_vente > 0 ? `${item.prix_vente.toFixed(2)} €` : ''}
+                  </span>
+                </button>
+              ))
+            ) : (
+              <p className="px-3 py-2 text-sm text-oxi-text-muted">
+                Aucun produit trouvé — saisie libre
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -254,13 +351,7 @@ export function DevisForm({ open, onClose, clients, editing }: DevisFormProps) {
                   <div key={ligne._id} className="rounded-lg border border-oxi-border bg-oxi-bg p-3">
                     {/* Mobile : empilé */}
                     <div className="flex flex-col gap-2 sm:hidden">
-                      <Input
-                        value={ligne.designation}
-                        onChange={(v) => updateLigne(ligne._id, 'designation', v)}
-                        placeholder={`Désignation ligne ${i + 1}`}
-                        className="w-full"
-                        required
-                      />
+                      {renderDesignation(ligne, `Désignation ligne ${i + 1}`)}
                       <div className="grid grid-cols-2 gap-2">
                         <Input type="number" value={ligne.quantite}   onChange={(v) => updateLigne(ligne._id, 'quantite',   v)} placeholder="Qté"  min="0" step="0.01" className="w-full" />
                         <Input type="number" value={ligne.prix_ht}    onChange={(v) => updateLigne(ligne._id, 'prix_ht',    v)} placeholder="PU HT" min="0" step="0.01" className="w-full" />
@@ -275,7 +366,7 @@ export function DevisForm({ open, onClose, clients, editing }: DevisFormProps) {
 
                     {/* Desktop : grille */}
                     <div className="hidden items-center gap-2 sm:grid sm:grid-cols-[1fr_80px_90px_60px_60px_36px]">
-                      <Input value={ligne.designation}  onChange={(v) => updateLigne(ligne._id, 'designation',  v)} placeholder={`Ligne ${i + 1}`} className="w-full" required />
+                      {renderDesignation(ligne, `Ligne ${i + 1}`)}
                       <Input type="number" value={ligne.quantite}   onChange={(v) => updateLigne(ligne._id, 'quantite',   v)} min="0" step="0.01" className="w-full text-right" />
                       <Input type="number" value={ligne.prix_ht}    onChange={(v) => updateLigne(ligne._id, 'prix_ht',    v)} min="0" step="0.01" className="w-full text-right" />
                       <Input type="number" value={ligne.tva_pct}    onChange={(v) => updateLigne(ligne._id, 'tva_pct',    v)} min="0" step="0.1"  className="w-full text-right" />

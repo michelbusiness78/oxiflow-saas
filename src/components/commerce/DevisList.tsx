@@ -12,6 +12,7 @@ import {
   dupliquerDevisAction,
   type DevisLigne,
 } from '@/app/actions/commerce';
+import type { CatalogueItem } from '@/app/actions/catalogue';
 
 interface Client { id: string; nom: string; }
 
@@ -20,13 +21,14 @@ interface DevisWithClient extends Devis {
 }
 
 interface DevisListProps {
-  devis:   DevisWithClient[];
-  clients: Client[];
+  devis:     DevisWithClient[];
+  clients:   Client[];
+  catalogue?: CatalogueItem[];
 }
 
 const STATUTS = ['tous', 'brouillon', 'envoye', 'accepte', 'refuse'] as const;
 
-export function DevisList({ devis, clients }: DevisListProps) {
+export function DevisList({ devis, clients, catalogue }: DevisListProps) {
   const [formOpen,   setFormOpen]   = useState(false);
   const [editing,    setEditing]    = useState<Devis | null>(null);
   const [deleteId,   setDeleteId]   = useState<string | null>(null);
@@ -222,6 +224,7 @@ export function DevisList({ devis, clients }: DevisListProps) {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         clients={clients}
+        catalogue={catalogue}
         editing={editing}
       />
 
