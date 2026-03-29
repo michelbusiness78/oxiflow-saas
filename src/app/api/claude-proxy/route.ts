@@ -141,8 +141,8 @@ export async function POST(request: NextRequest) {
   const tokensOut = anthropicData.usage?.output_tokens ?? 0;
 
   // Fire-and-forget avec admin client (contourne la policy no_client_insert)
-  createAdminClient().then((admin) =>
-  admin
+  const adminLog = createAdminClient();
+  adminLog
     .from('api_usage')
     .insert({
       tenant_id,
@@ -151,10 +151,9 @@ export async function POST(request: NextRequest) {
       tokens_out: tokensOut,
       model:      DEFAULT_MODEL,
     })
-    .then(({ error }) => {
+    .then(({ error }: { error: { message: string } | null }) => {
       if (error) console.error('[claude-proxy] log usage error:', error.message);
-    })
-  );
+    });
 
   // ── 9. Retourne la réponse au client ──────────────────────────────────────
   return NextResponse.json(anthropicData, {
