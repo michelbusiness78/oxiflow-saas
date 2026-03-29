@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { SlideOver } from '@/components/ui/SlideOver';
 import { fmtEur, todayISO, addDays } from '@/lib/format';
 import {
@@ -111,6 +111,25 @@ export function DevisForm({ open, onClose, clients, editing }: DevisFormProps) {
   const [lignes,    setLignes]    = useState<LigneLocal[]>(initLignes);
   const [error,     setError]     = useState('');
   const [saving,    setSaving]    = useState(false);
+
+  // Re-sync tous les states à chaque ouverture du panneau.
+  // Nécessaire car DevisForm reste monté en permanence dans DevisList
+  // (SlideOver retourne null quand !open sans démonter le parent).
+  useEffect(() => {
+    if (!open) return;
+    const t = todayISO();
+    setClientId(editing?.client_id ?? '');
+    setDate(editing?.date     ?? t);
+    setValidite(editing?.validite ?? addDays(t, 30));
+    setLignes(
+      editing?.lignes?.length
+        ? editing.lignes.map((l) => ({ ...l, _id: crypto.randomUUID() }))
+        : [newLigne()],
+    );
+    setError('');
+    setSaving(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const totaux = useMemo(() => calcTotaux(lignes), [lignes]);
 
