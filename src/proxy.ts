@@ -94,6 +94,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Injecte le pathname courant en header pour les Server Components/layouts
+  // (utilisé par le layout dashboard pour éviter les boucles de redirection)
+  supabaseResponse.headers.set('x-pathname', pathname);
   return supabaseResponse;
 }
 
