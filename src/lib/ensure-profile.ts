@@ -4,29 +4,39 @@ import { createAdminClient } from '@/lib/supabase/server';
 import type { User } from '@supabase/supabase-js';
 
 /**
- * Garantit qu'un enregistrement existe dans public.users pour cet auth user.
- * Appelé au début de chaque server action sensible et dans le layout dashboard.
+ * Garantit qu'un enregistrement existe dans public.users UNIQUEMENT pour un
+ * dirigeant inscrit via /register (user_metadata.company présent).
  *
- * Cas couverts :
- * - Compte créé avant la mise en place de la table users (migration manquante)
- * - Compte créé via Supabase Dashboard ou import CSV (pas de trigger)
- * - Premier login après invitation (le trigger a peut-être raté)
+ * Pour les utilisateurs invités, leur profil est inséré par inviteUserAction.
+ * Si ce profil est absent, c'est une erreur d'invitation : on logue sans créer
+ * de faux tenant, pour ne pas mélanger les données entre entreprises.
  */
 export async function ensureUserProfile(user: User): Promise<void> {
   const admin = await createAdminClient();
 
-  // 1. Le profil existe déjà ?
+  // Profil existe déjà → rien à faire (cas normal à chaque connexion)
   const { data: existing } = await admin
     .from('users')
     .select('id')
     .eq('id', user.id)
     .single();
 
-  if (existing) return; // Rien à faire
+  if (existing) return;
 
-  console.log('[ensureUserProfile] Profil manquant pour', user.id, '— création automatique');
+  // Pas de profil. On ne crée automatiquement que pour un dirigeant /register,
+  // reconnaissable par la présence de `company` dans user_metadata.
+  const company = user.user_metadata?.company as string | undefined;
+  if (!company) {
+    console.error(
+      '[ensureUserProfile] Invité sans profil public.users — vérifier inviteUserAction :',
+      user.id, user.email,
+    );
+    return; // Ne pas créer de faux tenant pour un invité
+  }
 
-  // 2. Cherche un tenant existant lié à cet email
+  console.log('[ensureUserProfile] Dirigeant sans profil → création auto :', user.email);
+
+  // Cherche ou crée un tenant pour ce dirigeant
   let tenantId: string | null = null;
 
   const { data: tenantByEmail } = await admin
@@ -38,32 +48,22 @@ export async function ensureUserProfile(user: User): Promise<void> {
   if (tenantByEmail) {
     tenantId = tenantByEmail.id;
   } else {
-    // 3. Crée un tenant minimal
-    const companyName =
-      (user.user_metadata?.company as string | undefined) ??
-      (user.user_metadata?.name  as string | undefined) ??
-      user.email?.split('@')[1] ??
-      'Ma société';
-
     const { data: newTenant } = await admin
       .from('tenants')
-      .insert({ name: companyName, email: user.email })
+      .insert({ name: company, email: user.email })
       .select('id')
       .single();
-
     tenantId = newTenant?.id ?? null;
   }
 
   if (!tenantId) {
-    console.error('[ensureUserProfile] Impossible de trouver ou créer un tenant pour', user.id);
+    console.error('[ensureUserProfile] Impossible de trouver/créer le tenant pour', user.id);
     return;
   }
 
-  // 4. Crée le profil utilisateur
-  const name =
-    (user.user_metadata?.name as string | undefined) ??
-    user.email?.split('@')[0] ??
-    'Utilisateur';
+  const name = (user.user_metadata?.name as string | undefined)
+    ?? user.email?.split('@')[0]
+    ?? 'Utilisateur';
 
   const { error } = await admin.from('users').insert({
     id:        user.id,
@@ -74,9 +74,5 @@ export async function ensureUserProfile(user: User): Promise<void> {
     status:    'active',
   });
 
-  if (error) {
-    console.error('[ensureUserProfile] Erreur insert:', error.message);
-  } else {
-    console.log('[ensureUserProfile] Profil créé avec tenant_id', tenantId);
-  }
+  if (error) console.error('[ensureUserProfile] Erreur insert:', error.message);
 }

@@ -2,17 +2,10 @@ import { redirect }                       from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { ProfilForm }                       from '@/components/profil/ProfilForm';
 
-interface PageProps {
-  searchParams: Promise<{ must_change?: string }>;
-}
-
-export default async function ProfilPage({ searchParams }: PageProps) {
+export default async function ProfilPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
-
-  const params     = await searchParams;
-  const mustChange = params?.must_change === '1' || user.user_metadata?.must_change_password === true;
 
   // Profil : client régulier d'abord, admin en fallback
   let profile: { name: string; role: string } | null = null;
@@ -50,7 +43,7 @@ export default async function ProfilPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <ProfilForm name={name} email={email} role={role} mustChange={mustChange} />
+      <ProfilForm name={name} email={email} role={role} />
     </div>
   );
 }

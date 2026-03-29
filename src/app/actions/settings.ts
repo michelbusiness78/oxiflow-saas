@@ -112,13 +112,13 @@ export async function inviteUserAction(input: InviteUserInput) {
     const { admin, tenant_id } = await getDirigentContext();
     const tempPassword = generateTempPassword();
 
-    // Crée le compte directement (email_confirm: true = skip confirmation)
+    // Crée le compte directement (email_confirm: true = skip confirmation email)
     // NE PAS utiliser inviteUserByEmail : il crée une session automatique côté browser
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
-      email:          input.email,
-      password:       tempPassword,
-      email_confirm:  true,
-      user_metadata:  { name: input.name, must_change_password: true },
+      email:         input.email,
+      password:      tempPassword,
+      email_confirm: true,
+      user_metadata: { name: input.name },
     });
     if (authError) return { error: authError.message };
 
