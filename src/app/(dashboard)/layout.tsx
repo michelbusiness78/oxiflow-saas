@@ -25,6 +25,11 @@ export default async function DashboardLayout({
   // Crée le profil dans public.users si absent (premier login, compte importé, etc.)
   await ensureUserProfile(user);
 
+  // Invité avec mot de passe temporaire → doit changer son mot de passe
+  if (user.user_metadata?.must_change_password === true) {
+    redirect('/profil?must_change=1');
+  }
+
   const { data: profile } = await supabase
     .from('users')
     .select('name, email, role')

@@ -88,6 +88,8 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
   const [showInvite, setShowInvite]   = useState(false);
   const [deleteId,   setDeleteId]     = useState<string | null>(null);
   const [inviteErr,  setInviteErr]    = useState('');
+  const [tempPwd,    setTempPwd]      = useState<string | null>(null);
+  const [copied,     setCopied]       = useState(false);
   const [pending, startTransition]    = useTransition();
 
   const limit     = PLAN_LIMITS[plan] ?? 3;
@@ -108,9 +110,9 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
     startTransition(async () => {
       const res = await inviteUserAction(input);
       if ('error' in res) { setInviteErr(res.error ?? 'Erreur invitation'); return; }
-      setShowInvite(false);
+      // Garde le modal ouvert pour afficher le mot de passe temporaire
+      setTempPwd(res.tempPassword ?? null);
       form.reset();
-      // L'utilisateur sera visible au prochain rafraîchissement (revalidatePath)
     });
   }
 
@@ -268,43 +270,100 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
 
       {/* ── Modal invitation ── */}
       {showInvite && (
-        <Modal onClose={() => setShowInvite(false)}>
-          <h3 className="mb-4 text-base font-semibold text-oxi-text">Inviter un utilisateur</h3>
-          <form onSubmit={handleInvite} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-oxi-text mb-1.5">Nom complet *</label>
-              <input name="name" required
-                className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary" />
+        <Modal onClose={() => { setShowInvite(false); setTempPwd(null); setCopied(false); }}>
+          {tempPwd ? (
+            /* ── Étape 2 : afficher le mot de passe temporaire ── */
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </div>
+                <h3 className="text-base font-semibold text-oxi-text">Compte créé !</h3>
+              </div>
+              <p className="text-sm text-oxi-text-secondary">
+                Communiquez ces identifiants à l'utilisateur. Il devra changer son mot de passe à la première connexion.
+              </p>
+              <div className="rounded-lg border border-oxi-border bg-oxi-bg p-4 space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-oxi-text-muted mb-1">URL de connexion</p>
+                  <p className="text-sm text-oxi-text font-mono">{typeof window !== 'undefined' ? window.location.origin : ''}/login</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-oxi-text-muted mb-1">Mot de passe temporaire</p>
+                  <div className="flex items-center gap-2">
+                    <p className="flex-1 rounded-md border border-oxi-border bg-oxi-surface px-3 py-2 text-sm font-mono font-semibold text-oxi-text tracking-wider">
+                      {tempPwd}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(tempPwd);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="rounded-md border border-oxi-border px-3 py-2 text-xs text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+                    >
+                      {copied ? '✓ Copié' : 'Copier'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-oxi-text-muted">
+                Ce mot de passe ne sera plus affiché après fermeture.
+              </p>
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setShowInvite(false); setTempPwd(null); setCopied(false); }}
+                  className="rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-oxi-text mb-1.5">Email *</label>
-              <input name="email" type="email" required
-                className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-oxi-text mb-1.5">Rôle *</label>
-              <select name="role" defaultValue="commercial"
-                className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary">
-                {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
-            </div>
-            <p className="text-xs text-oxi-text-muted">
-              L'utilisateur recevra un email pour définir son mot de passe.
-            </p>
-            {inviteErr && (
-              <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{inviteErr}</p>
-            )}
-            <div className="flex justify-end gap-3 pt-1">
-              <button type="button" onClick={() => setShowInvite(false)}
-                className="rounded-lg border border-oxi-border px-4 py-2 text-sm text-oxi-text-secondary hover:bg-oxi-bg transition-colors">
-                Annuler
-              </button>
-              <button type="submit" disabled={pending}
-                className="rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover disabled:opacity-50 transition-colors">
-                {pending ? 'Envoi…' : "Envoyer l'invitation"}
-              </button>
-            </div>
-          </form>
+          ) : (
+            /* ── Étape 1 : formulaire d'invitation ── */
+            <>
+              <h3 className="mb-4 text-base font-semibold text-oxi-text">Inviter un utilisateur</h3>
+              <form onSubmit={handleInvite} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-oxi-text mb-1.5">Nom complet *</label>
+                  <input name="name" required
+                    className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-oxi-text mb-1.5">Email *</label>
+                  <input name="email" type="email" required
+                    className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-oxi-text mb-1.5">Rôle *</label>
+                  <select name="role" defaultValue="commercial"
+                    className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary">
+                    {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                </div>
+                <p className="text-xs text-oxi-text-muted">
+                  Un compte sera créé. Vous recevrez un mot de passe temporaire à communiquer à l'utilisateur.
+                </p>
+                {inviteErr && (
+                  <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{inviteErr}</p>
+                )}
+                <div className="flex justify-end gap-3 pt-1">
+                  <button type="button" onClick={() => setShowInvite(false)}
+                    className="rounded-lg border border-oxi-border px-4 py-2 text-sm text-oxi-text-secondary hover:bg-oxi-bg transition-colors">
+                    Annuler
+                  </button>
+                  <button type="submit" disabled={pending}
+                    className="rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover disabled:opacity-50 transition-colors">
+                    {pending ? 'Création…' : 'Créer le compte'}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </Modal>
       )}
 

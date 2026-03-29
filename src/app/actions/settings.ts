@@ -97,18 +97,29 @@ export type InviteUserInput = {
   role:  'commercial' | 'technicien' | 'chef_projet' | 'rh';
 };
 
+// Génère un mot de passe temporaire lisible (12 chars, sans ambiguïté 0/O/l/1)
+function generateTempPassword(): string {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789@#!';
+  let pwd = '';
+  for (let i = 0; i < 12; i++) {
+    pwd += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return pwd;
+}
+
 export async function inviteUserAction(input: InviteUserInput) {
   try {
     const { admin, tenant_id } = await getDirigentContext();
+    const tempPassword = generateTempPassword();
 
-    // Invite via Supabase Auth (envoie l'email de définition de mot de passe)
-    const { data: authData, error: authError } = await admin.auth.admin.inviteUserByEmail(
-      input.email,
-      {
-        data:       { name: input.name },
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/auth/setup-password`,
-      },
-    );
+    // Crée le compte directement (email_confirm: true = skip confirmation)
+    // NE PAS utiliser inviteUserByEmail : il crée une session automatique côté browser
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email:          input.email,
+      password:       tempPassword,
+      email_confirm:  true,
+      user_metadata:  { name: input.name, must_change_password: true },
+    });
     if (authError) return { error: authError.message };
 
     // Insert dans la table publique users
@@ -122,10 +133,15 @@ export async function inviteUserAction(input: InviteUserInput) {
         role:      input.role,
         status:    'active',
       });
-    if (dbError) return { error: dbError.message };
+    if (dbError) {
+      // Rollback auth user si insert échoue
+      await admin.auth.admin.deleteUser(authData.user.id);
+      return { error: dbError.message };
+    }
 
     revalidatePath(PATH);
-    return { success: true };
+    // Le mot de passe temporaire est renvoyé pour que le dirigeant puisse le communiquer
+    return { success: true, tempPassword };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur invitation' };
   }

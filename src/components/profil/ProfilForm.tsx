@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { updateNameAction, updatePasswordAction } from '@/app/actions/profil';
 
 const ROLE_COLORS: Record<string, string> = {
@@ -22,14 +22,23 @@ const ROLE_LABELS: Record<string, string> = {
 const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text placeholder:text-oxi-text-muted focus:outline-none focus:ring-2 focus:ring-oxi-primary disabled:opacity-60';
 
 interface Props {
-  name:  string;
-  email: string;
-  role:  string;
+  name:       string;
+  email:      string;
+  role:       string;
+  mustChange?: boolean;
 }
 
-export function ProfilForm({ name: initialName, email, role }: Props) {
+export function ProfilForm({ name: initialName, email, role, mustChange = false }: Props) {
   const [pending, startTransition] = useTransition();
   const [name, setName]            = useState(initialName);
+  const pwdSectionRef              = useRef<HTMLDivElement>(null);
+
+  // Scroll automatique vers le formulaire mot de passe si must_change
+  useEffect(() => {
+    if (mustChange) {
+      pwdSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [mustChange]);
 
   const [nameSuccess, setNameSuccess] = useState(false);
   const [nameError,   setNameError]   = useState('');
@@ -81,6 +90,21 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
 
   return (
     <div className="space-y-6 max-w-2xl">
+
+      {/* ── Banner must_change_password ── */}
+      {mustChange && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 flex items-start gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0 text-orange-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          </svg>
+          <div>
+            <p className="text-sm font-medium text-orange-800">Changement de mot de passe requis</p>
+            <p className="text-xs text-orange-700 mt-0.5">
+              Vous utilisez un mot de passe temporaire. Veuillez le changer ci-dessous avant de continuer.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Avatar + infos ── */}
       <div className="rounded-2xl border border-oxi-border bg-oxi-surface p-6 flex items-center gap-5">
@@ -137,7 +161,7 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
       </div>
 
       {/* ── Changer le mot de passe ── */}
-      <div className="rounded-2xl border border-oxi-border bg-oxi-surface p-6 space-y-5">
+      <div ref={pwdSectionRef} className={`rounded-2xl border bg-oxi-surface p-6 space-y-5 ${mustChange ? 'border-orange-300 ring-2 ring-orange-200' : 'border-oxi-border'}`}>
         <h2 className="text-sm font-semibold text-oxi-text border-b border-oxi-border pb-3">
           Changer le mot de passe
         </h2>

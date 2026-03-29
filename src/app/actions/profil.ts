@@ -57,9 +57,14 @@ export async function updatePasswordAction(
   });
   if (signInError) return { error: 'Mot de passe actuel incorrect.' };
 
-  // Mise à jour
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  // Mise à jour du mot de passe + efface le flag must_change_password
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+    data: { must_change_password: false },
+  });
   if (error) return { error: error.message };
 
+  revalidatePath('/profil');
+  revalidatePath('/pilotage', 'layout');
   return {};
 }
