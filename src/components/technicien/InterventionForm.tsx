@@ -13,7 +13,7 @@ import {
   type MaterielItem,
 } from '@/app/actions/interventions';
 
-interface Client   { id: string; nom: string; adresse?: string; cp?: string; ville?: string; }
+interface Client   { id: string; nom: string; adresse?: string; cp?: string; ville?: string; tel?: string; }
 interface Catalogue { id: string; ref: string; designation: string; }
 
 export interface Intervention {
@@ -149,12 +149,12 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
 
   const isTerminee = editing?.statut === 'terminee';
 
-  // Auto-fill adresse from client
+  // Auto-fill adresse depuis la fiche client à chaque changement de client
   useEffect(() => {
-    if (!clientId || adresse) return;
+    if (!clientId) return;
     const client = clients.find((c) => c.id === clientId);
     if (client?.adresse) {
-      setAdresse([client.adresse, client.cp, client.ville].filter(Boolean).join(' '));
+      setAdresse([client.adresse, client.cp, client.ville].filter(Boolean).join(', '));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);

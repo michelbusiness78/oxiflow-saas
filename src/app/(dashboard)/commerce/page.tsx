@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { Suspense }  from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { ClientList }  from '@/components/commerce/ClientList';
 import { DevisList }   from '@/components/commerce/DevisList';
@@ -15,26 +15,43 @@ import type { DevisLigne } from '@/app/actions/commerce';
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchCommerceData() {
+  // Auth via client standard (cookies)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  // Lecture des données via admin pour bypasser RLS
+  const admin = await createAdminClient();
+
+  // Récupère le tenant_id de l'utilisateur
+  const { data: profile } = await admin
+    .from('users')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .single();
+
+  const tenantId = profile?.tenant_id;
+
   const [clientsRes, devisRes, facturesRes, contratsRes] = await Promise.all([
-    supabase
+    admin
       .from('clients')
       .select('id, nom, contact, email, tel, adresse, cp, ville, notes, created_at')
+      .eq('tenant_id', tenantId)
       .order('nom'),
-    supabase
+    admin
       .from('devis')
       .select('id, num, client_id, date, validite, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
-    supabase
+    admin
       .from('factures')
       .select('id, num, client_id, devis_id, date, echeance, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
-    supabase
+    admin
       .from('contrats')
       .select('id, client_id, type, date_debut, date_fin, montant_mensuel, actif, created_at, clients(nom)')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
   ]);
 

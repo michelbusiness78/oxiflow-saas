@@ -1,26 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth-context';
 
 const PATH = '/commerce';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function getAuthContext() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Non authentifié');
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single();
-  if (!profile) throw new Error('Profil introuvable');
-
-  return { supabase, user, tenant_id: profile.tenant_id };
-}
 
 // ─── CLIENTS ──────────────────────────────────────────────────────────────────
 
@@ -36,8 +19,8 @@ export type ClientInput = {
 };
 
 export async function createClientAction(input: ClientInput) {
-  const { supabase, tenant_id } = await getAuthContext();
-  const { error } = await supabase
+  const { admin, tenant_id } = await getAuthContext();
+  const { error } = await admin
     .from('clients')
     .insert({ ...input, tenant_id });
   if (error) return { error: error.message };
@@ -46,8 +29,8 @@ export async function createClientAction(input: ClientInput) {
 }
 
 export async function updateClientAction(id: string, input: ClientInput) {
-  const { supabase } = await getAuthContext();
-  const { error } = await supabase
+  const { admin } = await getAuthContext();
+  const { error } = await admin
     .from('clients')
     .update(input)
     .eq('id', id);
@@ -57,8 +40,8 @@ export async function updateClientAction(id: string, input: ClientInput) {
 }
 
 export async function deleteClientAction(id: string) {
-  const { supabase } = await getAuthContext();
-  const { error } = await supabase
+  const { admin } = await getAuthContext();
+  const { error } = await admin
     .from('clients')
     .delete()
     .eq('id', id);
@@ -88,8 +71,8 @@ export type DevisInput = {
   statut:      'brouillon' | 'envoye';
 };
 
-async function nextDevisNum(tenant_id: string): Promise<string> {
-  const admin = await createAdminClient();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function nextDevisNum(admin: any, tenant_id: string): Promise<string> {
   const { count } = await admin
     .from('devis')
     .select('*', { count: 'exact', head: true })
@@ -99,9 +82,9 @@ async function nextDevisNum(tenant_id: string): Promise<string> {
 }
 
 export async function createDevisAction(input: DevisInput) {
-  const { supabase, tenant_id, user } = await getAuthContext();
-  const num = await nextDevisNum(tenant_id);
-  const { error } = await supabase.from('devis').insert({
+  const { admin, tenant_id, user } = await getAuthContext();
+  const num = await nextDevisNum(admin, tenant_id);
+  const { error } = await admin.from('devis').insert({
     ...input,
     num,
     tenant_id,
@@ -113,16 +96,16 @@ export async function createDevisAction(input: DevisInput) {
 }
 
 export async function updateDevisAction(id: string, input: Partial<DevisInput>) {
-  const { supabase } = await getAuthContext();
-  const { error } = await supabase.from('devis').update(input).eq('id', id);
+  const { admin } = await getAuthContext();
+  const { error } = await admin.from('devis').update(input).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
 }
 
 export async function deleteDevisAction(id: string) {
-  const { supabase } = await getAuthContext();
-  const { error } = await supabase.from('devis').delete().eq('id', id);
+  const { admin } = await getAuthContext();
+  const { error } = await admin.from('devis').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
@@ -132,20 +115,20 @@ export async function changeDevisStatutAction(
   id: string,
   statut: 'brouillon' | 'envoye' | 'accepte' | 'refuse',
 ) {
-  const { supabase, tenant_id, user } = await getAuthContext();
-  const { error } = await supabase.from('devis').update({ statut }).eq('id', id);
+  const { admin, tenant_id, user } = await getAuthContext();
+  const { error } = await admin.from('devis').update({ statut }).eq('id', id);
   if (error) return { error: error.message };
 
   // Création automatique d'un projet quand le devis est accepté
   if (statut === 'accepte') {
-    const { data: devis } = await supabase
+    const { data: devis } = await admin
       .from('devis')
       .select('id, num, client_id, montant_ht, clients(nom)')
       .eq('id', id)
       .single();
 
     if (devis) {
-      const { data: existing } = await supabase
+      const { data: existing } = await admin
         .from('projets')
         .select('id')
         .eq('devis_id', id)
@@ -153,7 +136,7 @@ export async function changeDevisStatutAction(
 
       if (!existing) {
         const clientNom = (devis.clients as unknown as { nom: string } | null)?.nom ?? '';
-        await supabase.from('projets').insert({
+        await admin.from('projets').insert({
           tenant_id,
           client_id:      devis.client_id,
           devis_id:       devis.id,
@@ -173,9 +156,9 @@ export async function changeDevisStatutAction(
 }
 
 export async function dupliquerDevisAction(id: string) {
-  const { supabase, tenant_id, user } = await getAuthContext();
+  const { admin, tenant_id, user } = await getAuthContext();
 
-  const { data: original, error: fetchErr } = await supabase
+  const { data: original, error: fetchErr } = await admin
     .from('devis')
     .select('*')
     .eq('id', id)
@@ -183,10 +166,10 @@ export async function dupliquerDevisAction(id: string) {
 
   if (fetchErr || !original) return { error: 'Devis introuvable.' };
 
-  const num = await nextDevisNum(tenant_id);
+  const num = await nextDevisNum(admin, tenant_id);
   const today = new Date().toISOString().split('T')[0];
 
-  const { error } = await supabase.from('devis').insert({
+  const { error } = await admin.from('devis').insert({
     tenant_id,
     client_id:     original.client_id,
     commercial_id: user.id,

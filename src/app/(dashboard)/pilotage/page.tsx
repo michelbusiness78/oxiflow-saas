@@ -230,13 +230,13 @@ export default async function PilotagePage({ searchParams }: PageProps) {
                   Votre tableau de bord se remplira automatiquement avec votre activité.
                 </p>
                 <a
-                  href="/commerce"
+                  href="/commerce?tab=devis"
                   className="block w-full rounded-lg bg-oxi-primary px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
                 >
                   Créer votre premier devis
                 </a>
                 <a
-                  href="/clients"
+                  href="/commerce?tab=clients"
                   className="block w-full rounded-lg border border-oxi-border px-4 py-2.5 text-center text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
                 >
                   Ajouter un client

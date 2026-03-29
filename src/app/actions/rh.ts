@@ -1,24 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth-context';
 
 const PATH = '/rh';
-
-async function getAuthContext() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Non authentifié');
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('tenant_id, role')
-    .eq('id', user.id)
-    .single();
-  if (!profile) throw new Error('Profil introuvable');
-
-  return { supabase, user, tenant_id: profile.tenant_id as string, role: profile.role as string };
-}
 
 // ─── Congés ───────────────────────────────────────────────────────────────────
 
@@ -31,9 +16,9 @@ export type CongeInput = {
 };
 
 export async function createCongeAction(input: CongeInput) {
-  const { supabase, user, tenant_id } = await getAuthContext();
+  const { admin, user, tenant_id } = await getAuthContext();
 
-  const { error } = await supabase.from('conges').insert({
+  const { error } = await admin.from('conges').insert({
     tenant_id,
     user_id: user.id,
     ...input,
@@ -45,9 +30,9 @@ export async function createCongeAction(input: CongeInput) {
 }
 
 export async function deleteCongeAction(id: string) {
-  const { supabase, user } = await getAuthContext();
+  const { admin, user } = await getAuthContext();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('conges')
     .delete()
     .eq('id', id)
@@ -60,17 +45,17 @@ export async function deleteCongeAction(id: string) {
 }
 
 export async function changeCongeStatutAction(id: string, statut: 'valide' | 'refuse') {
-  const { supabase, user, tenant_id, role } = await getAuthContext();
+  const { admin, user, tenant_id, role } = await getAuthContext();
 
   if (role !== 'dirigeant' && role !== 'rh') return { error: 'Non autorisé' };
 
-  const { data: conge } = await supabase
+  const { data: conge } = await admin
     .from('conges')
     .select('type, nb_jours, user_id')
     .eq('id', id)
     .single();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('conges')
     .update({ statut, valide_par: user.id })
     .eq('id', id);
@@ -78,7 +63,7 @@ export async function changeCongeStatutAction(id: string, statut: 'valide' | 're
 
   // Déduction automatique du solde si CP ou RTT validé
   if (statut === 'valide' && conge && (conge.type === 'cp' || conge.type === 'rtt')) {
-    const { data: current } = await supabase
+    const { data: current } = await admin
       .from('soldes_conges')
       .select('solde')
       .eq('user_id', conge.user_id)
@@ -87,12 +72,12 @@ export async function changeCongeStatutAction(id: string, statut: 'valide' | 're
 
     const newSolde = Math.max(0, (current?.solde ?? 0) - conge.nb_jours);
 
-    await supabase.from('soldes_conges').upsert(
+    await admin.from('soldes_conges').upsert(
       { tenant_id, user_id: conge.user_id, type: conge.type, solde: newSolde },
       { onConflict: 'user_id,type' },
     );
 
-    await supabase.from('mouvements_soldes').insert({
+    await admin.from('mouvements_soldes').insert({
       tenant_id,
       user_id:  conge.user_id,
       type:     conge.type,
@@ -117,9 +102,9 @@ export type NoteFraisInput = {
 };
 
 export async function createNoteFraisAction(input: NoteFraisInput) {
-  const { supabase, user, tenant_id } = await getAuthContext();
+  const { admin, user, tenant_id } = await getAuthContext();
 
-  const { error } = await supabase.from('notes_frais').insert({
+  const { error } = await admin.from('notes_frais').insert({
     tenant_id,
     user_id: user.id,
     ...input,
@@ -131,9 +116,9 @@ export async function createNoteFraisAction(input: NoteFraisInput) {
 }
 
 export async function deleteNoteFraisAction(id: string) {
-  const { supabase, user } = await getAuthContext();
+  const { admin, user } = await getAuthContext();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('notes_frais')
     .delete()
     .eq('id', id)
@@ -149,11 +134,11 @@ export async function changeNoteFraisStatutAction(
   id:     string,
   statut: 'validee' | 'remboursee' | 'rejetee',
 ) {
-  const { supabase, user, role } = await getAuthContext();
+  const { admin, user, role } = await getAuthContext();
 
   if (role !== 'dirigeant' && role !== 'rh') return { error: 'Non autorisé' };
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('notes_frais')
     .update({ statut, valide_par: user.id })
     .eq('id', id);
@@ -168,8 +153,7 @@ export async function changeNoteFraisStatutAction(
 export async function uploadJustificatifAction(
   formData: FormData,
 ): Promise<{ url?: string; path?: string; error?: string }> {
-  const { tenant_id } = await getAuthContext();
-  const admin = await createAdminClient();
+  const { admin, tenant_id } = await getAuthContext();
   const file  = formData.get('file') as File | null;
   if (!file) return { error: 'Aucun fichier fourni.' };
 
@@ -194,11 +178,11 @@ export async function updateSoldeAction(
   type:     'cp' | 'rtt',
   newSolde: number,
 ) {
-  const { supabase, tenant_id, role } = await getAuthContext();
+  const { admin, tenant_id, role } = await getAuthContext();
 
   if (role !== 'dirigeant' && role !== 'rh') return { error: 'Non autorisé' };
 
-  const { data: current } = await supabase
+  const { data: current } = await admin
     .from('soldes_conges')
     .select('solde')
     .eq('user_id', userId)
@@ -209,7 +193,7 @@ export async function updateSoldeAction(
   const delta    = newSolde - oldSolde;
   if (delta === 0) return {};
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('soldes_conges')
     .upsert(
       { tenant_id, user_id: userId, type, solde: newSolde },
@@ -217,7 +201,7 @@ export async function updateSoldeAction(
     );
   if (error) return { error: error.message };
 
-  await supabase.from('mouvements_soldes').insert({
+  await admin.from('mouvements_soldes').insert({
     tenant_id,
     user_id: userId,
     type,

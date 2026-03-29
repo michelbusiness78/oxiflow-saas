@@ -1,24 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth-context';
 
 const PATH = '/projets';
-
-async function getAuthContext() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Non authentifié');
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single();
-  if (!profile) throw new Error('Profil introuvable');
-
-  return { supabase, user, tenant_id: profile.tenant_id };
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,9 +24,9 @@ export type ProjetInput = {
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function createProjetAction(input: ProjetInput) {
-  const { supabase, tenant_id, user } = await getAuthContext();
+  const { admin, tenant_id, user } = await getAuthContext();
 
-  const { error } = await supabase.from('projets').insert({
+  const { error } = await admin.from('projets').insert({
     tenant_id,
     ...input,
     chef_projet_id: input.chef_projet_id ?? user.id,
@@ -52,27 +37,27 @@ export async function createProjetAction(input: ProjetInput) {
 }
 
 export async function updateProjetAction(id: string, input: ProjetInput) {
-  const { supabase } = await getAuthContext();
+  const { admin } = await getAuthContext();
 
-  const { error } = await supabase.from('projets').update(input).eq('id', id);
+  const { error } = await admin.from('projets').update(input).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
 }
 
 export async function deleteProjetAction(id: string) {
-  const { supabase } = await getAuthContext();
+  const { admin } = await getAuthContext();
 
-  const { error } = await supabase.from('projets').delete().eq('id', id);
+  const { error } = await admin.from('projets').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
 }
 
 export async function updateProjetAvancementAction(id: string, pct: number) {
-  const { supabase } = await getAuthContext();
+  const { admin } = await getAuthContext();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('projets')
     .update({ pct_avancement: Math.max(0, Math.min(100, pct)) })
     .eq('id', id);
@@ -84,9 +69,9 @@ export async function updateProjetAvancementAction(id: string, pct: number) {
 // ─── Auto-création depuis devis ───────────────────────────────────────────────
 
 export async function createProjetFromDevisAction(devisId: string) {
-  const { supabase, tenant_id, user } = await getAuthContext();
+  const { admin, tenant_id, user } = await getAuthContext();
 
-  const { data: devis, error: fetchErr } = await supabase
+  const { data: devis, error: fetchErr } = await admin
     .from('devis')
     .select('id, num, client_id, montant_ht, clients(nom)')
     .eq('id', devisId)
@@ -96,7 +81,7 @@ export async function createProjetFromDevisAction(devisId: string) {
 
   const clientNom = (devis.clients as unknown as { nom: string } | null)?.nom ?? '';
 
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from('projets')
     .select('id')
     .eq('devis_id', devisId)
@@ -104,7 +89,7 @@ export async function createProjetFromDevisAction(devisId: string) {
 
   if (existing) return { success: true, already: true };
 
-  const { error } = await supabase.from('projets').insert({
+  const { error } = await admin.from('projets').insert({
     tenant_id,
     client_id:       devis.client_id,
     devis_id:        devis.id,

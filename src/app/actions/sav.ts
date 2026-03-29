@@ -1,24 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth-context';
 
 const PATH = '/projets';
-
-async function getAuthContext() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Non authentifié');
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single();
-  if (!profile) throw new Error('Profil introuvable');
-
-  return { supabase, user, tenant_id: profile.tenant_id };
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,9 +21,9 @@ export type SAVInput = {
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function createSAVAction(input: SAVInput) {
-  const { supabase, tenant_id } = await getAuthContext();
+  const { admin, tenant_id } = await getAuthContext();
 
-  const { error } = await supabase.from('sav_tickets').insert({
+  const { error } = await admin.from('sav_tickets').insert({
     tenant_id,
     ...input,
     date_ouverture: new Date().toISOString(),
@@ -49,18 +34,18 @@ export async function createSAVAction(input: SAVInput) {
 }
 
 export async function updateSAVAction(id: string, input: SAVInput) {
-  const { supabase } = await getAuthContext();
+  const { admin } = await getAuthContext();
 
-  const { error } = await supabase.from('sav_tickets').update(input).eq('id', id);
+  const { error } = await admin.from('sav_tickets').update(input).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
 }
 
 export async function deleteSAVAction(id: string) {
-  const { supabase } = await getAuthContext();
+  const { admin } = await getAuthContext();
 
-  const { error } = await supabase.from('sav_tickets').delete().eq('id', id);
+  const { error } = await admin.from('sav_tickets').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
@@ -70,14 +55,14 @@ export async function changeSAVStatutAction(
   id: string,
   statut: SAVInput['statut'],
 ) {
-  const { supabase } = await getAuthContext();
+  const { admin } = await getAuthContext();
 
   const updates: Record<string, unknown> = { statut };
   if (statut === 'resolu' || statut === 'cloture') {
     updates.date_resolution = new Date().toISOString();
   }
 
-  const { error } = await supabase.from('sav_tickets').update(updates).eq('id', id);
+  const { error } = await admin.from('sav_tickets').update(updates).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };

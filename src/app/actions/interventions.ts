@@ -1,24 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth-context';
 
 const PATH = '/technicien';
-
-async function getAuthContext() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Non authentifié');
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single();
-  if (!profile) throw new Error('Profil introuvable');
-
-  return { supabase, user, tenant_id: profile.tenant_id };
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,9 +29,9 @@ export type InterventionInput = {
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function createInterventionAction(input: InterventionInput) {
-  const { supabase, tenant_id, user } = await getAuthContext();
+  const { admin, tenant_id, user } = await getAuthContext();
 
-  const { error } = await supabase.from('interventions').insert({
+  const { error } = await admin.from('interventions').insert({
     tenant_id,
     ...input,
     technicien_id: input.technicien_id ?? user.id,
@@ -57,18 +42,18 @@ export async function createInterventionAction(input: InterventionInput) {
 }
 
 export async function updateInterventionAction(id: string, input: InterventionInput) {
-  const { supabase } = await getAuthContext();
+  const { admin } = await getAuthContext();
 
-  const { error } = await supabase.from('interventions').update(input).eq('id', id);
+  const { error } = await admin.from('interventions').update(input).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
 }
 
 export async function deleteInterventionAction(id: string) {
-  const { supabase } = await getAuthContext();
+  const { admin } = await getAuthContext();
 
-  const { error } = await supabase.from('interventions').delete().eq('id', id);
+  const { error } = await admin.from('interventions').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
@@ -83,9 +68,9 @@ export async function terminerInterventionAction(
   photos: string[],
   signature_url: string | null,
 ) {
-  const { supabase } = await getAuthContext();
+  const { admin } = await getAuthContext();
 
-  const { error } = await supabase.from('interventions').update({
+  const { error } = await admin.from('interventions').update({
     statut:        'terminee',
     duree_minutes,
     checklist,
@@ -105,8 +90,7 @@ export async function uploadInterventionFileAction(
   formData: FormData,
   folder: 'photos' | 'signatures',
 ): Promise<{ url?: string; path?: string; error?: string }> {
-  const { tenant_id } = await getAuthContext();
-  const admin  = await createAdminClient();
+  const { admin, tenant_id } = await getAuthContext();
   const file   = formData.get('file') as File | null;
   if (!file) return { error: 'Aucun fichier fourni.' };
 
@@ -128,7 +112,7 @@ export async function uploadInterventionFileAction(
 }
 
 export async function deleteInterventionFileAction(path: string) {
-  const admin = await createAdminClient();
+  const { admin } = await getAuthContext();
   await admin.storage.from('interventions').remove([path]);
   return { success: true };
 }

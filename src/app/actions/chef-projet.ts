@@ -1,17 +1,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth-context';
 
 const PATH = '/chef-projet';
 
 export async function assignerTechnicienProjetAction(projetId: string, technicienId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Non authentifié' };
+  const { admin } = await getAuthContext();
 
   // Assigne le technicien à toutes les tâches du projet sans assigné
-  const { error } = await supabase
+  const { error } = await admin
     .from('taches')
     .update({ assigne_a: technicienId })
     .eq('projet_id', projetId)

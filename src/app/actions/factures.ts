@@ -1,23 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth-context';
 import type { DevisLigne } from './commerce';
 
 const PATH = '/commerce';
 
-async function getAuthContext() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Non authentifié');
-  const { data: profile } = await supabase
-    .from('users').select('tenant_id').eq('id', user.id).single();
-  if (!profile) throw new Error('Profil introuvable');
-  return { supabase, user, tenant_id: profile.tenant_id };
-}
-
-async function nextFactureNum(tenant_id: string): Promise<string> {
-  const admin = await createAdminClient();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function nextFactureNum(admin: any, tenant_id: string): Promise<string> {
   const { count } = await admin
     .from('factures')
     .select('*', { count: 'exact', head: true })
@@ -38,9 +28,9 @@ export type FactureInput = {
 };
 
 export async function createFactureAction(input: FactureInput) {
-  const { supabase, tenant_id } = await getAuthContext();
-  const num = await nextFactureNum(tenant_id);
-  const { error } = await supabase.from('factures').insert({
+  const { admin, tenant_id } = await getAuthContext();
+  const num = await nextFactureNum(admin, tenant_id);
+  const { error } = await admin.from('factures').insert({
     ...input,
     num,
     tenant_id,
@@ -52,16 +42,16 @@ export async function createFactureAction(input: FactureInput) {
 }
 
 export async function updateFactureAction(id: string, input: Partial<FactureInput>) {
-  const { supabase } = await getAuthContext();
-  const { error } = await supabase.from('factures').update(input).eq('id', id);
+  const { admin } = await getAuthContext();
+  const { error } = await admin.from('factures').update(input).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
 }
 
 export async function deleteFactureAction(id: string) {
-  const { supabase } = await getAuthContext();
-  const { error } = await supabase.from('factures').delete().eq('id', id);
+  const { admin } = await getAuthContext();
+  const { error } = await admin.from('factures').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
@@ -71,8 +61,8 @@ export async function changeFactureStatutAction(
   id: string,
   statut: 'brouillon' | 'envoyee' | 'payee' | 'partielle' | 'impayee',
 ) {
-  const { supabase } = await getAuthContext();
-  const { error } = await supabase.from('factures').update({ statut }).eq('id', id);
+  const { admin } = await getAuthContext();
+  const { error } = await admin.from('factures').update({ statut }).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
@@ -80,12 +70,12 @@ export async function changeFactureStatutAction(
 
 // Créer un avoir = nouvelle facture avec montants négatifs
 export async function creerAvoirAction(id: string) {
-  const { supabase, tenant_id } = await getAuthContext();
-  const { data: original, error: fetchErr } = await supabase
+  const { admin, tenant_id } = await getAuthContext();
+  const { data: original, error: fetchErr } = await admin
     .from('factures').select('*').eq('id', id).single();
   if (fetchErr || !original) return { error: 'Facture introuvable.' };
 
-  const num = await nextFactureNum(tenant_id);
+  const num = await nextFactureNum(admin, tenant_id);
   const today = new Date().toISOString().split('T')[0];
 
   const avoirLignes = (original.lignes as DevisLigne[]).map((l) => ({
@@ -93,7 +83,7 @@ export async function creerAvoirAction(id: string) {
     prix_ht: -Math.abs(l.prix_ht),
   }));
 
-  const { error } = await supabase.from('factures').insert({
+  const { error } = await admin.from('factures').insert({
     tenant_id,
     client_id:   original.client_id,
     devis_id:    original.devis_id,

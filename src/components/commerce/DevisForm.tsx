@@ -77,6 +77,7 @@ function Input({
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onFocus={type === 'number' ? (e) => e.target.select() : undefined}
       placeholder={placeholder}
       min={min}
       max={max}

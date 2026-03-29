@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SlideOver } from '@/components/ui/SlideOver';
 import { createClientAction, updateClientAction, type ClientInput } from '@/app/actions/commerce';
 
@@ -56,8 +56,8 @@ export function ClientForm({ open, onClose, editing }: ClientFormProps) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Sync form quand editing change
-  useState(() => { setForm(editing ?? empty); setError(''); });
+  // Sync form quand editing change (useEffect déclenché à chaque changement de editing)
+  useEffect(() => { setForm(editing ?? empty); setError(''); }, [editing]);
 
   function set(key: keyof ClientInput) {
     return (value: string) => setForm((f) => ({ ...f, [key]: value }));

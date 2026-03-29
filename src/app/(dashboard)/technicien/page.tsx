@@ -1,25 +1,30 @@
 import { redirect }   from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { InterventionList } from '@/components/technicien/InterventionList';
 import type { Intervention } from '@/components/technicien/InterventionForm';
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchTechnicienData() {
+  // Auth via client standard (cookies)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
+  // Lecture via admin pour bypasser RLS (adresse/cp/ville retournés correctement)
+  const admin = await createAdminClient();
+
+  const { data: profile } = await admin
     .from('users')
-    .select('name')
+    .select('name, tenant_id')
     .eq('id', user.id)
     .single();
 
   const profileName = profile?.name ?? user.email ?? 'Technicien';
+  const tenantId    = profile?.tenant_id;
 
   const [interventionsRes, clientsRes, catalogueRes] = await Promise.all([
-    supabase
+    admin
       .from('interventions')
       .select(`
         id, client_id, projet_id, technicien_id, date, type, statut,
@@ -30,14 +35,16 @@ async function fetchTechnicienData() {
       .eq('technicien_id', user.id)
       .order('date', { ascending: false }),
 
-    supabase
+    admin
       .from('clients')
-      .select('id, nom, adresse, cp, ville')
+      .select('id, nom, adresse, cp, ville, tel')
+      .eq('tenant_id', tenantId)
       .order('nom'),
 
-    supabase
+    admin
       .from('catalogue_produits')
       .select('id, ref, designation')
+      .eq('tenant_id', tenantId)
       .order('designation'),
   ]);
 
