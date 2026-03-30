@@ -22,7 +22,7 @@ function Breadcrumb() {
     <nav aria-label="Fil d'Ariane">
       <ol className="flex items-center gap-1.5 text-sm">
         <li>
-          <span className="font-bold text-oxi-navy">
+          <span className="font-bold text-[#1B2A4A]">
             {segments.length === 0 ? 'Accueil' : getLabel(segments[0])}
           </span>
         </li>
@@ -49,7 +49,7 @@ export function DashboardShell({ children, userName, userEmail, userRole, allowe
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex h-full bg-slate-100">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -59,7 +59,7 @@ export function DashboardShell({ children, userName, userEmail, userRole, allowe
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar — fond blanc, border + ombre pour séparer du contenu */}
-        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 bg-white shadow-sm px-4 shadow-oxi-sm md:px-6">
+        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 bg-white shadow-sm px-4 md:px-6">
           <button
             onClick={() => setSidebarOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-white hover:text-slate-800 transition-colors md:hidden"

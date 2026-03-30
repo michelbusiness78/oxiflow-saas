@@ -41,7 +41,7 @@ export function Sidebar({ isOpen, onClose, allowedHrefs, showSettings }: Sidebar
       {/* Sidebar */}
       <aside
         className={[
-          'fixed top-0 left-0 z-30 flex h-full w-60 flex-col bg-oxi-navy',
+          'fixed top-0 left-0 z-30 flex h-full w-60 flex-col bg-[#1B2A4A]',
           'transition-transform duration-300 ease-in-out',
           // Mobile : drawer
           'md:translate-x-0 md:static md:z-auto',
