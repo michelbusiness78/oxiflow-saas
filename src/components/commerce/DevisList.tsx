@@ -70,14 +70,14 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
       header:    'N° Devis',
       sortable:  true,
       sortValue: (r) => r.num,
-      cell:      (r) => <span className="font-mono text-sm font-medium text-oxi-text">{r.num}</span>,
+      cell:      (r) => <span className="font-mono text-sm font-semibold text-slate-700">{r.num}</span>,
     },
     {
       key:       'client',
       header:    'Client',
       sortable:  true,
       sortValue: (r) => r.client_nom ?? '',
-      cell:      (r) => <span className="text-oxi-text-secondary">{r.client_nom ?? '—'}</span>,
+      cell:      (r) => <span className="text-slate-500">{r.client_nom ?? '—'}</span>,
     },
     {
       key:    'statut',
@@ -92,7 +92,7 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
       sortable:  true,
       sortValue: (r) => r.montant_ttc,
       cell:      (r) => (
-        <span className="font-semibold text-oxi-text">{fmtEur(r.montant_ttc)}</span>
+        <span className="font-semibold text-slate-800">{fmtEur(r.montant_ttc)}</span>
       ),
     },
     {
@@ -100,7 +100,7 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
       header:    'Date',
       sortable:  true,
       sortValue: (r) => r.date,
-      cell:      (r) => <span className="text-xs text-oxi-text-muted">{fmtDate(r.date)}</span>,
+      cell:      (r) => <span className="text-xs text-slate-400">{fmtDate(r.date)}</span>,
       className: 'hidden md:table-cell',
     },
     {
@@ -111,7 +111,7 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
       cell:      (r) => {
         const expired = r.validite && new Date(r.validite) < new Date() && r.statut === 'envoye';
         return (
-          <span className={`text-xs ${expired ? 'text-oxi-danger font-medium' : 'text-oxi-text-muted'}`}>
+          <span className={`text-xs ${expired ? 'text-oxi-danger font-medium' : 'text-slate-400'}`}>
             {fmtDate(r.validite)}
           </span>
         );
@@ -133,8 +133,8 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
               className={[
                 'rounded-full px-3 py-1 text-xs font-medium transition-colors',
                 statusFilter === s
-                  ? 'bg-oxi-primary text-white'
-                  : 'bg-oxi-bg text-oxi-text-secondary hover:bg-oxi-border',
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-slate-500 hover:bg-slate-100',
               ].join(' ')}
             >
               {s === 'tous' ? 'Tous' : devisLabel(s)}
@@ -144,7 +144,7 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
 
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-4 w-4" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -167,7 +167,7 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
         emptyAction={
           <button
             onClick={openCreate}
-            className="rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           >
             Créer votre premier devis
           </button>
@@ -178,7 +178,7 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
             {row.statut === 'envoye' && (
               <button
                 onClick={() => handleAccepter(row.id)}
-                className="rounded-md px-2.5 py-1.5 text-xs font-medium text-oxi-success bg-oxi-success-light hover:opacity-80 transition-opacity"
+                className="rounded-md px-2.5 py-1.5 text-xs font-medium text-oxi-success bg-green-50 hover:opacity-80 transition-opacity"
                 title="Marquer comme accepté"
               >
                 Accepter
@@ -187,7 +187,7 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
             {/* Dupliquer */}
             <button
               onClick={() => handleDupliquer(row.id)}
-              className="rounded-md p-1.5 text-oxi-text-muted hover:bg-oxi-bg hover:text-oxi-text transition-colors"
+              className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-slate-800 transition-colors"
               title="Dupliquer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
@@ -198,7 +198,7 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
             {['brouillon', 'envoye'].includes(row.statut) && (
               <button
                 onClick={() => openEdit(row)}
-                className="rounded-md p-1.5 text-oxi-text-muted hover:bg-oxi-bg hover:text-oxi-text transition-colors"
+                className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-slate-800 transition-colors"
                 title="Modifier"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
@@ -209,7 +209,7 @@ export function DevisList({ devis, clients, catalogue }: DevisListProps) {
             {/* Supprimer */}
             <button
               onClick={() => { setError(''); setDeleteId(row.id); }}
-              className="rounded-md p-1.5 text-oxi-text-muted hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors"
+              className="rounded-md p-1.5 text-slate-400 hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors"
               title="Supprimer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>

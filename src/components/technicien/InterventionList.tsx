@@ -19,16 +19,16 @@ interface InterventionListProps {
 // ─── Config ────────────────────────────────────────────────────────────────────
 
 const TYPE_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
-  installation: { label: 'Installation', bg: 'bg-oxi-primary-light',  text: 'text-oxi-primary', dot: 'bg-oxi-primary'  },
-  maintenance:  { label: 'Maintenance',  bg: 'bg-oxi-success-light',  text: 'text-oxi-success', dot: 'bg-oxi-success'  },
+  installation: { label: 'Installation', bg: 'bg-blue-50',  text: 'text-blue-600', dot: 'bg-blue-600'  },
+  maintenance:  { label: 'Maintenance',  bg: 'bg-green-50',  text: 'text-oxi-success', dot: 'bg-green-500'  },
   sav:          { label: 'SAV',           bg: 'bg-oxi-warning-light',  text: 'text-oxi-warning', dot: 'bg-oxi-warning'  },
   depannage:    { label: 'Dépannage',    bg: 'bg-oxi-danger-light',   text: 'text-oxi-danger',  dot: 'bg-oxi-danger'   },
 };
 
 const STATUT_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   planifiee: { label: 'Planifiée', bg: 'bg-gray-100',             text: 'text-gray-600'       },
-  en_cours:  { label: 'En cours',  bg: 'bg-oxi-primary-light',   text: 'text-oxi-primary'    },
-  terminee:  { label: 'Terminée',  bg: 'bg-oxi-success-light',   text: 'text-oxi-success'    },
+  en_cours:  { label: 'En cours',  bg: 'bg-blue-50',   text: 'text-blue-600'    },
+  terminee:  { label: 'Terminée',  bg: 'bg-green-50',   text: 'text-oxi-success'    },
   annulee:   { label: 'Annulée',   bg: 'bg-oxi-danger-light',    text: 'text-oxi-danger'     },
 };
 
@@ -81,7 +81,7 @@ function InterventionCard({
   const checkTotal = intervention.checklist?.length ?? 0;
 
   return (
-    <div className="rounded-2xl border border-oxi-border bg-oxi-surface shadow-sm overflow-hidden active:scale-[0.99] transition-transform">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-sm overflow-hidden active:scale-[0.99] transition-transform">
       {/* Bande colorée par type */}
       <div className={`flex items-center justify-between px-4 py-2.5 ${t.bg}`}>
         <div className="flex items-center gap-2">
@@ -100,9 +100,9 @@ function InterventionCard({
         {/* Client */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-base font-bold text-oxi-text leading-snug">{intervention.client_nom ?? '—'}</p>
+            <p className="text-base font-bold text-slate-800 leading-snug">{intervention.client_nom ?? '—'}</p>
             {intervention.adresse && (
-              <p className="text-xs text-oxi-text-muted mt-0.5 flex items-center gap-1">
+              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-3.5 w-3.5 shrink-0" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
@@ -112,14 +112,14 @@ function InterventionCard({
             )}
           </div>
           {fmtDuree(intervention.duree_minutes) && (
-            <span className="rounded-lg bg-oxi-bg px-2 py-1 text-xs font-mono font-semibold text-oxi-text-secondary shrink-0">
+            <span className="rounded-lg bg-white px-2 py-1 text-xs font-mono font-semibold text-slate-500 shrink-0">
               {fmtDuree(intervention.duree_minutes)}
             </span>
           )}
         </div>
 
         {/* Date */}
-        <p className="text-sm text-oxi-text-secondary">
+        <p className="text-sm text-slate-500">
           {new Date(intervention.date).toLocaleDateString('fr-FR', {
             weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
           })}
@@ -130,17 +130,17 @@ function InterventionCard({
           <div className="flex items-center gap-3 pt-1">
             {checkTotal > 0 && (
               <div className="flex items-center gap-1.5">
-                <div className="w-20 h-1.5 rounded-full bg-oxi-border overflow-hidden">
+                <div className="w-20 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-oxi-success transition-all"
+                    className="h-full rounded-full bg-green-500 transition-all"
                     style={{ width: `${Math.round((checkDone / checkTotal) * 100)}%` }}
                   />
                 </div>
-                <span className="text-xs text-oxi-text-muted">{checkDone}/{checkTotal}</span>
+                <span className="text-xs text-slate-400">{checkDone}/{checkTotal}</span>
               </div>
             )}
             {photoCount > 0 && (
-              <span className="flex items-center gap-1 text-xs text-oxi-text-muted">
+              <span className="flex items-center gap-1 text-xs text-slate-400">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
                 </svg>
@@ -152,17 +152,17 @@ function InterventionCard({
       </div>
 
       {/* Actions */}
-      <div className="flex border-t border-oxi-border">
+      <div className="flex border-t border-slate-200">
         <button
           onClick={onEdit}
-          className="flex flex-1 items-center justify-center gap-2 py-3.5 text-sm font-semibold text-oxi-primary hover:bg-oxi-primary-light transition-colors"
+          className="flex flex-1 items-center justify-center gap-2 py-3.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
           </svg>
           {intervention.statut === 'terminee' ? 'Voir / Rapport' : 'Ouvrir'}
         </button>
-        <div className="w-px bg-oxi-border" />
+        <div className="w-px bg-slate-200" />
         <button
           onClick={onDelete}
           className="flex items-center justify-center gap-2 px-5 py-3.5 text-sm font-semibold text-oxi-danger hover:bg-oxi-danger-light transition-colors"
@@ -221,19 +221,19 @@ export function InterventionList({ interventions, clients, catalogue, currentUse
         {/* Métriques rapides */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: 'Aujourd\'hui',  value: String(todayCount), color: 'text-oxi-primary'  },
+            { label: 'Aujourd\'hui',  value: String(todayCount), color: 'text-blue-600'  },
             { label: 'En cours',      value: String(enCours),    color: 'text-oxi-warning'  },
             { label: 'Terminées',     value: String(terminee),   color: 'text-oxi-success'  },
           ].map((m) => (
-            <div key={m.label} className="rounded-2xl border border-oxi-border bg-oxi-surface p-3 text-center">
+            <div key={m.label} className="rounded-2xl border border-slate-200 bg-white shadow-sm p-3 text-center">
               <p className={`text-2xl font-extrabold ${m.color}`}>{m.value}</p>
-              <p className="text-xs text-oxi-text-muted mt-0.5">{m.label}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{m.label}</p>
             </div>
           ))}
         </div>
 
         {/* Filtre date */}
-        <div className="flex gap-2 rounded-2xl border border-oxi-border bg-oxi-surface p-1.5">
+        <div className="flex gap-2 rounded-2xl border border-slate-200 bg-white shadow-sm p-1.5">
           {([
             { key: 'today', label: `Aujourd'hui`, count: todayCount },
             { key: 'week',  label: 'Cette semaine', count: weekCount },
@@ -245,12 +245,12 @@ export function InterventionList({ interventions, clients, catalogue, currentUse
               className={[
                 'flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors',
                 dateFilter === f.key
-                  ? 'bg-oxi-primary text-white shadow-sm'
-                  : 'text-oxi-text-secondary hover:text-oxi-text',
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800',
               ].join(' ')}
             >
               {f.label}
-              <span className={`ml-1.5 text-xs ${dateFilter === f.key ? 'text-white/70' : 'text-oxi-text-muted'}`}>
+              <span className={`ml-1.5 text-xs ${dateFilter === f.key ? 'text-white/70' : 'text-slate-400'}`}>
                 {f.count}
               </span>
             </button>
@@ -261,8 +261,8 @@ export function InterventionList({ interventions, clients, catalogue, currentUse
 
         {/* Liste des cartes */}
         {sorted.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-oxi-border p-12 text-center">
-            <p className="text-oxi-text-muted text-sm">
+          <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center">
+            <p className="text-slate-400 text-sm">
               {dateFilter === 'today' ? 'Aucune intervention aujourd\'hui' :
                dateFilter === 'week'  ? 'Aucune intervention cette semaine' :
                'Aucune intervention'}
@@ -284,7 +284,7 @@ export function InterventionList({ interventions, clients, catalogue, currentUse
         {/* Bouton nouvelle intervention — gros, accessible au pouce */}
         <button
           onClick={() => { setEditing(null); setFormOpen(true); }}
-          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-oxi-primary py-5 text-base font-bold text-white shadow-lg hover:bg-oxi-primary-hover active:scale-[0.98] transition-all"
+          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 py-5 text-base font-bold text-white shadow-lg hover:bg-blue-700 active:scale-[0.98] transition-all"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-6 w-6" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

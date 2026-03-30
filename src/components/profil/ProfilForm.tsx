@@ -19,7 +19,7 @@ const ROLE_LABELS: Record<string, string> = {
   rh:          'RH',
 };
 
-const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text placeholder:text-oxi-text-muted focus:outline-none focus:ring-2 focus:ring-oxi-primary disabled:opacity-60';
+const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-60';
 
 interface Props {
   name:  string;
@@ -83,13 +83,13 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
     <div className="space-y-6 max-w-2xl">
 
       {/* ── Avatar + infos ── */}
-      <div className="rounded-2xl border border-oxi-border bg-oxi-surface p-6 flex items-center gap-5">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-oxi-primary/10 text-xl font-semibold text-oxi-primary">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 flex items-center gap-5">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-600/10 text-xl font-semibold text-blue-600">
           {initials || '?'}
         </div>
         <div className="min-w-0">
-          <p className="text-base font-semibold text-oxi-text truncate">{name}</p>
-          <p className="text-sm text-oxi-text-muted truncate">{email}</p>
+          <p className="text-base font-semibold text-slate-800 truncate">{name}</p>
+          <p className="text-sm text-slate-400 truncate">{email}</p>
           <span className={`mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ROLE_COLORS[role] ?? 'bg-gray-100 text-gray-600'}`}>
             {ROLE_LABELS[role] ?? role}
           </span>
@@ -97,13 +97,13 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
       </div>
 
       {/* ── Informations générales ── */}
-      <div className="rounded-2xl border border-oxi-border bg-oxi-surface p-6 space-y-5">
-        <h2 className="text-sm font-semibold text-oxi-text border-b border-oxi-border pb-3">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-5">
+        <h2 className="text-sm font-semibold text-slate-800 border-b border-slate-200 pb-3">
           Informations générales
         </h2>
         <form onSubmit={handleNameSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-oxi-text mb-1.5">Nom complet</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nom complet</label>
             <input
               value={name}
               onChange={(e) => { setName(e.target.value); setNameSuccess(false); }}
@@ -112,12 +112,12 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-oxi-text mb-1.5">Email</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
             <input value={email} disabled className={inputCls} />
-            <p className="mt-1 text-xs text-oxi-text-muted">L'email ne peut pas être modifié ici.</p>
+            <p className="mt-1 text-xs text-slate-400">L'email ne peut pas être modifié ici.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-oxi-text mb-1.5">Rôle</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Rôle</label>
             <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${ROLE_COLORS[role] ?? 'bg-gray-100 text-gray-600'}`}>
               {ROLE_LABELS[role] ?? role}
             </span>
@@ -128,7 +128,7 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-oxi-primary px-5 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {pending ? 'Enregistrement…' : 'Enregistrer'}
             </button>
@@ -137,13 +137,13 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
       </div>
 
       {/* ── Changer le mot de passe ── */}
-      <div className="rounded-2xl border border-oxi-border bg-oxi-surface p-6 space-y-5">
-        <h2 className="text-sm font-semibold text-oxi-text border-b border-oxi-border pb-3">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-5">
+        <h2 className="text-sm font-semibold text-slate-800 border-b border-slate-200 pb-3">
           Changer le mot de passe
         </h2>
         <form onSubmit={handlePasswordSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-oxi-text mb-1.5">Mot de passe actuel</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mot de passe actuel</label>
             <input
               type="password"
               value={oldPwd}
@@ -154,7 +154,7 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-oxi-text mb-1.5">Nouveau mot de passe</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nouveau mot de passe</label>
             <input
               type="password"
               value={newPwd}
@@ -164,10 +164,10 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
               autoComplete="new-password"
               className={inputCls}
             />
-            <p className="mt-1 text-xs text-oxi-text-muted">Minimum 8 caractères.</p>
+            <p className="mt-1 text-xs text-slate-400">Minimum 8 caractères.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-oxi-text mb-1.5">Confirmer le nouveau mot de passe</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Confirmer le nouveau mot de passe</label>
             <input
               type="password"
               value={confirmPwd}
@@ -183,7 +183,7 @@ export function ProfilForm({ name: initialName, email, role }: Props) {
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-oxi-primary px-5 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {pending ? 'Mise à jour…' : 'Changer le mot de passe'}
             </button>

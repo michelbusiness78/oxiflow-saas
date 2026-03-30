@@ -137,7 +137,7 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
       {/* Retour */}
       <Link
         href="/chef-projet"
-        className="inline-flex items-center gap-1.5 text-sm text-oxi-text-secondary hover:text-oxi-primary transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition-colors"
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -148,8 +148,8 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
       {/* En-tête projet */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-oxi-text">{projet.nom}</h1>
-          <p className="mt-0.5 text-sm text-oxi-text-secondary">{projet.client_nom}</p>
+          <h1 className="text-xl font-semibold text-slate-800">{projet.nom}</h1>
+          <p className="mt-0.5 text-sm text-slate-500">{projet.client_nom}</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -159,7 +159,7 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
           <div className="relative">
             <button
               onClick={() => setAssignOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-lg border border-oxi-border bg-oxi-surface px-4 py-2 text-sm font-medium text-oxi-text hover:bg-oxi-bg transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white shadow-sm px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
@@ -168,14 +168,14 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
             </button>
 
             {assignOpen && (
-              <div className="absolute right-0 top-full mt-2 z-20 w-72 rounded-xl border border-oxi-border bg-oxi-surface shadow-lg p-4 space-y-3">
-                <p className="text-xs font-medium text-oxi-text">
+              <div className="absolute right-0 top-full mt-2 z-20 w-72 rounded-xl border border-slate-200 bg-white shadow-sm shadow-lg p-4 space-y-3">
+                <p className="text-xs font-semibold text-slate-700">
                   Assigner aux tâches sans assigné
                 </p>
                 <select
                   value={selectedTech}
                   onChange={(e) => setSelectedTech(e.target.value)}
-                  className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="">Choisir un technicien…</option>
                   {techniciens.map((t) => (
@@ -186,19 +186,19 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
                   <p className="text-xs text-oxi-danger">{assignError}</p>
                 )}
                 {techniciens.length === 0 && (
-                  <p className="text-xs text-oxi-text-muted">Aucun technicien disponible</p>
+                  <p className="text-xs text-slate-400">Aucun technicien disponible</p>
                 )}
                 <div className="flex gap-2">
                   <button
                     onClick={handleAssigner}
                     disabled={!selectedTech || isPending}
-                    className="flex-1 rounded-lg bg-oxi-primary px-3 py-2 text-xs font-semibold text-white hover:bg-oxi-primary-hover disabled:opacity-50 transition-colors"
+                    className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
                   >
                     {isPending ? 'En cours…' : 'Assigner'}
                   </button>
                   <button
                     onClick={() => { setAssignOpen(false); setAssignError(''); }}
-                    className="rounded-lg border border-oxi-border px-3 py-2 text-xs text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-white transition-colors"
                   >
                     Annuler
                   </button>
@@ -210,7 +210,7 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
       </div>
 
       {assignSuccess && (
-        <div className="rounded-lg bg-oxi-success-light px-4 py-3 text-sm text-oxi-success">
+        <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-oxi-success">
           Technicien assigné aux tâches sans assigné.
         </div>
       )}
@@ -237,22 +237,22 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
                 : `Il y a ${daysSinceUpdate} j`,
           },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-oxi-border bg-oxi-surface px-4 py-3">
-            <p className="text-xs text-oxi-text-muted">{s.label}</p>
-            <p className="mt-0.5 text-sm font-medium text-oxi-text truncate">{s.value}</p>
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white shadow-sm px-4 py-3">
+            <p className="text-xs text-slate-400">{s.label}</p>
+            <p className="mt-0.5 text-sm font-semibold text-slate-700 truncate">{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* Avancement global */}
-      <div className="rounded-xl border border-oxi-border bg-oxi-surface p-5">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-5">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold text-oxi-text">Avancement global</p>
-          <span className="text-2xl font-bold text-oxi-primary">{projet.pct_avancement}%</span>
+          <p className="text-sm font-semibold text-slate-800">Avancement global</p>
+          <span className="text-2xl font-bold text-blue-600">{projet.pct_avancement}%</span>
         </div>
-        <div className="h-3 rounded-full bg-oxi-border overflow-hidden">
+        <div className="h-3 rounded-full bg-slate-200 overflow-hidden">
           <div
-            className="h-full rounded-full bg-oxi-primary transition-all"
+            className="h-full rounded-full bg-blue-600 transition-all"
             style={{ width: `${projet.pct_avancement}%` }}
           />
         </div>
@@ -263,9 +263,9 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
 
         {/* Tâches */}
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-base font-semibold text-oxi-text">Tâches</h2>
+          <h2 className="text-base font-semibold text-slate-800">Tâches</h2>
           {taches.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-oxi-border py-10 text-center text-sm text-oxi-text-muted">
+            <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
               Aucune tâche pour ce projet
             </div>
           ) : (
@@ -279,15 +279,15 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
 
         {/* Planning (timeline verticale) */}
         <div className="space-y-4">
-          <h2 className="text-base font-semibold text-oxi-text">Planning</h2>
+          <h2 className="text-base font-semibold text-slate-800">Planning</h2>
           {timelineTaches.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-oxi-border py-10 text-center text-sm text-oxi-text-muted">
+            <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
               Aucune tâche avec date
             </div>
           ) : (
             <div className="relative">
               {/* Ligne verticale */}
-              <div className="absolute left-[11px] top-2 bottom-2 w-px bg-oxi-border" />
+              <div className="absolute left-[11px] top-2 bottom-2 w-px bg-slate-200" />
               <div className="space-y-3">
                 {timelineTaches.map((t) => {
                   const isLate = t.etat !== 'terminee' && new Date(t.date_echeance!) < new Date();
@@ -298,19 +298,19 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
                       <div
                         className={[
                           'absolute left-1.5 top-2 h-3.5 w-3.5 rounded-full border-2 border-oxi-bg',
-                          isDone  ? 'bg-oxi-success'  :
+                          isDone  ? 'bg-green-500'  :
                           isLate  ? 'bg-oxi-danger'   :
-                                    'bg-oxi-primary',
+                                    'bg-blue-600',
                         ].join(' ')}
                       />
-                      <div className="flex-1 rounded-lg border border-oxi-border bg-oxi-surface p-3">
-                        <p className="text-xs font-medium text-oxi-text leading-snug">{t.titre}</p>
-                        <p className={['text-xs mt-0.5', isLate ? 'text-oxi-danger font-medium' : 'text-oxi-text-muted'].join(' ')}>
+                      <div className="flex-1 rounded-lg border border-slate-200 bg-white shadow-sm p-3">
+                        <p className="text-xs font-semibold text-slate-700 leading-snug">{t.titre}</p>
+                        <p className={['text-xs mt-0.5', isLate ? 'text-oxi-danger font-medium' : 'text-slate-400'].join(' ')}>
                           {fmtDate(t.date_echeance!)}
                           {isLate && ' · En retard'}
                         </p>
                         {t.assigne_nom && (
-                          <p className="text-xs text-oxi-text-muted mt-1">{t.assigne_nom}</p>
+                          <p className="text-xs text-slate-400 mt-1">{t.assigne_nom}</p>
                         )}
                       </div>
                     </div>
@@ -325,14 +325,14 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
       {/* Interventions liées */}
       {interventions.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-base font-semibold text-oxi-text">
+          <h2 className="text-base font-semibold text-slate-800">
             Interventions liées
-            <span className="ml-2 text-sm font-normal text-oxi-text-muted">({interventions.length})</span>
+            <span className="ml-2 text-sm font-normal text-slate-400">({interventions.length})</span>
           </h2>
-          <div className="overflow-hidden rounded-xl border border-oxi-border bg-oxi-surface">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-oxi-border bg-oxi-bg text-left text-xs text-oxi-text-muted">
+                <tr className="border-b border-slate-200 bg-white text-left text-xs text-slate-400">
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium hidden sm:table-cell">Technicien</th>
@@ -340,17 +340,17 @@ export function ProjetDetail({ projet, taches, interventions, users, techniciens
                   <th className="px-4 py-3 font-medium">Statut</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-oxi-border">
+              <tbody className="divide-y divide-slate-200">
                 {interventions.map((i) => (
-                  <tr key={i.id} className="hover:bg-oxi-bg transition-colors">
-                    <td className="px-4 py-3 text-oxi-text">{fmtDate(i.date)}</td>
-                    <td className="px-4 py-3 text-oxi-text-secondary">
+                  <tr key={i.id} className="hover:bg-white transition-colors">
+                    <td className="px-4 py-3 text-slate-800">{fmtDate(i.date)}</td>
+                    <td className="px-4 py-3 text-slate-500">
                       {INTERVENTION_LABELS[i.type] ?? i.type}
                     </td>
-                    <td className="px-4 py-3 text-oxi-text-secondary hidden sm:table-cell">
+                    <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">
                       {i.technicien_nom}
                     </td>
-                    <td className="px-4 py-3 text-oxi-text-muted hidden md:table-cell">
+                    <td className="px-4 py-3 text-slate-400 hidden md:table-cell">
                       {i.duree_minutes ? `${i.duree_minutes} min` : '—'}
                     </td>
                     <td className="px-4 py-3">

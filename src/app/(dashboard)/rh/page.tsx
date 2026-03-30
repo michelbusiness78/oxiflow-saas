@@ -144,8 +144,8 @@ export default async function RhPage({ searchParams }: PageProps) {
     <div className="space-y-6">
       {/* En-tête */}
       <div>
-        <h1 className="text-xl font-semibold text-oxi-text">Ressources Humaines</h1>
-        <p className="mt-0.5 text-sm text-oxi-text-secondary">
+        <h1 className="text-xl font-semibold text-slate-800">Ressources Humaines</h1>
+        <p className="mt-0.5 text-sm text-slate-500">
           {userName}
           {isManager ? ' · Vue dirigeant — toutes les demandes' : ' · Vos demandes'}
         </p>

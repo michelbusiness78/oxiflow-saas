@@ -43,7 +43,7 @@ const ETATS: { value: TacheInput['etat']; label: string }[] = [
   { value: 'terminee',  label: 'Terminée'  },
 ];
 
-const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3.5 py-2.5 text-sm text-oxi-text outline-none transition-colors focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary';
+const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200';
 
 export function TacheForm({ open, onClose, dossiers, users, editing, defaultProjetId }: TacheFormProps) {
   const [projetId,  setProjetId]  = useState(editing?.projet_id     ?? defaultProjetId ?? '');
@@ -91,19 +91,19 @@ export function TacheForm({ open, onClose, dossiers, users, editing, defaultProj
 
           {/* Titre */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Titre <span className="text-oxi-danger">*</span></label>
+            <label className="block text-sm font-semibold text-slate-700">Titre <span className="text-oxi-danger">*</span></label>
             <input type="text" value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex. Maquetter la page d'accueil" className={inputCls} required />
           </div>
 
           {/* Description */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Description <span className="text-oxi-text-muted">(optionnel)</span></label>
+            <label className="block text-sm font-semibold text-slate-700">Description <span className="text-slate-400">(optionnel)</span></label>
             <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} placeholder="Détails de la tâche…" className={`${inputCls} resize-none`} />
           </div>
 
           {/* Dossier lié */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Dossier / Projet</label>
+            <label className="block text-sm font-semibold text-slate-700">Dossier / Projet</label>
             <select value={projetId} onChange={(e) => setProjetId(e.target.value)} className={inputCls}>
               <option value="">— Aucun —</option>
               {dossiers.map((d) => <option key={d.id} value={d.id}>{d.nom}</option>)}
@@ -113,14 +113,14 @@ export function TacheForm({ open, onClose, dossiers, users, editing, defaultProj
           {/* Assigné + Priorité */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Assigné à</label>
+              <label className="block text-sm font-semibold text-slate-700">Assigné à</label>
               <select value={assigneA} onChange={(e) => setAssigneA(e.target.value)} className={inputCls}>
                 <option value="">— Non assigné —</option>
                 {users.map((u) => <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Priorité</label>
+              <label className="block text-sm font-semibold text-slate-700">Priorité</label>
               <select value={priorite} onChange={(e) => setPriorite(e.target.value as TacheInput['priorite'])} className={inputCls}>
                 {PRIORITES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
@@ -130,13 +130,13 @@ export function TacheForm({ open, onClose, dossiers, users, editing, defaultProj
           {/* État + Échéance */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">État</label>
+              <label className="block text-sm font-semibold text-slate-700">État</label>
               <select value={etat} onChange={(e) => setEtat(e.target.value as TacheInput['etat'])} className={inputCls}>
                 {ETATS.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Échéance</label>
+              <label className="block text-sm font-semibold text-slate-700">Échéance</label>
               <input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} className={inputCls} />
             </div>
           </div>
@@ -144,8 +144,8 @@ export function TacheForm({ open, onClose, dossiers, users, editing, defaultProj
           {/* Avancement */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-oxi-text">Avancement</label>
-              <span className="text-sm font-semibold text-oxi-primary">{parseInt(pct) || 0}%</span>
+              <label className="block text-sm font-semibold text-slate-700">Avancement</label>
+              <span className="text-sm font-semibold text-blue-600">{parseInt(pct) || 0}%</span>
             </div>
             <input
               type="range"
@@ -154,16 +154,16 @@ export function TacheForm({ open, onClose, dossiers, users, editing, defaultProj
               min="0"
               max="100"
               step="10"
-              className="w-full accent-oxi-primary"
+              className="w-full accent-blue-600"
             />
           </div>
         </div>
 
-        <div className="sticky bottom-0 flex gap-3 border-t border-oxi-border bg-oxi-surface p-5">
-          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors">
+        <div className="sticky bottom-0 flex gap-3 border-t border-slate-200 bg-white shadow-sm p-5">
+          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-white transition-colors">
             Annuler
           </button>
-          <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-oxi-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors disabled:opacity-60">
+          <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60">
             {saving ? 'Enregistrement…' : editing ? 'Mettre à jour' : 'Créer la tâche'}
           </button>
         </div>

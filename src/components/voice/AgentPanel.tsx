@@ -29,7 +29,7 @@ function ThinkingDots() {
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="h-2 w-2 rounded-full bg-oxi-text-muted animate-bounce"
+          className="h-2 w-2 rounded-full bg-slate-300 animate-bounce"
           style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.8s' }}
         />
       ))}
@@ -41,23 +41,23 @@ function ThinkingDots() {
 
 function StatusBar({ status, interimText }: { status: AgentStatus; interimText: string }) {
   const config: Record<AgentStatus, { label: string; color: string }> = {
-    idle:      { label: 'Inactif',          color: 'text-oxi-text-muted'    },
+    idle:      { label: 'Inactif',          color: 'text-slate-400'    },
     listening: { label: 'Écoute…',          color: 'text-red-500'           },
-    thinking:  { label: 'Réflexion…',       color: 'text-oxi-primary'       },
+    thinking:  { label: 'Réflexion…',       color: 'text-blue-600'       },
     speaking:  { label: 'Répond…',          color: 'text-oxi-success'       },
   };
   const { label, color } = config[status];
   return (
-    <div className="flex items-center gap-2 px-4 py-2 border-b border-oxi-border bg-oxi-bg">
+    <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 bg-white">
       <span className={`h-2 w-2 rounded-full ${
-        status === 'idle'      ? 'bg-oxi-text-muted' :
+        status === 'idle'      ? 'bg-slate-300' :
         status === 'listening' ? 'bg-red-500 animate-pulse' :
-        status === 'thinking'  ? 'bg-oxi-primary animate-pulse' :
-                                 'bg-oxi-success animate-pulse'
+        status === 'thinking'  ? 'bg-blue-600 animate-pulse' :
+                                 'bg-green-500 animate-pulse'
       }`} />
       <span className={`text-xs font-medium ${color}`}>{label}</span>
       {interimText && (
-        <span className="text-xs text-oxi-text-muted italic truncate max-w-[200px]">
+        <span className="text-xs text-slate-400 italic truncate max-w-[200px]">
           "{interimText}"
         </span>
       )}
@@ -100,28 +100,28 @@ export function AgentPanel({
   return (
     <div
       className={[
-        'fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl bg-oxi-surface shadow-2xl',
-        'border-t border-oxi-border transition-transform duration-300 ease-out',
+        'fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl bg-white shadow-2xl',
+        'border-t border-slate-200 transition-transform duration-300 ease-out',
         visible ? 'translate-y-0' : 'translate-y-full',
       ].join(' ')}
       style={{ height: '60vh' }}
     >
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between px-4 py-3 border-b border-oxi-border">
+      <div className="flex shrink-0 items-center justify-between px-4 py-3 border-b border-slate-200">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-oxi-primary text-white text-sm font-bold">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold">
             IA
           </div>
           <div>
-            <p className="text-sm font-semibold text-oxi-text">Assistant OxiFlow</p>
-            <p className="text-xs text-oxi-text-muted">
+            <p className="text-sm font-semibold text-slate-800">Assistant OxiFlow</p>
+            <p className="text-xs text-slate-400">
               {textMode ? 'Mode texte' : 'Double-clic micro pour parler'}
             </p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-oxi-text-muted hover:bg-oxi-bg hover:text-oxi-text transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-white hover:text-slate-800 transition-colors"
           aria-label="Fermer la conversation"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
@@ -143,7 +143,7 @@ export function AgentPanel({
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
-          <div className="flex items-center justify-center h-full text-sm text-oxi-text-muted text-center px-6">
+          <div className="flex items-center justify-center h-full text-sm text-slate-400 text-center px-6">
             {textMode
               ? 'Tapez votre message ci-dessous…'
               : 'Dites votre demande après avoir cliqué sur le micro.'}
@@ -159,8 +159,8 @@ export function AgentPanel({
               className={[
                 'max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
                 msg.role === 'user'
-                  ? 'bg-oxi-primary text-white rounded-br-sm'
-                  : 'bg-oxi-bg text-oxi-text rounded-bl-sm border border-oxi-border',
+                  ? 'bg-blue-600 text-white rounded-br-sm'
+                  : 'bg-white text-slate-800 rounded-bl-sm border border-slate-200',
               ].join(' ')}
             >
               {msg.text}
@@ -171,7 +171,7 @@ export function AgentPanel({
         {/* Thinking indicator */}
         {status === 'thinking' && (
           <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-sm bg-oxi-bg border border-oxi-border">
+            <div className="rounded-2xl rounded-bl-sm bg-white border border-slate-200">
               <ThinkingDots />
             </div>
           </div>
@@ -181,7 +181,7 @@ export function AgentPanel({
       {/* Text input (always shown, required in textMode) */}
       <form
         onSubmit={handleSend}
-        className="shrink-0 flex items-center gap-2 border-t border-oxi-border px-3 py-2.5 bg-oxi-surface"
+        className="shrink-0 flex items-center gap-2 border-t border-slate-200 px-3 py-2.5 bg-white"
       >
         <input
           type="text"
@@ -189,12 +189,12 @@ export function AgentPanel({
           onChange={(e) => setTextInput(e.target.value)}
           placeholder={textMode ? 'Écrivez votre message…' : 'Ou tapez ici…'}
           disabled={status === 'thinking'}
-          className="flex-1 rounded-full border border-oxi-border bg-oxi-bg px-4 py-2 text-sm text-oxi-text placeholder:text-oxi-text-muted focus:outline-none focus:ring-2 focus:ring-oxi-primary disabled:opacity-50"
+          className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={!textInput.trim() || status === 'thinking'}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-oxi-primary text-white hover:bg-oxi-primary-hover disabled:opacity-40 transition-colors"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
           aria-label="Envoyer"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-4 w-4">

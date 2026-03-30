@@ -102,18 +102,18 @@ export function NoteFraisList({ notes, isManager, userId }: Props) {
           { label: 'En attente (€)',  value: totalSoumis, color: 'text-[#7C3AED]', bg: 'bg-[#EDE9FE]', fmt: fmtEur(totalSoumis) },
           { label: 'Validé (€)',      value: totalValide, color: 'text-[#16A34A]', bg: 'bg-[#DCFCE7]', fmt: fmtEur(totalValide) },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-oxi-border bg-oxi-surface p-4">
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
             <div className={`inline-flex items-center justify-center rounded-lg ${s.bg} px-2.5 py-1 mb-2`}>
               <span className={`text-sm font-bold ${s.color}`}>{s.fmt}</span>
             </div>
-            <p className="text-xs text-oxi-text-muted">{s.label}</p>
+            <p className="text-xs text-slate-400">{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Toolbar */}
       <div className="flex justify-between items-center">
-        <p className="text-sm text-oxi-text-secondary">
+        <p className="text-sm text-slate-500">
           {notes.length} note{notes.length !== 1 ? 's' : ''} de frais
         </p>
         <button
@@ -131,14 +131,14 @@ export function NoteFraisList({ notes, isManager, userId }: Props) {
 
       {/* Liste */}
       {notes.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-oxi-border py-12 text-center text-sm text-oxi-text-muted">
+        <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-400">
           Aucune note de frais
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-oxi-border bg-oxi-surface">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-oxi-border bg-oxi-bg text-left text-xs text-oxi-text-muted">
+              <tr className="border-b border-slate-200 bg-white text-left text-xs text-slate-400">
                 {isManager && <th className="px-4 py-3 font-medium">Employé</th>}
                 <th className="px-4 py-3 font-medium">Date</th>
                 <th className="px-4 py-3 font-medium">Catégorie</th>
@@ -149,23 +149,23 @@ export function NoteFraisList({ notes, isManager, userId }: Props) {
                 <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-oxi-border">
+            <tbody className="divide-y divide-slate-200">
               {notes.map((n) => (
-                <tr key={n.id} className="hover:bg-oxi-bg transition-colors">
+                <tr key={n.id} className="hover:bg-white transition-colors">
                   {isManager && (
-                    <td className="px-4 py-3 font-medium text-oxi-text">{n.user_nom}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-700">{n.user_nom}</td>
                   )}
-                  <td className="px-4 py-3 text-oxi-text-secondary">{fmtDate(n.date)}</td>
+                  <td className="px-4 py-3 text-slate-500">{fmtDate(n.date)}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EDE9FE] px-2.5 py-0.5 text-xs font-medium text-[#7C3AED]">
                       <span aria-hidden>{CAT_ICONS[n.categorie]}</span>
                       {CAT_LABELS[n.categorie]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-oxi-text">
+                  <td className="px-4 py-3 font-semibold text-slate-800">
                     {fmtEur(n.montant)}
                   </td>
-                  <td className="px-4 py-3 text-oxi-text-muted hidden md:table-cell max-w-[160px] truncate">
+                  <td className="px-4 py-3 text-slate-400 hidden md:table-cell max-w-[160px] truncate">
                     {n.description ?? '—'}
                   </td>
                   <td className="px-4 py-3">
@@ -182,7 +182,7 @@ export function NoteFraisList({ notes, isManager, userId }: Props) {
                         Voir
                       </a>
                     ) : (
-                      <span className="text-xs text-oxi-text-muted">—</span>
+                      <span className="text-xs text-slate-400">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -207,7 +207,7 @@ export function NoteFraisList({ notes, isManager, userId }: Props) {
                       {isManager && n.statut === 'validee' && (
                         <button
                           onClick={() => handleStatut(n.id, 'remboursee')}
-                          className="rounded-md bg-oxi-success-light px-2 py-1 text-xs font-medium text-oxi-success hover:opacity-80 transition-opacity"
+                          className="rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-oxi-success hover:opacity-80 transition-opacity"
                         >
                           Remboursée
                         </button>
@@ -216,7 +216,7 @@ export function NoteFraisList({ notes, isManager, userId }: Props) {
                       {n.user_id === userId && n.statut === 'soumise' && (
                         <button
                           onClick={() => { setError(''); setDeleteId(n.id); }}
-                          className="rounded-md p-1.5 text-oxi-text-muted hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors"
+                          className="rounded-md p-1.5 text-slate-400 hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors"
                           title="Supprimer"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>

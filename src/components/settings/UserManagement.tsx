@@ -73,7 +73,7 @@ function Modal({ onClose, children }: { onClose: () => void; children: React.Rea
     <>
       <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose} aria-hidden />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-oxi-surface shadow-xl border border-oxi-border p-6">
+        <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-white shadow-xl border border-slate-200 p-6">
           {children}
         </div>
       </div>
@@ -154,15 +154,15 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
 
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-oxi-text-muted">
-          <span className="font-semibold text-oxi-text">{users.length}</span> / {limit}{' '}
+        <p className="text-sm text-slate-400">
+          <span className="font-semibold text-slate-800">{users.length}</span> / {limit}{' '}
           utilisateur{limit > 1 ? 's' : ''} —{' '}
           Plan <span className="capitalize font-medium">{plan}</span>
         </p>
         <button
           onClick={() => setShowInvite(true)}
           disabled={!canInvite || pending}
-          className="flex items-center gap-2 self-start rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover disabled:opacity-40 transition-colors"
+          className="flex items-center gap-2 self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
         >
           <span aria-hidden>+</span> Inviter un utilisateur
         </button>
@@ -175,36 +175,36 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-oxi-border">
+      <div className="overflow-x-auto rounded-xl border border-slate-200">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-oxi-border bg-oxi-bg text-left">
-              <th className="px-4 py-3 font-medium text-oxi-text-muted">Utilisateur</th>
-              <th className="hidden sm:table-cell px-4 py-3 font-medium text-oxi-text-muted">Rôle</th>
-              <th className="hidden md:table-cell px-4 py-3 font-medium text-oxi-text-muted">Statut</th>
-              <th className="hidden lg:table-cell px-4 py-3 font-medium text-oxi-text-muted">Depuis</th>
-              <th className="px-4 py-3 text-right font-medium text-oxi-text-muted">Actions</th>
+            <tr className="border-b border-slate-200 bg-white text-left">
+              <th className="px-4 py-3 font-semibold text-slate-700-muted">Utilisateur</th>
+              <th className="hidden sm:table-cell px-4 py-3 font-semibold text-slate-700-muted">Rôle</th>
+              <th className="hidden md:table-cell px-4 py-3 font-semibold text-slate-700-muted">Statut</th>
+              <th className="hidden lg:table-cell px-4 py-3 font-semibold text-slate-700-muted">Depuis</th>
+              <th className="px-4 py-3 text-right font-semibold text-slate-700-muted">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-oxi-border">
+          <tbody className="divide-y divide-slate-200">
             {users.map((u) => {
               const isSelf       = u.id === currentId;
               const isProtected  = isSelf || u.role === 'dirigeant';
               return (
-                <tr key={u.id} className={['transition-colors hover:bg-oxi-bg/40', u.status === 'inactive' ? 'opacity-50' : ''].join(' ')}>
+                <tr key={u.id} className={['transition-colors hover:bg-white/40', u.status === 'inactive' ? 'opacity-50' : ''].join(' ')}>
 
                   {/* Nom / email */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-oxi-primary/10 text-xs font-semibold text-oxi-primary">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600/10 text-xs font-semibold text-blue-600">
                         {u.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-oxi-text">
+                        <p className="truncate font-semibold text-slate-700">
                           {u.name}
-                          {isSelf && <span className="ml-1.5 text-xs text-oxi-text-muted">(vous)</span>}
+                          {isSelf && <span className="ml-1.5 text-xs text-slate-400">(vous)</span>}
                         </p>
-                        <p className="truncate text-xs text-oxi-text-muted">{u.email}</p>
+                        <p className="truncate text-xs text-slate-400">{u.email}</p>
                       </div>
                     </div>
                   </td>
@@ -218,7 +218,7 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
                         value={u.role}
                         disabled={pending}
                         onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                        className="rounded-md border border-oxi-border bg-oxi-bg px-2 py-1 text-xs text-oxi-text focus:outline-none focus:ring-1 focus:ring-oxi-primary disabled:opacity-50"
+                        className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50"
                       >
                         {ROLES.map((r) => (
                           <option key={r.value} value={r.value}>{r.label}</option>
@@ -229,14 +229,14 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
 
                   {/* Statut */}
                   <td className="hidden md:table-cell px-4 py-3">
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-oxi-text-secondary">
-                      <span className={`h-1.5 w-1.5 rounded-full ${u.status === 'active' ? 'bg-oxi-success' : 'bg-oxi-text-muted'}`} />
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                      <span className={`h-1.5 w-1.5 rounded-full ${u.status === 'active' ? 'bg-green-500' : 'bg-slate-300'}`} />
                       {u.status === 'active' ? 'Actif' : 'Inactif'}
                     </span>
                   </td>
 
                   {/* Date */}
-                  <td className="hidden lg:table-cell px-4 py-3 text-xs text-oxi-text-muted">
+                  <td className="hidden lg:table-cell px-4 py-3 text-xs text-slate-400">
                     {new Date(u.created_at).toLocaleDateString('fr-FR')}
                   </td>
 
@@ -247,7 +247,7 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
                         <button
                           disabled={pending}
                           onClick={() => handleToggle(u.id, u.status)}
-                          className="rounded-md border border-oxi-border px-2.5 py-1 text-xs text-oxi-text-secondary hover:bg-oxi-bg transition-colors disabled:opacity-40"
+                          className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-white transition-colors disabled:opacity-40"
                         >
                           {u.status === 'active' ? 'Désactiver' : 'Réactiver'}
                         </button>
@@ -280,20 +280,20 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                   </svg>
                 </div>
-                <h3 className="text-base font-semibold text-oxi-text">Compte créé !</h3>
+                <h3 className="text-base font-semibold text-slate-800">Compte créé !</h3>
               </div>
-              <p className="text-sm text-oxi-text-secondary">
+              <p className="text-sm text-slate-500">
                 Communiquez ces identifiants à l'utilisateur. Il devra changer son mot de passe à la première connexion.
               </p>
-              <div className="rounded-lg border border-oxi-border bg-oxi-bg p-4 space-y-3">
+              <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
                 <div>
-                  <p className="text-xs font-medium text-oxi-text-muted mb-1">URL de connexion</p>
-                  <p className="text-sm text-oxi-text font-mono">{typeof window !== 'undefined' ? window.location.origin : ''}/login</p>
+                  <p className="text-xs font-semibold text-slate-700-muted mb-1">URL de connexion</p>
+                  <p className="text-sm text-slate-800 font-mono">{typeof window !== 'undefined' ? window.location.origin : ''}/login</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-oxi-text-muted mb-1">Mot de passe temporaire</p>
+                  <p className="text-xs font-semibold text-slate-700-muted mb-1">Mot de passe temporaire</p>
                   <div className="flex items-center gap-2">
-                    <p className="flex-1 rounded-md border border-oxi-border bg-oxi-surface px-3 py-2 text-sm font-mono font-semibold text-oxi-text tracking-wider">
+                    <p className="flex-1 rounded-md border border-slate-200 bg-white shadow-sm px-3 py-2 text-sm font-mono font-semibold text-slate-800 tracking-wider">
                       {tempPwd}
                     </p>
                     <button
@@ -303,21 +303,21 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
                       }}
-                      className="rounded-md border border-oxi-border px-3 py-2 text-xs text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+                      className="rounded-md border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-white transition-colors"
                     >
                       {copied ? '✓ Copié' : 'Copier'}
                     </button>
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-oxi-text-muted">
+              <p className="text-xs text-slate-400">
                 Ce mot de passe ne sera plus affiché après fermeture.
               </p>
               <div className="flex justify-end pt-1">
                 <button
                   type="button"
                   onClick={() => { setShowInvite(false); setTempPwd(null); setCopied(false); }}
-                  className="rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
                 >
                   Fermer
                 </button>
@@ -326,26 +326,26 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
           ) : (
             /* ── Étape 1 : formulaire d'invitation ── */
             <>
-              <h3 className="mb-4 text-base font-semibold text-oxi-text">Inviter un utilisateur</h3>
+              <h3 className="mb-4 text-base font-semibold text-slate-800">Inviter un utilisateur</h3>
               <form onSubmit={handleInvite} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-oxi-text mb-1.5">Nom complet *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nom complet *</label>
                   <input name="name" required
-                    className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary" />
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-oxi-text mb-1.5">Email *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email *</label>
                   <input name="email" type="email" required
-                    className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary" />
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-oxi-text mb-1.5">Rôle *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Rôle *</label>
                   <select name="role" defaultValue="commercial"
-                    className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary">
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200">
                     {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
-                <p className="text-xs text-oxi-text-muted">
+                <p className="text-xs text-slate-400">
                   Un compte sera créé. Vous recevrez un mot de passe temporaire à communiquer à l'utilisateur.
                 </p>
                 {inviteErr && (
@@ -353,11 +353,11 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
                 )}
                 <div className="flex justify-end gap-3 pt-1">
                   <button type="button" onClick={() => setShowInvite(false)}
-                    className="rounded-lg border border-oxi-border px-4 py-2 text-sm text-oxi-text-secondary hover:bg-oxi-bg transition-colors">
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:bg-white transition-colors">
                     Annuler
                   </button>
                   <button type="submit" disabled={pending}
-                    className="rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover disabled:opacity-50 transition-colors">
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
                     {pending ? 'Création…' : 'Créer le compte'}
                   </button>
                 </div>
@@ -370,13 +370,13 @@ export function UserManagement({ users: initial, currentId, plan }: Props) {
       {/* ── Modal confirmation suppression ── */}
       {deleteId && (
         <Modal onClose={() => setDeleteId(null)}>
-          <h3 className="mb-2 text-base font-semibold text-oxi-text">Supprimer l'utilisateur ?</h3>
-          <p className="mb-6 text-sm text-oxi-text-muted">
+          <h3 className="mb-2 text-base font-semibold text-slate-800">Supprimer l'utilisateur ?</h3>
+          <p className="mb-6 text-sm text-slate-400">
             Cette action est irréversible. L'utilisateur perdra immédiatement tout accès à OxiFlow.
           </p>
           <div className="flex justify-end gap-3">
             <button onClick={() => setDeleteId(null)}
-              className="rounded-lg border border-oxi-border px-4 py-2 text-sm text-oxi-text-secondary hover:bg-oxi-bg transition-colors">
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:bg-white transition-colors">
               Annuler
             </button>
             <button disabled={pending} onClick={() => handleDelete(deleteId)}

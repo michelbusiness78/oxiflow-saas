@@ -66,18 +66,18 @@ function KanbanCol({
 }) {
   return (
     <div className="flex flex-col gap-2 min-h-[200px]">
-      <div className="flex items-center gap-2 pb-2 border-b border-oxi-border">
+      <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
         <Badge variant={variant}>{title}</Badge>
-        <span className="text-xs text-oxi-text-muted">{taches.length}</span>
+        <span className="text-xs text-slate-400">{taches.length}</span>
       </div>
       {taches.map((t) => (
-        <div key={t.id} className="rounded-lg border border-oxi-border bg-oxi-surface p-3 space-y-1.5">
-          <p className="text-sm font-medium text-oxi-text leading-snug">{t.titre}</p>
-          {t.projet_nom && <p className="text-xs text-oxi-text-muted">{t.projet_nom}</p>}
+        <div key={t.id} className="rounded-lg border border-slate-200 bg-white shadow-sm p-3 space-y-1.5">
+          <p className="text-sm font-semibold text-slate-700 leading-snug">{t.titre}</p>
+          {t.projet_nom && <p className="text-xs text-slate-400">{t.projet_nom}</p>}
           <div className="flex items-center justify-between pt-1">
             <Badge variant={prioriteConfig(t.priorite).variant} className="text-xs">{prioriteConfig(t.priorite).label}</Badge>
             <div className="flex gap-1">
-              <button onClick={() => onEdit(t)} className="rounded p-1 text-oxi-text-muted hover:bg-oxi-bg hover:text-oxi-text transition-colors" title="Modifier">
+              <button onClick={() => onEdit(t)} className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-800 transition-colors" title="Modifier">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
                 </svg>
@@ -89,7 +89,7 @@ function KanbanCol({
                     const idx = next.indexOf(t.etat as Tache['etat']);
                     if (idx < next.length - 1) onMove(t.id, next[idx + 1]);
                   }}
-                  className="rounded p-1 text-oxi-primary hover:bg-oxi-primary-light transition-colors"
+                  className="rounded p-1 text-blue-600 hover:bg-blue-50 transition-colors"
                   title="Avancer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
@@ -139,8 +139,8 @@ export function TacheList({ taches, dossiers, users }: TacheListProps) {
       key: 'titre', header: 'Tâche', sortable: true, sortValue: (r) => r.titre,
       cell: (r) => (
         <div>
-          <p className="font-medium text-oxi-text">{r.titre}</p>
-          {r.projet_nom && <p className="text-xs text-oxi-text-muted mt-0.5">{r.projet_nom}</p>}
+          <p className="font-semibold text-slate-700">{r.titre}</p>
+          {r.projet_nom && <p className="text-xs text-slate-400 mt-0.5">{r.projet_nom}</p>}
         </div>
       ),
     },
@@ -160,17 +160,17 @@ export function TacheList({ taches, dossiers, users }: TacheListProps) {
     },
     {
       key: 'assigne_nom', header: 'Assigné',
-      cell: (r) => <span className="text-sm text-oxi-text-secondary">{r.assigne_nom ?? '—'}</span>,
+      cell: (r) => <span className="text-sm text-slate-500">{r.assigne_nom ?? '—'}</span>,
       className: 'hidden md:table-cell',
     },
     {
       key: 'pct_avancement', header: '%', sortable: true, sortValue: (r) => r.pct_avancement,
       cell: (r) => (
         <div className="flex items-center gap-1.5">
-          <div className="w-12 h-1.5 rounded-full bg-oxi-border overflow-hidden">
-            <div className="h-full rounded-full bg-oxi-primary" style={{ width: `${r.pct_avancement}%` }} />
+          <div className="w-12 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+            <div className="h-full rounded-full bg-blue-600" style={{ width: `${r.pct_avancement}%` }} />
           </div>
-          <span className="text-xs text-oxi-text-muted">{r.pct_avancement}%</span>
+          <span className="text-xs text-slate-400">{r.pct_avancement}%</span>
         </div>
       ),
       className: 'hidden sm:table-cell',
@@ -178,9 +178,9 @@ export function TacheList({ taches, dossiers, users }: TacheListProps) {
     {
       key: 'date_echeance', header: 'Échéance', sortable: true, sortValue: (r) => r.date_echeance ?? '',
       cell: (r) => {
-        if (!r.date_echeance) return <span className="text-xs text-oxi-text-muted">—</span>;
+        if (!r.date_echeance) return <span className="text-xs text-slate-400">—</span>;
         const late = r.etat !== 'terminee' && new Date(r.date_echeance) < new Date();
-        return <span className={`text-xs ${late ? 'font-medium text-oxi-danger' : 'text-oxi-text-muted'}`}>{fmtDate(r.date_echeance)}</span>;
+        return <span className={`text-xs ${late ? 'font-medium text-oxi-danger' : 'text-slate-400'}`}>{fmtDate(r.date_echeance)}</span>;
       },
       className: 'hidden md:table-cell',
     },
@@ -197,13 +197,13 @@ export function TacheList({ taches, dossiers, users }: TacheListProps) {
       {taches.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'À faire',   value: String(aFaire),   color: 'text-oxi-text-secondary' },
-            { label: 'En cours',  value: String(enCours),  color: 'text-oxi-primary'        },
+            { label: 'À faire',   value: String(aFaire),   color: 'text-slate-500' },
+            { label: 'En cours',  value: String(enCours),  color: 'text-blue-600'        },
             { label: 'Terminées', value: String(termines), color: 'text-oxi-success'        },
           ].map((m) => (
-            <div key={m.label} className="rounded-xl border border-oxi-border bg-oxi-surface p-3 text-center">
+            <div key={m.label} className="rounded-xl border border-slate-200 bg-white shadow-sm p-3 text-center">
               <p className={`text-lg font-bold ${m.color}`}>{m.value}</p>
-              <p className="text-xs text-oxi-text-muted">{m.label}</p>
+              <p className="text-xs text-slate-400">{m.label}</p>
             </div>
           ))}
         </div>
@@ -217,7 +217,7 @@ export function TacheList({ taches, dossiers, users }: TacheListProps) {
               key={s}
               onClick={() => setEtatFilter(s)}
               className={['rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                etatFilter === s ? 'bg-oxi-primary text-white' : 'bg-oxi-bg text-oxi-text-secondary hover:bg-oxi-border'].join(' ')}
+                etatFilter === s ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'].join(' ')}
             >
               {s === 'tous' ? 'Toutes' : etatConfig(s).label}
             </button>
@@ -228,13 +228,13 @@ export function TacheList({ taches, dossiers, users }: TacheListProps) {
           <button
             onClick={() => setKanban((v) => !v)}
             className={['rounded-lg border px-3 py-2 text-xs font-medium transition-colors',
-              kanban ? 'border-oxi-primary bg-oxi-primary-light text-oxi-primary' : 'border-oxi-border text-oxi-text-secondary hover:bg-oxi-bg'].join(' ')}
+              kanban ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-200 text-slate-500 hover:bg-white'].join(' ')}
           >
             {kanban ? 'Vue liste' : 'Vue Kanban'}
           </button>
           <button
             onClick={() => { setEditing(null); setFormOpen(true); }}
-            className="flex items-center gap-2 rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-4 w-4" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -269,7 +269,7 @@ export function TacheList({ taches, dossiers, users }: TacheListProps) {
           searchPlaceholder="Rechercher une tâche…"
           emptyMessage="Aucune tâche"
           emptyAction={
-            <button onClick={() => setFormOpen(true)} className="rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors">
+            <button onClick={() => setFormOpen(true)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
               Créer une tâche
             </button>
           }
@@ -278,18 +278,18 @@ export function TacheList({ taches, dossiers, users }: TacheListProps) {
               {row.etat !== 'terminee' && (
                 <button
                   onClick={() => handleMove(row.id, 'terminee')}
-                  className="rounded-md px-2 py-1 text-xs font-medium text-oxi-success bg-oxi-success-light hover:opacity-80 transition-opacity"
+                  className="rounded-md px-2 py-1 text-xs font-medium text-oxi-success bg-green-50 hover:opacity-80 transition-opacity"
                   title="Marquer terminée"
                 >
                   ✓
                 </button>
               )}
-              <button onClick={() => { setEditing(row); setFormOpen(true); }} className="rounded-md p-1.5 text-oxi-text-muted hover:bg-oxi-bg hover:text-oxi-text transition-colors" title="Modifier">
+              <button onClick={() => { setEditing(row); setFormOpen(true); }} className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-slate-800 transition-colors" title="Modifier">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
                 </svg>
               </button>
-              <button onClick={() => { setError(''); setDeleteId(row.id); }} className="rounded-md p-1.5 text-oxi-text-muted hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors" title="Supprimer">
+              <button onClick={() => { setError(''); setDeleteId(row.id); }} className="rounded-md p-1.5 text-slate-400 hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors" title="Supprimer">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                 </svg>

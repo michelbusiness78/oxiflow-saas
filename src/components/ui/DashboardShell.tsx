@@ -28,8 +28,8 @@ function Breadcrumb() {
         </li>
         {segments.slice(1).map((seg, i) => (
           <li key={i} className="flex items-center gap-1.5">
-            <NavIcon name="chevron-right" className="w-3.5 h-3.5 text-oxi-text-muted" />
-            <span className="font-medium text-oxi-text-secondary">{getLabel(seg)}</span>
+            <NavIcon name="chevron-right" className="w-3.5 h-3.5 text-slate-400" />
+            <span className="font-semibold text-slate-500">{getLabel(seg)}</span>
           </li>
         ))}
       </ol>
@@ -49,7 +49,7 @@ export function DashboardShell({ children, userName, userEmail, userRole, allowe
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-full bg-oxi-bg">
+    <div className="flex h-full bg-white">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -59,10 +59,10 @@ export function DashboardShell({ children, userName, userEmail, userRole, allowe
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar — fond blanc, border + ombre pour séparer du contenu */}
-        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b border-oxi-border bg-oxi-surface px-4 shadow-oxi-sm md:px-6">
+        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 bg-white shadow-sm px-4 shadow-oxi-sm md:px-6">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-oxi-text-secondary hover:bg-oxi-bg hover:text-oxi-text transition-colors md:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-white hover:text-slate-800 transition-colors md:hidden"
             aria-label="Ouvrir le menu"
           >
             <NavIcon name="menu" className="w-5 h-5" />

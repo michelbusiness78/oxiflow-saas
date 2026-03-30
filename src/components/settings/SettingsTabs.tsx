@@ -22,7 +22,7 @@ export function SettingsTabs({ societe, utilisateurs, abonnement }: Props) {
   return (
     <div className="space-y-6">
       {/* Tab bar */}
-      <div className="border-b border-oxi-border overflow-x-auto">
+      <div className="border-b border-slate-200 overflow-x-auto">
         <nav className="flex gap-0 min-w-max">
           {TABS.map((t) => (
             <button
@@ -31,8 +31,8 @@ export function SettingsTabs({ societe, utilisateurs, abonnement }: Props) {
               className={[
                 'px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
                 tab === t.key
-                  ? 'border-oxi-primary text-oxi-primary'
-                  : 'border-transparent text-oxi-text-secondary hover:text-oxi-text hover:border-oxi-border',
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200',
               ].join(' ')}
             >
               {t.label}
@@ -42,7 +42,7 @@ export function SettingsTabs({ societe, utilisateurs, abonnement }: Props) {
       </div>
 
       {/* Tab content */}
-      <div className="rounded-xl border border-oxi-border bg-oxi-surface p-6">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
         {tab === 'societe'      && societe}
         {tab === 'utilisateurs' && utilisateurs}
         {tab === 'abonnement'   && abonnement}

@@ -43,7 +43,7 @@ const STATUTS = [
 
 const TYPES = ['Développement', 'Intégration', 'Formation', 'Conseil', 'Maintenance', 'Autre'];
 
-const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3.5 py-2.5 text-sm text-oxi-text outline-none transition-colors focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary';
+const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200';
 
 export function DossierForm({ open, onClose, clients, devisList, users, editing }: DossierFormProps) {
   const today = todayISO();
@@ -104,7 +104,7 @@ export function DossierForm({ open, onClose, clients, devisList, users, editing 
 
           {/* Client */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Client <span className="text-oxi-danger">*</span></label>
+            <label className="block text-sm font-semibold text-slate-700">Client <span className="text-oxi-danger">*</span></label>
             <select value={clientId} onChange={(e) => { setClientId(e.target.value); setDevisId(''); }} className={inputCls}>
               <option value="">— Sélectionner un client —</option>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
@@ -113,21 +113,21 @@ export function DossierForm({ open, onClose, clients, devisList, users, editing 
 
           {/* Nom */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Nom du projet <span className="text-oxi-danger">*</span></label>
+            <label className="block text-sm font-semibold text-slate-700">Nom du projet <span className="text-oxi-danger">*</span></label>
             <input type="text" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex. Refonte site web" className={inputCls} required />
           </div>
 
           {/* Type + Statut */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Type</label>
+              <label className="block text-sm font-semibold text-slate-700">Type</label>
               <select value={typeProjet} onChange={(e) => setTypeProjet(e.target.value)} className={inputCls}>
                 <option value="">— Choisir —</option>
                 {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Statut</label>
+              <label className="block text-sm font-semibold text-slate-700">Statut</label>
               <select value={statut} onChange={(e) => setStatut(e.target.value)} className={inputCls}>
                 {STATUTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
@@ -137,11 +137,11 @@ export function DossierForm({ open, onClose, clients, devisList, users, editing 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Date début</label>
+              <label className="block text-sm font-semibold text-slate-700">Date début</label>
               <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} className={inputCls} />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Date fin prévue</label>
+              <label className="block text-sm font-semibold text-slate-700">Date fin prévue</label>
               <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} className={inputCls} />
             </div>
           </div>
@@ -149,8 +149,8 @@ export function DossierForm({ open, onClose, clients, devisList, users, editing 
           {/* Avancement */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-oxi-text">Avancement</label>
-              <span className="text-sm font-semibold text-oxi-primary">{pctNum}%</span>
+              <label className="block text-sm font-semibold text-slate-700">Avancement</label>
+              <span className="text-sm font-semibold text-blue-600">{pctNum}%</span>
             </div>
             <input
               type="range"
@@ -159,11 +159,11 @@ export function DossierForm({ open, onClose, clients, devisList, users, editing 
               min="0"
               max="100"
               step="5"
-              className="w-full accent-oxi-primary"
+              className="w-full accent-blue-600"
             />
-            <div className="h-2 w-full overflow-hidden rounded-full bg-oxi-border">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
-                className="h-full rounded-full bg-oxi-primary transition-all"
+                className="h-full rounded-full bg-blue-600 transition-all"
                 style={{ width: `${pctNum}%` }}
               />
             </div>
@@ -171,7 +171,7 @@ export function DossierForm({ open, onClose, clients, devisList, users, editing 
 
           {/* Montant */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Montant HT prévu (€)</label>
+            <label className="block text-sm font-semibold text-slate-700">Montant HT prévu (€)</label>
             <input
               type="number"
               value={montant}
@@ -182,13 +182,13 @@ export function DossierForm({ open, onClose, clients, devisList, users, editing 
               className={inputCls}
             />
             {montant && !isNaN(parseFloat(montant)) && (
-              <p className="text-xs text-oxi-text-muted">= {fmtEur(parseFloat(montant))}</p>
+              <p className="text-xs text-slate-400">= {fmtEur(parseFloat(montant))}</p>
             )}
           </div>
 
           {/* Devis lié */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Devis associé <span className="text-oxi-text-muted">(optionnel)</span></label>
+            <label className="block text-sm font-semibold text-slate-700">Devis associé <span className="text-slate-400">(optionnel)</span></label>
             <select value={devisId} onChange={(e) => setDevisId(e.target.value)} className={inputCls}>
               <option value="">— Aucun devis —</option>
               {filteredDevis.map((d) => <option key={d.id} value={d.id}>{d.num}</option>)}
@@ -197,7 +197,7 @@ export function DossierForm({ open, onClose, clients, devisList, users, editing 
 
           {/* Chef de projet */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Chef de projet</label>
+            <label className="block text-sm font-semibold text-slate-700">Chef de projet</label>
             <select value={chefId} onChange={(e) => setChefId(e.target.value)} className={inputCls}>
               <option value="">— Non assigné —</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>)}
@@ -205,11 +205,11 @@ export function DossierForm({ open, onClose, clients, devisList, users, editing 
           </div>
         </div>
 
-        <div className="sticky bottom-0 flex gap-3 border-t border-oxi-border bg-oxi-surface p-5">
-          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors">
+        <div className="sticky bottom-0 flex gap-3 border-t border-slate-200 bg-white shadow-sm p-5">
+          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-white transition-colors">
             Annuler
           </button>
-          <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-oxi-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors disabled:opacity-60">
+          <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60">
             {saving ? 'Enregistrement…' : editing ? 'Mettre à jour' : 'Créer le dossier'}
           </button>
         </div>

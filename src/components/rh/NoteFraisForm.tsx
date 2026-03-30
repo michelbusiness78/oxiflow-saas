@@ -76,7 +76,7 @@ export function NoteFraisForm({ open, onClose }: Props) {
     });
   }
 
-  const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-[#7C3AED]';
+  const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]';
   const isLoading = isPending || uploading;
 
   return (
@@ -86,7 +86,7 @@ export function NoteFraisForm({ open, onClose }: Props) {
         {/* Date + Montant */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-oxi-text">Date *</label>
+            <label className="text-sm font-semibold text-slate-700">Date *</label>
             <input
               type="date"
               value={date}
@@ -96,7 +96,7 @@ export function NoteFraisForm({ open, onClose }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-oxi-text">Montant TTC (€) *</label>
+            <label className="text-sm font-semibold text-slate-700">Montant TTC (€) *</label>
             <input
               type="number"
               step="0.01"
@@ -112,7 +112,7 @@ export function NoteFraisForm({ open, onClose }: Props) {
 
         {/* Catégorie */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-oxi-text">Catégorie *</label>
+          <label className="text-sm font-semibold text-slate-700">Catégorie *</label>
           <select
             value={categorie}
             onChange={(e) => setCategorie(e.target.value as NoteFraisInput['categorie'])}
@@ -124,7 +124,7 @@ export function NoteFraisForm({ open, onClose }: Props) {
 
         {/* Description */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-oxi-text">Description</label>
+          <label className="text-sm font-semibold text-slate-700">Description</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -136,16 +136,16 @@ export function NoteFraisForm({ open, onClose }: Props) {
 
         {/* Justificatif */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-oxi-text">Justificatif (photo ou PDF)</label>
+          <label className="text-sm font-semibold text-slate-700">Justificatif (photo ou PDF)</label>
           <input
             ref={fileRef}
             type="file"
             accept="image/*,application/pdf"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-oxi-text-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-[#EDE9FE] file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-[#7C3AED] hover:file:bg-[#DDD6FE] cursor-pointer"
+            className="w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-[#EDE9FE] file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-[#7C3AED] hover:file:bg-[#DDD6FE] cursor-pointer"
           />
           {file && (
-            <p className="text-xs text-oxi-text-muted">{file.name} ({(file.size / 1024).toFixed(0)} Ko)</p>
+            <p className="text-xs text-slate-400">{file.name} ({(file.size / 1024).toFixed(0)} Ko)</p>
           )}
         </div>
 
@@ -163,7 +163,7 @@ export function NoteFraisForm({ open, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-oxi-border px-4 py-2.5 text-sm text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+            className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-500 hover:bg-white transition-colors"
           >
             Annuler
           </button>

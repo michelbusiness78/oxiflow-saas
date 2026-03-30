@@ -26,7 +26,7 @@ export function PeriodSelector({ current }: PeriodSelectorProps) {
   }
 
   return (
-    <div className="inline-flex items-center rounded-lg border border-oxi-border bg-oxi-bg p-0.5">
+    <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
       {PERIODS.map(({ value, label }) => (
         <button
           key={value}
@@ -34,8 +34,8 @@ export function PeriodSelector({ current }: PeriodSelectorProps) {
           className={[
             'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
             current === value
-              ? 'bg-oxi-surface text-oxi-primary shadow-sm'
-              : 'text-oxi-text-secondary hover:text-oxi-text',
+              ? 'bg-white text-blue-600 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800',
           ].join(' ')}
         >
           {label}

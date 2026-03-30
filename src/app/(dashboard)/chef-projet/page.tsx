@@ -137,8 +137,8 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     <div className="space-y-8">
       {/* Titre */}
       <div>
-        <h1 className="text-xl font-semibold text-oxi-text">Chef de Projet</h1>
-        <p className="mt-0.5 text-sm text-oxi-text-secondary">
+        <h1 className="text-xl font-semibold text-slate-800">Chef de Projet</h1>
+        <p className="mt-0.5 text-sm text-slate-500">
           {userName} · {projets.length} projet{projets.length !== 1 ? 's' : ''} assigné{projets.length !== 1 ? 's' : ''}
         </p>
       </div>
@@ -152,7 +152,7 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
 
       {/* Liste des projets */}
       <div className="space-y-4">
-        <h2 className="text-base font-semibold text-oxi-text">Mes projets</h2>
+        <h2 className="text-base font-semibold text-slate-800">Mes projets</h2>
         <ProjetList projets={projets} clients={clients} />
       </div>
     </div>

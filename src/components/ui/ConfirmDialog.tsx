@@ -40,7 +40,7 @@ export function ConfirmDialog({
       />
 
       {/* Dialog */}
-      <div className="relative w-full max-w-sm rounded-2xl bg-oxi-surface p-6 shadow-oxi-xl">
+      <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-oxi-xl">
         {/* Icône */}
         <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-oxi-danger-light">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-oxi-danger" aria-hidden>
@@ -48,14 +48,14 @@ export function ConfirmDialog({
           </svg>
         </div>
 
-        <h3 className="text-base font-semibold text-oxi-text">{title}</h3>
-        <p className="mt-1.5 text-sm text-oxi-text-secondary">{description}</p>
+        <h3 className="text-base font-semibold text-slate-800">{title}</h3>
+        <p className="mt-1.5 text-sm text-slate-500">{description}</p>
 
         <div className="mt-5 flex gap-3">
           <button
             onClick={onCancel}
             disabled={loading}
-            className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors disabled:opacity-50"
+            className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-white transition-colors disabled:opacity-50"
           >
             Annuler
           </button>

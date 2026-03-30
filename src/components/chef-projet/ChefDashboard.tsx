@@ -69,14 +69,14 @@ export function ChefDashboard({ projets, taches, interventions }: Props) {
     {
       label: 'Projets actifs',
       value: projetsActifs,
-      colorVal: 'text-oxi-primary',
-      colorBg:  'bg-oxi-primary-light',
+      colorVal: 'text-blue-600',
+      colorBg:  'bg-blue-50',
     },
     {
       label: 'Tâches en retard',
       value: tachesEnRetard.length,
       colorVal: tachesEnRetard.length > 0 ? 'text-oxi-danger'  : 'text-oxi-success',
-      colorBg:  tachesEnRetard.length > 0 ? 'bg-oxi-danger-light' : 'bg-oxi-success-light',
+      colorBg:  tachesEnRetard.length > 0 ? 'bg-oxi-danger-light' : 'bg-green-50',
     },
     {
       label: 'Interventions cette semaine',
@@ -91,37 +91,37 @@ export function ChefDashboard({ projets, taches, interventions }: Props) {
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {kpis.map((k) => (
-          <div key={k.label} className="rounded-xl border border-oxi-border bg-oxi-surface p-5">
+          <div key={k.label} className="rounded-xl border border-slate-200 bg-white shadow-sm p-5">
             <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${k.colorBg} mb-3`}>
               <span className={`text-2xl font-bold ${k.colorVal}`}>{k.value}</span>
             </div>
-            <p className="text-sm text-oxi-text-secondary">{k.label}</p>
+            <p className="text-sm text-slate-500">{k.label}</p>
           </div>
         ))}
       </div>
 
       {/* Alertes */}
       {(tachesEnRetard.length > 0 || projetsStales.length > 0) && (
-        <div className="rounded-xl border border-oxi-border bg-oxi-surface overflow-hidden">
-          <div className="px-5 py-3 border-b border-oxi-border">
-            <h3 className="text-sm font-semibold text-oxi-text">
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-800">
               Alertes
               <span className="ml-2 inline-flex items-center justify-center rounded-full bg-oxi-danger-light text-oxi-danger text-xs font-bold w-5 h-5">
                 {tachesEnRetard.length + projetsStales.length}
               </span>
             </h3>
           </div>
-          <div className="divide-y divide-oxi-border">
+          <div className="divide-y divide-slate-200">
             {tachesEnRetard.map((t) => (
               <div key={t.id} className="flex items-start gap-3 px-5 py-3">
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-oxi-danger" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-oxi-text">
+                  <p className="text-sm text-slate-800">
                     Tâche en retard :{' '}
                     <span className="font-medium">{t.titre}</span>
                   </p>
                   {t.projet_nom && (
-                    <p className="text-xs text-oxi-text-muted mt-0.5">
+                    <p className="text-xs text-slate-400 mt-0.5">
                       {t.projet_nom}
                       {t.date_echeance && ` · Échéance ${fmtDate(t.date_echeance)}`}
                     </p>
@@ -134,11 +134,11 @@ export function ChefDashboard({ projets, taches, interventions }: Props) {
               <div key={p.id} className="flex items-start gap-3 px-5 py-3">
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-oxi-warning" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-oxi-text">
+                  <p className="text-sm text-slate-800">
                     Pas de mise à jour depuis 7j :{' '}
                     <span className="font-medium">{p.nom}</span>
                   </p>
-                  <p className="text-xs text-oxi-text-muted mt-0.5">
+                  <p className="text-xs text-slate-400 mt-0.5">
                     {p.client_nom} · Dernière MAJ {fmtDate(p.updated_at)}
                   </p>
                 </div>

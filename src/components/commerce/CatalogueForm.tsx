@@ -52,9 +52,9 @@ const empty: CatalogueInput = {
 
 // ─── Styles partagés ──────────────────────────────────────────────────────────
 
-const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3.5 py-2.5 text-sm text-oxi-text placeholder:text-oxi-text-muted outline-none transition-colors focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary';
+const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200';
 const selectCls = inputCls;
-const labelCls  = 'block text-sm font-medium text-oxi-text mb-1.5';
+const labelCls  = 'block text-sm font-semibold text-slate-700 mb-1.5';
 
 interface CatalogueFormProps {
   open:     boolean;
@@ -234,8 +234,8 @@ export function CatalogueForm({ open, onClose, editing }: CatalogueFormProps) {
 
           {/* Marge calculée */}
           {form.prix_vente > 0 && (
-            <div className="rounded-lg bg-oxi-bg px-4 py-2.5 text-sm">
-              <span className="text-oxi-text-secondary">Marge brute : </span>
+            <div className="rounded-lg bg-white px-4 py-2.5 text-sm">
+              <span className="text-slate-500">Marge brute : </span>
               <span className={
                 ((form.prix_vente - form.prix_achat) / form.prix_vente * 100) >= 30
                   ? 'font-semibold text-green-600'
@@ -254,14 +254,14 @@ export function CatalogueForm({ open, onClose, editing }: CatalogueFormProps) {
               type="checkbox"
               checked={form.actif}
               onChange={(e) => set('actif', e.target.checked)}
-              className="h-4 w-4 rounded border-oxi-border text-oxi-primary"
+              className="h-4 w-4 rounded border-slate-200 text-blue-600"
             />
-            <span className="text-sm font-medium text-oxi-text">Produit actif</span>
+            <span className="text-sm font-semibold text-slate-700">Produit actif</span>
           </label>
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-oxi-border bg-oxi-surface p-5 space-y-2">
+        <div className="shrink-0 border-t border-slate-200 bg-white shadow-sm p-5 space-y-2">
           {editing && !confirm && (
             <button
               type="button"
@@ -276,7 +276,7 @@ export function CatalogueForm({ open, onClose, editing }: CatalogueFormProps) {
               <button
                 type="button"
                 onClick={() => setConfirm(false)}
-                className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-white transition-colors"
               >
                 Annuler
               </button>
@@ -294,14 +294,14 @@ export function CatalogueForm({ open, onClose, editing }: CatalogueFormProps) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+              className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-white transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-lg bg-oxi-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors disabled:opacity-60"
+              className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60"
             >
               {saving ? 'Enregistrement…' : editing ? 'Mettre à jour' : 'Créer le produit'}
             </button>

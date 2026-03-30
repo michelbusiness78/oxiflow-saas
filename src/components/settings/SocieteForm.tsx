@@ -54,13 +54,13 @@ async function resizeLogo(file: File): Promise<File> {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-oxi-text mb-1.5">{label}</label>
+      <label className="block text-sm font-semibold text-slate-700 mb-1.5">{label}</label>
       {children}
     </div>
   );
 }
 
-const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text placeholder:text-oxi-text-muted focus:outline-none focus:ring-2 focus:ring-oxi-primary';
+const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200';
 const monoCls  = inputCls + ' font-mono tracking-wide';
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -123,15 +123,15 @@ export function SocieteForm({ tenant }: Props) {
 
       {/* ── Logo ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="h-24 w-24 shrink-0 rounded-xl border-2 border-dashed border-oxi-border bg-oxi-bg flex items-center justify-center overflow-hidden">
+        <div className="h-24 w-24 shrink-0 rounded-xl border-2 border-dashed border-slate-200 bg-white flex items-center justify-center overflow-hidden">
           {logoPreview
             ? <img src={logoPreview} alt="Logo société" className="h-full w-full object-contain p-1.5" />
-            : <span className="text-xs text-oxi-text-muted text-center leading-tight px-2">Logo<br />société</span>
+            : <span className="text-xs text-slate-400 text-center leading-tight px-2">Logo<br />société</span>
           }
         </div>
         <div>
-          <p className="text-sm font-medium text-oxi-text mb-1">Logo de la société</p>
-          <p className="text-xs text-oxi-text-muted mb-3">
+          <p className="text-sm font-semibold text-slate-700 mb-1">Logo de la société</p>
+          <p className="text-xs text-slate-400 mb-3">
             PNG ou JPG, redimensionné automatiquement à 200px de haut.<br />
             Affiché sur les devis et les factures PDF.
           </p>
@@ -139,19 +139,19 @@ export function SocieteForm({ tenant }: Props) {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="rounded-lg border border-oxi-border px-4 py-2 text-sm text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:bg-white transition-colors"
           >
             {logoPreview ? 'Changer le logo' : 'Choisir un logo'}
           </button>
           {pendingLogo && (
-            <span className="ml-3 text-xs text-oxi-text-muted">● Nouveau logo prêt à être sauvegardé</span>
+            <span className="ml-3 text-xs text-slate-400">● Nouveau logo prêt à être sauvegardé</span>
           )}
         </div>
       </div>
 
       {/* ── Identité ── */}
       <fieldset className="space-y-4">
-        <legend className="w-full border-b border-oxi-border pb-2 text-sm font-semibold text-oxi-text">
+        <legend className="w-full border-b border-slate-200 pb-2 text-sm font-semibold text-slate-800">
           Identité
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -177,7 +177,7 @@ export function SocieteForm({ tenant }: Props) {
 
       {/* ── Adresse ── */}
       <fieldset className="space-y-4">
-        <legend className="w-full border-b border-oxi-border pb-2 text-sm font-semibold text-oxi-text">
+        <legend className="w-full border-b border-slate-200 pb-2 text-sm font-semibold text-slate-800">
           Adresse
         </legend>
         <Field label="Adresse">
@@ -197,7 +197,7 @@ export function SocieteForm({ tenant }: Props) {
 
       {/* ── Facturation ── */}
       <fieldset className="space-y-4">
-        <legend className="w-full border-b border-oxi-border pb-2 text-sm font-semibold text-oxi-text">
+        <legend className="w-full border-b border-slate-200 pb-2 text-sm font-semibold text-slate-800">
           Facturation
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -230,11 +230,11 @@ export function SocieteForm({ tenant }: Props) {
       {error   && <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-700">{error}</p>}
       {success && <p className="rounded-lg bg-green-50 border border-green-200 px-4 py-2.5 text-sm text-green-700">✓ Informations enregistrées avec succès.</p>}
 
-      <div className="flex justify-end border-t border-oxi-border pt-4">
+      <div className="flex justify-end border-t border-slate-200 pt-4">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-oxi-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-oxi-primary-hover disabled:opacity-50 transition-colors"
+          className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           {pending ? 'Enregistrement…' : 'Enregistrer les modifications'}
         </button>

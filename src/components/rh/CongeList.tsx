@@ -107,11 +107,11 @@ export function CongeList({ conges, isManager, userId }: Props) {
           { label: 'Validés',    value: stats.valide,    color: 'text-[#16A34A]', bg: 'bg-[#DCFCE7]' },
           { label: 'Refusés',    value: stats.refuse,    color: 'text-[#DC2626]', bg: 'bg-[#FEE2E2]' },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-oxi-border bg-oxi-surface p-4 text-center">
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 text-center">
             <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg ${s.bg} mb-2`}>
               <span className={`text-lg font-bold ${s.color}`}>{s.value}</span>
             </div>
-            <p className="text-xs text-oxi-text-muted">{s.label}</p>
+            <p className="text-xs text-slate-400">{s.label}</p>
           </div>
         ))}
       </div>
@@ -135,7 +135,7 @@ export function CongeList({ conges, isManager, userId }: Props) {
 
       {/* Toolbar */}
       <div className="flex justify-between items-center">
-        <p className="text-sm text-oxi-text-secondary">
+        <p className="text-sm text-slate-500">
           {conges.length} demande{conges.length !== 1 ? 's' : ''}
         </p>
         <button
@@ -153,14 +153,14 @@ export function CongeList({ conges, isManager, userId }: Props) {
 
       {/* Liste */}
       {conges.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-oxi-border py-12 text-center text-sm text-oxi-text-muted">
+        <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-400">
           Aucune demande de congé
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-oxi-border bg-oxi-surface">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-oxi-border bg-oxi-bg text-left text-xs text-oxi-text-muted">
+              <tr className="border-b border-slate-200 bg-white text-left text-xs text-slate-400">
                 {isManager && <th className="px-4 py-3 font-medium">Employé</th>}
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Période</th>
@@ -170,27 +170,27 @@ export function CongeList({ conges, isManager, userId }: Props) {
                 <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-oxi-border">
+            <tbody className="divide-y divide-slate-200">
               {conges.map((c) => (
-                <tr key={c.id} className="hover:bg-oxi-bg transition-colors">
+                <tr key={c.id} className="hover:bg-white transition-colors">
                   {isManager && (
-                    <td className="px-4 py-3 font-medium text-oxi-text">{c.user_nom}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-700">{c.user_nom}</td>
                   )}
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center rounded-full bg-[#EDE9FE] px-2.5 py-0.5 text-xs font-medium text-[#7C3AED]">
                       {TYPE_LABELS[c.type]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-oxi-text-secondary">
+                  <td className="px-4 py-3 text-slate-500">
                     {fmtDate(c.date_debut)} → {fmtDate(c.date_fin)}
                   </td>
-                  <td className="px-4 py-3 text-oxi-text-muted hidden sm:table-cell">
+                  <td className="px-4 py-3 text-slate-400 hidden sm:table-cell">
                     {c.nb_jours}j
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={statutVariant(c.statut)}>{statutLabel(c.statut)}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-oxi-text-muted hidden md:table-cell max-w-[160px] truncate">
+                  <td className="px-4 py-3 text-slate-400 hidden md:table-cell max-w-[160px] truncate">
                     {c.commentaire ?? '—'}
                   </td>
                   <td className="px-4 py-3">
@@ -200,7 +200,7 @@ export function CongeList({ conges, isManager, userId }: Props) {
                         <>
                           <button
                             onClick={() => handleStatut(c.id, 'valide')}
-                            className="rounded-md bg-oxi-success-light px-2 py-1 text-xs font-medium text-oxi-success hover:opacity-80 transition-opacity"
+                            className="rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-oxi-success hover:opacity-80 transition-opacity"
                           >
                             Accepter
                           </button>
@@ -216,7 +216,7 @@ export function CongeList({ conges, isManager, userId }: Props) {
                       {c.user_id === userId && c.statut === 'en_attente' && (
                         <button
                           onClick={() => { setError(''); setDeleteId(c.id); }}
-                          className="rounded-md p-1.5 text-oxi-text-muted hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors"
+                          className="rounded-md p-1.5 text-slate-400 hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors"
                           title="Annuler la demande"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>

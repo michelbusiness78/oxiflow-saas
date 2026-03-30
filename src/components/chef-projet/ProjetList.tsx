@@ -56,14 +56,14 @@ const BORDER_COLOR: Record<Urgency, string> = {
   success: 'border-l-oxi-success',
   warning: 'border-l-oxi-warning',
   danger:  'border-l-oxi-danger',
-  muted:   'border-l-oxi-border',
+  muted:   'border-l-slate-200',
 };
 
 const BAR_COLOR: Record<Urgency, string> = {
-  success: 'bg-oxi-success',
+  success: 'bg-green-500',
   warning: 'bg-oxi-warning',
   danger:  'bg-oxi-danger',
-  muted:   'bg-oxi-primary',
+  muted:   'bg-blue-600',
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -88,8 +88,8 @@ export function ProjetList({ projets, clients }: Props) {
               className={[
                 'rounded-full px-3 py-1 text-xs font-medium transition-colors',
                 statutFilter === s
-                  ? 'bg-oxi-primary text-white'
-                  : 'bg-oxi-bg text-oxi-text-secondary hover:bg-oxi-border',
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-slate-500 hover:bg-slate-100',
               ].join(' ')}
             >
               {s === 'tous' ? 'Tous' : statutConfig(s).label}
@@ -100,7 +100,7 @@ export function ProjetList({ projets, clients }: Props) {
         <select
           value={clientFilter}
           onChange={(e) => setClientFilter(e.target.value)}
-          className="rounded-lg border border-oxi-border bg-oxi-surface px-3 py-1.5 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-oxi-primary"
+          className="rounded-lg border border-slate-200 bg-white shadow-sm px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
         >
           <option value="tous">Tous les clients</option>
           {clients.map((c) => (
@@ -108,14 +108,14 @@ export function ProjetList({ projets, clients }: Props) {
           ))}
         </select>
 
-        <span className="ml-auto text-xs text-oxi-text-muted">
+        <span className="ml-auto text-xs text-slate-400">
           {filtered.length} projet{filtered.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {/* Grid */}
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-oxi-border py-14 text-center text-sm text-oxi-text-muted">
+        <div className="rounded-xl border border-dashed border-slate-200 py-14 text-center text-sm text-slate-400">
           Aucun projet{statutFilter !== 'tous' || clientFilter !== 'tous' ? ' avec ces filtres' : ' assigné'}
         </div>
       ) : (
@@ -128,7 +128,7 @@ export function ProjetList({ projets, clients }: Props) {
                 key={p.id}
                 href={`/chef-projet?projet=${p.id}`}
                 className={[
-                  'group flex flex-col rounded-xl border bg-oxi-surface p-5',
+                  'group flex flex-col rounded-xl border bg-white p-5',
                   'border-l-4 transition-shadow hover:shadow-md',
                   BORDER_COLOR[urgency],
                 ].join(' ')}
@@ -136,21 +136,21 @@ export function ProjetList({ projets, clients }: Props) {
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-oxi-text truncate group-hover:text-oxi-primary transition-colors">
+                    <p className="font-semibold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
                       {p.nom}
                     </p>
-                    <p className="text-xs text-oxi-text-muted mt-0.5">{p.client_nom}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{p.client_nom}</p>
                   </div>
                   <Badge variant={statut.variant} className="shrink-0">{statut.label}</Badge>
                 </div>
 
                 {/* Progress bar */}
                 <div className="mb-4">
-                  <div className="flex justify-between text-xs text-oxi-text-muted mb-1.5">
+                  <div className="flex justify-between text-xs text-slate-400 mb-1.5">
                     <span>Avancement</span>
                     <span className="font-medium">{p.pct_avancement}%</span>
                   </div>
-                  <div className="h-2 rounded-full bg-oxi-border overflow-hidden">
+                  <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
                     <div
                       className={['h-full rounded-full transition-all', BAR_COLOR[urgency]].join(' ')}
                       style={{ width: `${p.pct_avancement}%` }}
@@ -159,7 +159,7 @@ export function ProjetList({ projets, clients }: Props) {
                 </div>
 
                 {/* Footer */}
-                <div className="mt-auto flex items-center justify-between text-xs text-oxi-text-muted">
+                <div className="mt-auto flex items-center justify-between text-xs text-slate-400">
                   {p.date_fin_prevue ? (
                     <span>
                       Fin :{' '}
@@ -184,7 +184,7 @@ export function ProjetList({ projets, clients }: Props) {
                     viewBox="0 0 24 24"
                     strokeWidth={2}
                     stroke="currentColor"
-                    className="h-4 w-4 opacity-30 group-hover:opacity-80 group-hover:text-oxi-primary transition-all"
+                    className="h-4 w-4 opacity-30 group-hover:opacity-80 group-hover:text-blue-600 transition-all"
                     aria-hidden
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />

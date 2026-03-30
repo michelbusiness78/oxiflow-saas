@@ -57,7 +57,7 @@ export function Subscription({ plan, plan_debut, plan_fin }: Props) {
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div>
             <div className="flex items-center gap-3">
-              <h3 className="text-base font-semibold text-oxi-text">Plan actuel</h3>
+              <h3 className="text-base font-semibold text-slate-800">Plan actuel</h3>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${p.color}`}>
                 {p.label}
               </span>
@@ -67,7 +67,7 @@ export function Subscription({ plan, plan_debut, plan_fin }: Props) {
                 </span>
               )}
             </div>
-            <p className="mt-0.5 text-sm text-oxi-text-muted">
+            <p className="mt-0.5 text-sm text-slate-400">
               {isTrial ? "Période d'essai" : 'Abonnement'} — jusqu'au{' '}
               {fin.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
@@ -76,8 +76,8 @@ export function Subscription({ plan, plan_debut, plan_fin }: Props) {
 
         {/* Barre de progression trial */}
         {isTrial && (
-          <div className="mb-4 rounded-xl border border-oxi-border bg-oxi-bg p-4">
-            <div className="flex justify-between text-xs text-oxi-text-muted mb-2">
+          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex justify-between text-xs text-slate-400 mb-2">
               <span>
                 {isExpired
                   ? "Essai expiré"
@@ -86,12 +86,12 @@ export function Subscription({ plan, plan_debut, plan_fin }: Props) {
               </span>
               <span>{pct}% écoulé</span>
             </div>
-            <div className="h-2 rounded-full bg-oxi-border overflow-hidden">
+            <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
                   isExpired  ? 'bg-red-500'      :
                   pct > 75   ? 'bg-orange-400'   :
-                               'bg-oxi-primary'
+                               'bg-blue-600'
                 }`}
                 style={{ width: `${pct}%` }}
               />
@@ -107,7 +107,7 @@ export function Subscription({ plan, plan_debut, plan_fin }: Props) {
         {/* Features incluses */}
         <ul className="space-y-2">
           {p.features.map((f) => (
-            <li key={f} className="flex items-center gap-2 text-sm text-oxi-text-secondary">
+            <li key={f} className="flex items-center gap-2 text-sm text-slate-500">
               <svg className="h-4 w-4 shrink-0 text-oxi-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
               </svg>
@@ -118,19 +118,19 @@ export function Subscription({ plan, plan_debut, plan_fin }: Props) {
       </div>
 
       {/* CTA */}
-      <div className="flex flex-col gap-3 sm:flex-row border-t border-oxi-border pt-5">
+      <div className="flex flex-col gap-3 sm:flex-row border-t border-slate-200 pt-5">
         <PortalButton />
         <Link
           href="/pilotage/abonnement"
-          className="flex-1 rounded-lg bg-oxi-primary px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
+          className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
         >
           Changer de plan
         </Link>
       </div>
 
-      <p className="text-xs text-oxi-text-muted">
+      <p className="text-xs text-slate-400">
         Pour toute question sur votre facturation, contactez{' '}
-        <a href="mailto:support@oxiflow.fr" className="text-oxi-primary hover:underline">
+        <a href="mailto:support@oxiflow.fr" className="text-blue-600 hover:underline">
           support@oxiflow.fr
         </a>
       </p>

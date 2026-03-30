@@ -69,7 +69,7 @@ export function ExportCSV({ factures }: ExportCSVProps) {
   return (
     <button
       onClick={download}
-      className="flex items-center gap-2 rounded-lg border border-oxi-border px-3.5 py-2 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg hover:text-oxi-text transition-colors"
+      className="flex items-center gap-2 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-500 hover:bg-white hover:text-slate-800 transition-colors"
       title="Exporter les factures en CSV"
     >
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>

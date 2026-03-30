@@ -283,10 +283,10 @@ export function VoiceAgent({ userName, userRole }: Props) {
   // ── Button appearance ────────────────────────────────────────────────────
 
   const btnConfig: Record<AgentStatus, { bg: string; ring: string; icon: string; title: string }> = {
-    idle:      { bg: 'bg-oxi-text-secondary',  ring: '',                        icon: '🎤', title: 'Clic : dicter | Double-clic : agent IA'    },
+    idle:      { bg: 'bg-slate-400',  ring: '',                        icon: '🎤', title: 'Clic : dicter | Double-clic : agent IA'    },
     listening: { bg: 'bg-red-500',             ring: 'ring-4 ring-red-300',     icon: '🎙️', title: 'Écoute en cours — clic pour arrêter'       },
-    thinking:  { bg: 'bg-oxi-primary',         ring: 'ring-4 ring-blue-200',    icon: '🧠', title: 'Réflexion en cours…'                        },
-    speaking:  { bg: 'bg-oxi-success',         ring: 'ring-4 ring-green-200',   icon: '🔊', title: 'Réponse en cours — clic pour couper'        },
+    thinking:  { bg: 'bg-blue-600',         ring: 'ring-4 ring-blue-200',    icon: '🧠', title: 'Réflexion en cours…'                        },
+    speaking:  { bg: 'bg-green-500',         ring: 'ring-4 ring-green-200',   icon: '🔊', title: 'Réponse en cours — clic pour couper'        },
   };
   const { bg, ring, icon, title } = btnConfig[status];
 
@@ -313,7 +313,7 @@ export function VoiceAgent({ userName, userRole }: Props) {
 
       {/* Fallback label for unsupported browsers */}
       {!speechSupported && !agentOpen && (
-        <div className="fixed bottom-36 right-4 z-30 rounded-lg bg-oxi-surface border border-oxi-border px-3 py-1.5 text-xs text-oxi-text-muted shadow-sm">
+        <div className="fixed bottom-36 right-4 z-30 rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs text-slate-400 shadow-sm">
           Mode texte uniquement
         </div>
       )}

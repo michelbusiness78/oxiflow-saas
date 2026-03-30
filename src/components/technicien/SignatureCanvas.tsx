@@ -80,15 +80,15 @@ export function SignatureCanvas({ onSave, onCancel, saving }: SignatureCanvasPro
   }
 
   return (
-    <div className="rounded-2xl border border-oxi-border bg-oxi-surface overflow-hidden">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       {/* En-tête */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-oxi-border bg-oxi-bg">
-        <p className="text-sm font-semibold text-oxi-text">Signature client</p>
-        <p className="text-xs text-oxi-text-muted">Signez dans le cadre ci-dessous</p>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white">
+        <p className="text-sm font-semibold text-slate-800">Signature client</p>
+        <p className="text-xs text-slate-400">Signez dans le cadre ci-dessous</p>
       </div>
 
       {/* Canvas */}
-      <div className="relative bg-white mx-4 my-3 rounded-xl border-2 border-dashed border-oxi-border overflow-hidden">
+      <div className="relative bg-white mx-4 my-3 rounded-xl border-2 border-dashed border-slate-200 overflow-hidden">
         <canvas
           ref={canvasRef}
           width={600}
@@ -104,7 +104,7 @@ export function SignatureCanvas({ onSave, onCancel, saving }: SignatureCanvasPro
         />
         {isEmpty && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <p className="text-oxi-text-muted text-sm">Signez ici…</p>
+            <p className="text-slate-400 text-sm">Signez ici…</p>
           </div>
         )}
       </div>
@@ -114,7 +114,7 @@ export function SignatureCanvas({ onSave, onCancel, saving }: SignatureCanvasPro
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-xl border border-oxi-border py-3 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+          className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-500 hover:bg-white transition-colors"
         >
           Annuler
         </button>
@@ -122,7 +122,7 @@ export function SignatureCanvas({ onSave, onCancel, saving }: SignatureCanvasPro
           type="button"
           onClick={clearCanvas}
           disabled={isEmpty}
-          className="flex-1 rounded-xl border border-oxi-border py-3 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors disabled:opacity-40"
+          className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-500 hover:bg-white transition-colors disabled:opacity-40"
         >
           Effacer
         </button>
@@ -130,7 +130,7 @@ export function SignatureCanvas({ onSave, onCancel, saving }: SignatureCanvasPro
           type="button"
           onClick={handleSave}
           disabled={isEmpty || saving}
-          className="flex-1 rounded-xl bg-oxi-primary py-3 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors disabled:opacity-50"
+          className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
           {saving ? 'Sauvegarde…' : 'Valider'}
         </button>

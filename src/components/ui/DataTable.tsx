@@ -81,7 +81,7 @@ export function DataTable<T>({
       {/* Recherche */}
       {searchable && (
         <div className="relative">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-oxi-text-muted" aria-hidden>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <input
@@ -89,23 +89,23 @@ export function DataTable<T>({
             value={query}
             onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             placeholder={searchPlaceholder}
-            className="w-full rounded-lg border border-oxi-border bg-oxi-surface py-2 pl-9 pr-4 text-sm text-oxi-text placeholder:text-oxi-text-muted outline-none focus:border-oxi-primary focus:ring-2 focus:ring-oxi-primary/20 sm:max-w-xs"
+            className="w-full rounded-lg border border-slate-200 bg-white shadow-sm py-2 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:max-w-xs"
           />
         </div>
       )}
 
       {/* Tableau */}
-      <div className="overflow-x-auto rounded-xl border border-oxi-border shadow-oxi-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-oxi-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-oxi-border bg-[#F1F5F9]">
+            <tr className="border-b border-slate-200 bg-[#F1F5F9]">
               {columns.map((col) => (
                 <th
                   key={col.key}
                   scope="col"
                   className={[
-                    'px-4 py-3 text-left text-[11px] font-700 uppercase tracking-wider text-oxi-text-secondary',
-                    col.sortable ? 'cursor-pointer select-none hover:text-oxi-text hover:bg-[#E8EEF5] transition-colors' : '',
+                    'px-4 py-3 text-left text-[11px] font-700 uppercase tracking-wider text-slate-500',
+                    col.sortable ? 'cursor-pointer select-none hover:text-slate-800 hover:bg-[#E8EEF5] transition-colors' : '',
                     col.className ?? '',
                   ].join(' ')}
                   onClick={col.sortable ? () => toggleSort(col.key) : undefined}
@@ -113,7 +113,7 @@ export function DataTable<T>({
                   <span className="flex items-center gap-1.5 font-bold">
                     {col.header}
                     {col.sortable && (
-                      <span className={sortKey === col.key ? 'text-oxi-primary' : 'text-oxi-text-muted'}>
+                      <span className={sortKey === col.key ? 'text-blue-600' : 'text-slate-400'}>
                         {sortKey === col.key
                           ? sortDir === 'asc' ? '↑' : '↓'
                           : '↕'}
@@ -123,20 +123,20 @@ export function DataTable<T>({
                 </th>
               ))}
               {actions && (
-                <th scope="col" className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-oxi-text-secondary">
+                <th scope="col" className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Actions
                 </th>
               )}
             </tr>
           </thead>
-          <tbody className="bg-oxi-surface">
+          <tbody className="bg-white">
             {paged.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length + (actions ? 1 : 0)}
                   className="px-4 py-12 text-center"
                 >
-                  <p className="text-sm font-medium text-oxi-text-secondary">{emptyMessage}</p>
+                  <p className="text-sm font-semibold text-slate-500">{emptyMessage}</p>
                   {emptyAction && <div className="mt-3 flex justify-center">{emptyAction}</div>}
                 </td>
               </tr>
@@ -145,12 +145,12 @@ export function DataTable<T>({
                 <tr
                   key={keyExtractor(row)}
                   className={[
-                    'border-b border-oxi-border-light transition-colors hover:bg-[#EFF6FF]',
+                    'border-b border-slate-100 transition-colors hover:bg-[#EFF6FF]',
                     idx % 2 === 1 ? 'bg-[#F8FAFC]' : 'bg-white',
                   ].join(' ')}
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className={['px-4 py-3 text-oxi-text', col.className ?? ''].join(' ')}>
+                    <td key={col.key} className={['px-4 py-3 text-slate-800', col.className ?? ''].join(' ')}>
                       {col.cell(row)}
                     </td>
                   ))}
@@ -166,7 +166,7 @@ export function DataTable<T>({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-oxi-text-secondary">
+        <div className="flex items-center justify-between text-sm text-slate-500">
           <span>
             {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, sorted.length)} sur {sorted.length}
           </span>
@@ -174,7 +174,7 @@ export function DataTable<T>({
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="rounded-lg border border-oxi-border bg-oxi-surface px-3 py-1.5 text-sm hover:bg-oxi-bg disabled:opacity-40 transition-colors"
+              className="rounded-lg border border-slate-200 bg-white shadow-sm px-3 py-1.5 text-sm hover:bg-white disabled:opacity-40 transition-colors"
             >
               ←
             </button>
@@ -184,7 +184,7 @@ export function DataTable<T>({
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="rounded-lg border border-oxi-border bg-oxi-surface px-3 py-1.5 text-sm hover:bg-oxi-bg disabled:opacity-40 transition-colors"
+              className="rounded-lg border border-slate-200 bg-white shadow-sm px-3 py-1.5 text-sm hover:bg-white disabled:opacity-40 transition-colors"
             >
               →
             </button>

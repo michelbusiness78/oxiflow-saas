@@ -54,8 +54,8 @@ export function ClientList({ clients }: ClientListProps) {
       sortValue: (r) => r.nom,
       cell:      (r) => (
         <div>
-          <p className="font-medium text-oxi-text">{r.nom}</p>
-          {r.contact && <p className="text-xs text-oxi-text-muted">{r.contact}</p>}
+          <p className="font-semibold text-slate-700">{r.nom}</p>
+          {r.contact && <p className="text-xs text-slate-400">{r.contact}</p>}
         </div>
       ),
     },
@@ -65,7 +65,7 @@ export function ClientList({ clients }: ClientListProps) {
       sortable:  true,
       sortValue: (r) => r.ville,
       cell:      (r) => (
-        <span className="text-oxi-text-secondary">
+        <span className="text-slate-500">
           {[r.cp, r.ville].filter(Boolean).join(' ') || '—'}
         </span>
       ),
@@ -76,8 +76,8 @@ export function ClientList({ clients }: ClientListProps) {
       header: 'Contact',
       cell:   (r) => (
         <div className="space-y-0.5">
-          {r.email && <p className="text-xs text-oxi-text-secondary">{r.email}</p>}
-          {r.tel   && <p className="text-xs text-oxi-text-muted">{r.tel}</p>}
+          {r.email && <p className="text-xs text-slate-500">{r.email}</p>}
+          {r.tel   && <p className="text-xs text-slate-400">{r.tel}</p>}
         </div>
       ),
       className: 'hidden md:table-cell',
@@ -87,7 +87,7 @@ export function ClientList({ clients }: ClientListProps) {
       header:    'Depuis',
       sortable:  true,
       sortValue: (r) => r.created_at,
-      cell:      (r) => <span className="text-xs text-oxi-text-muted">{fmtDate(r.created_at)}</span>,
+      cell:      (r) => <span className="text-xs text-slate-400">{fmtDate(r.created_at)}</span>,
       className: 'hidden lg:table-cell',
     },
   ];
@@ -96,12 +96,12 @@ export function ClientList({ clients }: ClientListProps) {
     <>
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-oxi-text-secondary">
+        <p className="text-sm text-slate-500">
           {clients.length} client{clients.length !== 1 ? 's' : ''}
         </p>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-4 w-4" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -126,7 +126,7 @@ export function ClientList({ clients }: ClientListProps) {
         emptyAction={
           <button
             onClick={openCreate}
-            className="rounded-lg bg-oxi-primary px-4 py-2 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           >
             Ajouter votre premier client
           </button>
@@ -135,7 +135,7 @@ export function ClientList({ clients }: ClientListProps) {
           <div className="flex items-center justify-end gap-1">
             <button
               onClick={() => openEdit(row)}
-              className="rounded-md p-1.5 text-oxi-text-muted hover:bg-oxi-bg hover:text-oxi-text transition-colors"
+              className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-slate-800 transition-colors"
               title="Modifier"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
@@ -144,7 +144,7 @@ export function ClientList({ clients }: ClientListProps) {
             </button>
             <button
               onClick={() => { setDeleteErr(''); setDeleteId(row.id); }}
-              className="rounded-md p-1.5 text-oxi-text-muted hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors"
+              className="rounded-md p-1.5 text-slate-400 hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors"
               title="Supprimer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>

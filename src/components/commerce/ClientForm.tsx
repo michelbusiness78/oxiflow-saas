@@ -35,7 +35,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={name} className="block text-sm font-medium text-oxi-text">
+      <label htmlFor={name} className="block text-sm font-semibold text-slate-700">
         {label}{required && <span className="ml-1 text-oxi-danger">*</span>}
       </label>
       <input
@@ -45,7 +45,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3.5 py-2.5 text-sm text-oxi-text placeholder:text-oxi-text-muted outline-none transition-colors focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary"
+        className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
       />
     </div>
   );
@@ -107,31 +107,31 @@ export function ClientForm({ open, onClose, editing }: ClientFormProps) {
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="notes" className="block text-sm font-medium text-oxi-text">Notes</label>
+            <label htmlFor="notes" className="block text-sm font-semibold text-slate-700">Notes</label>
             <textarea
               id="notes"
               value={form.notes}
               onChange={(e) => set('notes')(e.target.value)}
               rows={3}
               placeholder="Informations complémentaires…"
-              className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3.5 py-2.5 text-sm text-oxi-text placeholder:text-oxi-text-muted outline-none transition-colors focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary resize-none"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 flex gap-3 border-t border-oxi-border bg-oxi-surface p-5">
+        <div className="sticky bottom-0 flex gap-3 border-t border-slate-200 bg-white shadow-sm p-5">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+            className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-white transition-colors"
           >
             Annuler
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 rounded-lg bg-oxi-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors disabled:opacity-60"
+            className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60"
           >
             {saving ? 'Enregistrement…' : editing ? 'Mettre à jour' : 'Créer le client'}
           </button>

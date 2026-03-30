@@ -62,7 +62,7 @@ export function ContratForm({ open, onClose, clients, editing }: ContratFormProp
     onClose();
   }
 
-  const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3.5 py-2.5 text-sm text-oxi-text outline-none transition-colors focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary';
+  const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200';
 
   return (
     <SlideOver open={open} onClose={onClose} title={editing ? 'Modifier le contrat' : 'Nouveau contrat'}>
@@ -72,7 +72,7 @@ export function ContratForm({ open, onClose, clients, editing }: ContratFormProp
 
           {/* Client */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Client <span className="text-oxi-danger">*</span></label>
+            <label className="block text-sm font-semibold text-slate-700">Client <span className="text-oxi-danger">*</span></label>
             <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={inputCls}>
               <option value="">— Sélectionner un client —</option>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
@@ -81,7 +81,7 @@ export function ContratForm({ open, onClose, clients, editing }: ContratFormProp
 
           {/* Type */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Type de contrat</label>
+            <label className="block text-sm font-semibold text-slate-700">Type de contrat</label>
             <div className="grid grid-cols-3 gap-2">
               {(Object.keys(TYPE_LABELS) as ContratInput['type'][]).map((t) => (
                 <button
@@ -91,8 +91,8 @@ export function ContratForm({ open, onClose, clients, editing }: ContratFormProp
                   className={[
                     'rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
                     type === t
-                      ? 'border-oxi-primary bg-oxi-primary-light text-oxi-primary'
-                      : 'border-oxi-border text-oxi-text-secondary hover:bg-oxi-bg',
+                      ? 'border-blue-600 bg-blue-50 text-blue-600'
+                      : 'border-slate-200 text-slate-500 hover:bg-white',
                   ].join(' ')}
                 >
                   {TYPE_LABELS[t]}
@@ -104,18 +104,18 @@ export function ContratForm({ open, onClose, clients, editing }: ContratFormProp
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Date début</label>
+              <label className="block text-sm font-semibold text-slate-700">Date début</label>
               <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} className={inputCls} required />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Date fin <span className="text-oxi-text-muted">(optionnel)</span></label>
+              <label className="block text-sm font-semibold text-slate-700">Date fin <span className="text-slate-400">(optionnel)</span></label>
               <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} className={inputCls} />
             </div>
           </div>
 
           {/* Montant mensuel */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Montant mensuel (€)</label>
+            <label className="block text-sm font-semibold text-slate-700">Montant mensuel (€)</label>
             <input
               type="number"
               value={montant}
@@ -126,24 +126,24 @@ export function ContratForm({ open, onClose, clients, editing }: ContratFormProp
               className={inputCls}
             />
             {montant && !isNaN(parseFloat(montant)) && (
-              <p className="text-xs text-oxi-text-muted">
+              <p className="text-xs text-slate-400">
                 Soit {fmtEur(parseFloat(montant) * 12)} / an
               </p>
             )}
           </div>
 
           {/* Toggle actif */}
-          <div className="flex items-center justify-between rounded-xl border border-oxi-border bg-oxi-bg px-4 py-3.5">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-oxi-text">Contrat actif</p>
-              <p className="text-xs text-oxi-text-muted">Le contrat est en vigueur</p>
+              <p className="text-sm font-semibold text-slate-700">Contrat actif</p>
+              <p className="text-xs text-slate-400">Le contrat est en vigueur</p>
             </div>
             <button
               type="button"
               onClick={() => setActif((a) => !a)}
               className={[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                actif ? 'bg-oxi-primary' : 'bg-oxi-border',
+                actif ? 'bg-blue-600' : 'bg-slate-200',
               ].join(' ')}
               role="switch"
               aria-checked={actif}
@@ -157,11 +157,11 @@ export function ContratForm({ open, onClose, clients, editing }: ContratFormProp
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 flex gap-3 border-t border-oxi-border bg-oxi-surface p-5">
-          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors">
+        <div className="sticky bottom-0 flex gap-3 border-t border-slate-200 bg-white shadow-sm p-5">
+          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-white transition-colors">
             Annuler
           </button>
-          <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-oxi-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors disabled:opacity-60">
+          <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60">
             {saving ? 'Enregistrement…' : editing ? 'Mettre à jour' : 'Créer le contrat'}
           </button>
         </div>

@@ -18,7 +18,7 @@ export function RhTabs({ tabs, current }: Props) {
   }
 
   return (
-    <div className="border-b border-oxi-border">
+    <div className="border-b border-slate-200">
       <nav className="-mb-px flex gap-0 overflow-x-auto" aria-label="Onglets RH">
         {tabs.map((tab) => {
           const active = current === tab.key;
@@ -30,7 +30,7 @@ export function RhTabs({ tabs, current }: Props) {
                 'flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
                 active
                   ? 'border-[#7C3AED] text-[#7C3AED]'
-                  : 'border-transparent text-oxi-text-secondary hover:border-oxi-border hover:text-oxi-text',
+                  : 'border-transparent text-slate-500 hover:border-slate-200 hover:text-slate-800',
               ].join(' ')}
               aria-current={active ? 'page' : undefined}
             >
@@ -39,7 +39,7 @@ export function RhTabs({ tabs, current }: Props) {
                 <span
                   className={[
                     'rounded-full px-1.5 py-0.5 text-xs font-medium',
-                    active ? 'bg-[#EDE9FE] text-[#7C3AED]' : 'bg-oxi-bg text-oxi-text-muted',
+                    active ? 'bg-[#EDE9FE] text-[#7C3AED]' : 'bg-white text-slate-400',
                   ].join(' ')}
                 >
                   {tab.count}

@@ -78,7 +78,7 @@ export function CongeForm({ open, onClose }: Props) {
     });
   }
 
-  const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text focus:outline-none focus:ring-2 focus:ring-[#7C3AED]';
+  const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]';
 
   return (
     <SlideOver open={open} onClose={onClose} title="Demande de congé">
@@ -86,7 +86,7 @@ export function CongeForm({ open, onClose }: Props) {
 
         {/* Type */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-oxi-text">Type de congé *</label>
+          <label className="text-sm font-semibold text-slate-700">Type de congé *</label>
           <select value={type} onChange={(e) => setType(e.target.value as CongeInput['type'])} className={inputCls}>
             {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
@@ -95,7 +95,7 @@ export function CongeForm({ open, onClose }: Props) {
         {/* Dates */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-oxi-text">Date début *</label>
+            <label className="text-sm font-semibold text-slate-700">Date début *</label>
             <input
               type="date"
               value={dateDebut}
@@ -105,7 +105,7 @@ export function CongeForm({ open, onClose }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-oxi-text">Date fin *</label>
+            <label className="text-sm font-semibold text-slate-700">Date fin *</label>
             <input
               type="date"
               value={dateFin}
@@ -122,14 +122,14 @@ export function CongeForm({ open, onClose }: Props) {
           <span className="text-[#6D28D9]">
             {nbJours > 0
               ? <><span className="font-semibold text-[#7C3AED]">{nbJours}</span> jour{nbJours > 1 ? 's' : ''} ouvré{nbJours > 1 ? 's' : ''}</>
-              : <span className="text-oxi-text-muted">Sélectionnez une période valide</span>
+              : <span className="text-slate-400">Sélectionnez une période valide</span>
             }
           </span>
         </div>
 
         {/* Commentaire */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-oxi-text">Commentaire</label>
+          <label className="text-sm font-semibold text-slate-700">Commentaire</label>
           <textarea
             value={commentaire}
             onChange={(e) => setCommentaire(e.target.value)}
@@ -153,7 +153,7 @@ export function CongeForm({ open, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-oxi-border px-4 py-2.5 text-sm text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+            className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-500 hover:bg-white transition-colors"
           >
             Annuler
           </button>

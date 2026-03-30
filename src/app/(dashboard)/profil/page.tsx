@@ -37,8 +37,8 @@ export default async function ProfilPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-oxi-text">Mon profil</h1>
-        <p className="mt-0.5 text-sm text-oxi-text-secondary">
+        <h1 className="text-xl font-semibold text-slate-800">Mon profil</h1>
+        <p className="mt-0.5 text-sm text-slate-500">
           Informations personnelles et sécurité du compte
         </p>
       </div>

@@ -62,7 +62,7 @@ function SoldeCell({
 
   if (!editable) {
     return (
-      <span className={value < 0 ? 'text-oxi-danger font-semibold' : 'font-semibold text-oxi-text'}>
+      <span className={value < 0 ? 'text-oxi-danger font-semibold' : 'font-semibold text-slate-800'}>
         {value}j
       </span>
     );
@@ -80,7 +80,7 @@ function SoldeCell({
           onBlur={handleBlur}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { setInput(String(value)); setEditing(false); } }}
           autoFocus
-          className="w-20 rounded border border-[#7C3AED] bg-white px-2 py-0.5 text-sm text-oxi-text focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+          className="w-20 rounded border border-[#7C3AED] bg-white px-2 py-0.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
         />
       ) : (
         <button
@@ -131,22 +131,22 @@ export function Soldes({ soldes, mouvements, isManager, userId }: Props) {
       {isManager && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-oxi-text">Soldes par employé</h3>
-            <p className="text-xs text-oxi-text-muted">Cliquez sur un solde pour le modifier</p>
+            <h3 className="text-base font-semibold text-slate-800">Soldes par employé</h3>
+            <p className="text-xs text-slate-400">Cliquez sur un solde pour le modifier</p>
           </div>
-          <div className="overflow-hidden rounded-xl border border-oxi-border bg-oxi-surface">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-oxi-border bg-oxi-bg text-left text-xs text-oxi-text-muted">
+                <tr className="border-b border-slate-200 bg-white text-left text-xs text-slate-400">
                   <th className="px-4 py-3 font-medium">Employé</th>
                   <th className="px-4 py-3 font-medium">Solde CP</th>
                   <th className="px-4 py-3 font-medium">Solde RTT</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-oxi-border">
+              <tbody className="divide-y divide-slate-200">
                 {soldes.map((s) => (
-                  <tr key={s.user_id} className="hover:bg-oxi-bg transition-colors">
-                    <td className="px-4 py-3 font-medium text-oxi-text">{s.user_nom}</td>
+                  <tr key={s.user_id} className="hover:bg-white transition-colors">
+                    <td className="px-4 py-3 font-semibold text-slate-700">{s.user_nom}</td>
                     <td className="px-4 py-3">
                       <SoldeCell userId={s.user_id} type="cp"  value={s.cp}  editable={isManager} />
                     </td>
@@ -156,7 +156,7 @@ export function Soldes({ soldes, mouvements, isManager, userId }: Props) {
                   </tr>
                 ))}
                 {soldes.length === 0 && (
-                  <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-oxi-text-muted">Aucun employé</td></tr>
+                  <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-slate-400">Aucun employé</td></tr>
                 )}
               </tbody>
             </table>
@@ -166,19 +166,19 @@ export function Soldes({ soldes, mouvements, isManager, userId }: Props) {
 
       {/* Historique des mouvements */}
       <div className="space-y-3">
-        <h3 className="text-base font-semibold text-oxi-text">
+        <h3 className="text-base font-semibold text-slate-800">
           Historique des mouvements
-          <span className="ml-2 text-sm font-normal text-oxi-text-muted">({mouvements.length})</span>
+          <span className="ml-2 text-sm font-normal text-slate-400">({mouvements.length})</span>
         </h3>
         {mouvements.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-oxi-border py-8 text-center text-sm text-oxi-text-muted">
+          <div className="rounded-xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
             Aucun mouvement enregistré
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-oxi-border bg-oxi-surface">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-oxi-border bg-oxi-bg text-left text-xs text-oxi-text-muted">
+                <tr className="border-b border-slate-200 bg-white text-left text-xs text-slate-400">
                   <th className="px-4 py-3 font-medium">Date</th>
                   {isManager && <th className="px-4 py-3 font-medium">Employé</th>}
                   <th className="px-4 py-3 font-medium">Type</th>
@@ -186,11 +186,11 @@ export function Soldes({ soldes, mouvements, isManager, userId }: Props) {
                   <th className="px-4 py-3 font-medium hidden md:table-cell">Motif</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-oxi-border">
+              <tbody className="divide-y divide-slate-200">
                 {mouvements.map((m) => (
-                  <tr key={m.id} className="hover:bg-oxi-bg transition-colors">
-                    <td className="px-4 py-3 text-oxi-text-secondary">{fmtDate(m.created_at)}</td>
-                    {isManager && <td className="px-4 py-3 font-medium text-oxi-text">{m.user_nom}</td>}
+                  <tr key={m.id} className="hover:bg-white transition-colors">
+                    <td className="px-4 py-3 text-slate-500">{fmtDate(m.created_at)}</td>
+                    {isManager && <td className="px-4 py-3 font-semibold text-slate-700">{m.user_nom}</td>}
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center rounded-full bg-[#EDE9FE] px-2.5 py-0.5 text-xs font-medium text-[#7C3AED]">
                         {m.type.toUpperCase()}
@@ -201,7 +201,7 @@ export function Soldes({ soldes, mouvements, isManager, userId }: Props) {
                         {m.delta > 0 ? '+' : ''}{m.delta}j
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-oxi-text-muted hidden md:table-cell">{m.motif}</td>
+                    <td className="px-4 py-3 text-slate-400 hidden md:table-cell">{m.motif}</td>
                   </tr>
                 ))}
               </tbody>

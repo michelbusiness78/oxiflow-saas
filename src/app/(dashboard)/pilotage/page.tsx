@@ -64,7 +64,7 @@ const IcoConversion = () => (
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="mb-4 text-base font-semibold text-oxi-text">{title}</h2>
+      <h2 className="mb-4 text-base font-semibold text-slate-800">{title}</h2>
       {children}
     </section>
   );
@@ -131,10 +131,10 @@ export default async function PilotagePage({ searchParams }: PageProps) {
       {/* ── En-tête ──────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-oxi-text">
+          <h1 className="text-xl font-semibold text-slate-800">
             {prenom ? <>Bonjour {prenom}&nbsp;👋</> : <>Bonjour&nbsp;👋</>}
           </h1>
-          <p className="mt-0.5 text-sm capitalize text-oxi-text-secondary">
+          <p className="mt-0.5 text-sm capitalize text-slate-500">
             {fmtDate()}
           </p>
         </div>
@@ -207,7 +207,7 @@ export default async function PilotagePage({ searchParams }: PageProps) {
         {/* Activité récente — 2/3 */}
         <div className="lg:col-span-2">
           <Section title="Activité récente">
-            <div className="rounded-xl border border-oxi-border bg-oxi-surface p-5">
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-5">
               <ActivityFeed items={activity} />
             </div>
           </Section>
@@ -225,19 +225,19 @@ export default async function PilotagePage({ searchParams }: PageProps) {
           {/* CTA démarrage si dashboard vide */}
           {isDashboardEmpty && (
             <Section title="Premiers pas">
-              <div className="rounded-xl border border-oxi-border bg-oxi-surface p-5 space-y-3">
-                <p className="text-sm text-oxi-text-secondary">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-5 space-y-3">
+                <p className="text-sm text-slate-500">
                   Votre tableau de bord se remplira automatiquement avec votre activité.
                 </p>
                 <a
                   href="/commerce?tab=devis"
-                  className="block w-full rounded-lg bg-oxi-primary px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
+                  className="block w-full rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
                 >
                   Créer votre premier devis
                 </a>
                 <a
                   href="/commerce?tab=clients"
-                  className="block w-full rounded-lg border border-oxi-border px-4 py-2.5 text-center text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+                  className="block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-center text-sm font-semibold text-slate-500 hover:bg-white transition-colors"
                 >
                   Ajouter un client
                 </a>

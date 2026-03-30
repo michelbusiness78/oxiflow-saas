@@ -46,8 +46,8 @@ interface InterventionFormProps {
 }
 
 const TYPE_ITEMS: { value: Intervention['type']; label: string; color: string }[] = [
-  { value: 'installation', label: 'Installation', color: 'text-oxi-primary border-oxi-primary bg-oxi-primary-light'  },
-  { value: 'maintenance',  label: 'Maintenance',  color: 'text-oxi-success border-oxi-success bg-oxi-success-light' },
+  { value: 'installation', label: 'Installation', color: 'text-blue-600 border-blue-600 bg-blue-50'  },
+  { value: 'maintenance',  label: 'Maintenance',  color: 'text-oxi-success border-oxi-success bg-green-50' },
   { value: 'sav',          label: 'SAV',           color: 'text-oxi-warning border-oxi-warning bg-oxi-warning-light' },
   { value: 'depannage',    label: 'Dépannage',    color: 'text-oxi-danger border-oxi-danger bg-oxi-danger-light'   },
 ];
@@ -102,13 +102,13 @@ function useTimer(initialSeconds = 0) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-bold uppercase tracking-wider text-oxi-text-muted">{title}</h3>
+      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">{title}</h3>
       {children}
     </div>
   );
 }
 
-const fieldCls = 'w-full rounded-xl border border-oxi-border bg-oxi-bg px-4 py-3 text-base text-oxi-text outline-none transition-colors focus:border-oxi-primary focus:ring-2 focus:ring-oxi-primary/20';
+const fieldCls = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200';
 
 // ─── Main form ────────────────────────────────────────────────────────────────
 
@@ -280,37 +280,37 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
   const selectedType = TYPE_ITEMS.find((t) => t.value === type)!;
 
   return (
-    <div className="fixed inset-0 z-50 bg-oxi-bg overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 bg-oxi-surface border-b border-oxi-border px-4 py-3 shadow-sm">
+      <div className="sticky top-0 z-10 flex items-center gap-3 bg-white border-b border-slate-200 px-4 py-3 shadow-sm">
         <button
           type="button"
           onClick={onClose}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-oxi-border hover:bg-oxi-bg transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 hover:bg-white transition-colors"
           aria-label="Fermer"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 text-oxi-text-muted" aria-hidden>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 text-slate-400" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
           </svg>
         </button>
         <div className="flex-1 min-w-0">
-          <p className="text-base font-bold text-oxi-text truncate">
+          <p className="text-base font-bold text-slate-800 truncate">
             {editing ? `${selectedType.label} — ${editing.client_nom ?? ''}` : 'Nouvelle intervention'}
           </p>
           {editing && (
-            <p className="text-xs text-oxi-text-muted capitalize">{editing.statut.replace('_', ' ')}</p>
+            <p className="text-xs text-slate-400 capitalize">{editing.statut.replace('_', ' ')}</p>
           )}
         </div>
         {/* Timer display in header */}
         {editing && !isTerminee && (
           <div className="flex items-center gap-2">
-            <span className="font-mono text-lg font-bold text-oxi-primary tabular-nums">{timer.display}</span>
+            <span className="font-mono text-lg font-bold text-blue-600 tabular-nums">{timer.display}</span>
             <button
               type="button"
               onClick={timer.running ? timer.pause : timer.start}
               className={[
                 'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
-                timer.running ? 'bg-oxi-danger text-white' : 'bg-oxi-primary text-white',
+                timer.running ? 'bg-oxi-danger text-white' : 'bg-blue-600 text-white',
               ].join(' ')}
             >
               {timer.running ? (
@@ -347,8 +347,8 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
                 onClick={() => !isTerminee && setType(t.value)}
                 className={[
                   'rounded-xl border py-3 text-xs font-bold transition-colors',
-                  type === t.value ? t.color : 'border-oxi-border text-oxi-text-secondary',
-                  isTerminee ? 'cursor-default' : 'hover:border-oxi-primary',
+                  type === t.value ? t.color : 'border-slate-200 text-slate-500',
+                  isTerminee ? 'cursor-default' : 'hover:border-blue-600',
                 ].join(' ')}
               >
                 {t.label}
@@ -379,13 +379,13 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
           {checklist.length > 0 && (
             <div className="space-y-2">
               {checklist.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 rounded-xl border border-oxi-border bg-oxi-surface px-4 py-3">
+                <div key={item.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white shadow-sm px-4 py-3">
                   <button
                     type="button"
                     onClick={() => toggleChecklistItem(item.id)}
                     className={[
                       'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors',
-                      item.done ? 'border-oxi-success bg-oxi-success text-white' : 'border-oxi-border',
+                      item.done ? 'border-oxi-success bg-green-500 text-white' : 'border-slate-200',
                     ].join(' ')}
                   >
                     {item.done && (
@@ -394,11 +394,11 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
                       </svg>
                     )}
                   </button>
-                  <span className={`flex-1 text-sm ${item.done ? 'line-through text-oxi-text-muted' : 'text-oxi-text'}`}>
+                  <span className={`flex-1 text-sm ${item.done ? 'line-through text-slate-400' : 'text-slate-800'}`}>
                     {item.label}
                   </span>
                   {!isTerminee && (
-                    <button type="button" onClick={() => removeChecklistItem(item.id)} className="text-oxi-text-muted hover:text-oxi-danger transition-colors">
+                    <button type="button" onClick={() => removeChecklistItem(item.id)} className="text-slate-400 hover:text-oxi-danger transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4" aria-hidden>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                       </svg>
@@ -421,7 +421,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
               <button
                 type="button"
                 onClick={addChecklistItem}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-oxi-primary text-white hover:bg-oxi-primary-hover transition-colors"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-5 w-5" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -434,7 +434,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
         {/* ── Matériel ── */}
         <Section title="Matériel utilisé">
           {materiel.map((m) => (
-            <div key={m.id} className="rounded-xl border border-oxi-border bg-oxi-surface p-3 space-y-2">
+            <div key={m.id} className="rounded-xl border border-slate-200 bg-white shadow-sm p-3 space-y-2">
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -458,7 +458,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
                 />
               </div>
               <div className="flex items-center gap-3">
-                <label className="text-xs text-oxi-text-muted">Qté</label>
+                <label className="text-xs text-slate-400">Qté</label>
                 <input
                   type="number"
                   value={m.quantite}
@@ -479,7 +479,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
             <button
               type="button"
               onClick={addMateriel}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-oxi-border py-3 text-sm font-medium text-oxi-text-secondary hover:border-oxi-primary hover:text-oxi-primary transition-colors"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-sm font-semibold text-slate-500 hover:border-blue-600 hover:text-blue-600 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-4 w-4" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -509,7 +509,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
         {/* ── Signature ── */}
         <Section title="Signature client">
           {signatureUrl ? (
-            <div className="rounded-xl border border-oxi-border bg-white p-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={signatureUrl} alt="Signature client" className="max-h-20 mx-auto" />
               {!isTerminee && (
@@ -525,7 +525,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
               <button
                 type="button"
                 onClick={() => setShowSig(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-oxi-border py-4 text-sm font-medium text-oxi-text-secondary hover:border-oxi-primary hover:text-oxi-primary transition-colors"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-4 text-sm font-semibold text-slate-500 hover:border-blue-600 hover:text-blue-600 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-5 w-5" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
@@ -534,7 +534,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
               </button>
             )
           ) : (
-            <p className="text-sm text-oxi-text-muted">Aucune signature</p>
+            <p className="text-sm text-slate-400">Aucune signature</p>
           )}
         </Section>
 
@@ -559,7 +559,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
                   type="button"
                   onClick={handleTerminer}
                   disabled={terminating}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-oxi-success py-4 text-base font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-4 text-base font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-60"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-5 w-5" aria-hidden>
                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -572,7 +572,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
                 type="button"
                 onClick={handleSave}
                 disabled={saving || terminating}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-oxi-border bg-oxi-surface py-4 text-base font-semibold text-oxi-text hover:bg-oxi-bg transition-colors disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white shadow-sm py-4 text-base font-semibold text-slate-800 hover:bg-white transition-colors disabled:opacity-60"
               >
                 {saving ? 'Enregistrement…' : editing ? 'Sauvegarder' : 'Créer l\'intervention'}
               </button>

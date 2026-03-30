@@ -126,8 +126,8 @@ export default async function ParametresPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-oxi-text">Paramètres</h1>
-        <p className="mt-0.5 text-sm text-oxi-text-secondary">
+        <h1 className="text-xl font-semibold text-slate-800">Paramètres</h1>
+        <p className="mt-0.5 text-sm text-slate-500">
           Configuration de votre société et de votre équipe
         </p>
       </div>

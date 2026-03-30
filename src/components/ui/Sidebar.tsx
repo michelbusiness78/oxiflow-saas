@@ -51,7 +51,7 @@ export function Sidebar({ isOpen, onClose, allowedHrefs, showSettings }: Sidebar
         {/* Logo */}
         <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-white/10">
           <Link href="/" className="flex items-center gap-2.5" onClick={onClose}>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-oxi-primary">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
               <span className="text-sm font-bold text-white">O</span>
             </div>
             <span className="text-lg font-semibold tracking-tight text-white">
@@ -87,7 +87,7 @@ export function Sidebar({ isOpen, onClose, allowedHrefs, showSettings }: Sidebar
                     className={[
                       'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-oxi-primary text-white shadow-sm'
+                        ? 'bg-blue-600 text-white shadow-sm'
                         : 'text-white/70 hover:bg-white/10 hover:text-white',
                     ].join(' ')}
                   >

@@ -5,12 +5,12 @@ const severityConfig = {
   warning: {
     container: 'border-oxi-warning/30 bg-oxi-warning-light',
     icon:      'text-oxi-warning',
-    text:      'text-oxi-text',
+    text:      'text-slate-800',
   },
   danger: {
     container: 'border-oxi-danger/30 bg-oxi-danger-light',
     icon:      'text-oxi-danger',
-    text:      'text-oxi-text',
+    text:      'text-slate-800',
   },
 };
 
@@ -39,7 +39,7 @@ interface AlertPanelProps {
 export function AlertPanel({ alerts }: AlertPanelProps) {
   if (alerts.length === 0) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-oxi-success/30 bg-oxi-success-light px-4 py-3.5">
+      <div className="flex items-center gap-3 rounded-xl border border-oxi-success/30 bg-green-50 px-4 py-3.5">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 shrink-0 text-oxi-success" aria-hidden>
           <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
         </svg>
@@ -65,7 +65,7 @@ export function AlertPanel({ alerts }: AlertPanelProps) {
             >
               <AlertIcon severity={alert.severity} />
               <p className={`flex-1 text-sm font-medium ${cfg.text}`}>{alert.message}</p>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4 shrink-0 text-oxi-text-muted" aria-hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4 shrink-0 text-slate-400" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
             </Link>

@@ -15,7 +15,7 @@ function VariationBadge({ variation }: { variation: number }) {
       className={[
         'inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium',
         isPositive
-          ? 'bg-oxi-success-light text-oxi-success'
+          ? 'bg-green-50 text-oxi-success'
           : 'bg-oxi-danger-light text-oxi-danger',
       ].join(' ')}
     >
@@ -49,30 +49,30 @@ export function KPICard({
   return (
     <div
       className={[
-        'rounded-xl border bg-oxi-surface p-5 transition-shadow hover:shadow-md',
-        alert ? 'border-oxi-danger/40 bg-oxi-danger-light/30' : 'border-oxi-border',
+        'rounded-xl border bg-white p-5 transition-shadow hover:shadow-md',
+        alert ? 'border-oxi-danger/40 bg-oxi-danger-light/30' : 'border-slate-200',
       ].join(' ')}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-oxi-text-secondary">{label}</p>
+          <p className="text-sm font-semibold text-slate-500">{label}</p>
           <p
             className={[
               'mt-1.5 text-2xl font-bold tracking-tight',
-              empty ? 'text-oxi-text-muted' : alert ? 'text-oxi-danger' : 'text-oxi-text',
+              empty ? 'text-slate-400' : alert ? 'text-oxi-danger' : 'text-slate-800',
             ].join(' ')}
           >
             {value}
           </p>
           {subLabel && (
-            <p className="mt-1 text-xs text-oxi-text-muted">{subLabel}</p>
+            <p className="mt-1 text-xs text-slate-400">{subLabel}</p>
           )}
         </div>
 
         <div
           className={[
             'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-            alert ? 'bg-oxi-danger/10 text-oxi-danger' : 'bg-oxi-bg text-oxi-text-secondary',
+            alert ? 'bg-oxi-danger/10 text-oxi-danger' : 'bg-white text-slate-500',
           ].join(' ')}
         >
           {icon}
@@ -82,7 +82,7 @@ export function KPICard({
       {variation != null && !empty && (
         <div className="mt-3 flex items-center gap-2">
           <VariationBadge variation={variation} />
-          <span className="text-xs text-oxi-text-muted">vs période précédente</span>
+          <span className="text-xs text-slate-400">vs période précédente</span>
         </div>
       )}
     </div>

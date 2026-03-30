@@ -32,7 +32,7 @@ interface SAVFormProps {
 }
 
 const PRIORITES: { value: SAVInput['priorite']; label: string; color: string }[] = [
-  { value: 'faible',   label: 'Faible',   color: 'border-oxi-border text-oxi-text-secondary' },
+  { value: 'faible',   label: 'Faible',   color: 'border-slate-200 text-slate-500' },
   { value: 'normale',  label: 'Normale',  color: 'border-blue-300 text-blue-600'             },
   { value: 'haute',    label: 'Haute',    color: 'border-yellow-400 text-yellow-600'          },
   { value: 'urgente',  label: 'Urgente',  color: 'border-red-400 text-red-600'               },
@@ -45,7 +45,7 @@ const STATUTS: { value: SAVInput['statut']; label: string }[] = [
   { value: 'cloture',  label: 'Clôturé'  },
 ];
 
-const inputCls = 'w-full rounded-lg border border-oxi-border bg-oxi-bg px-3.5 py-2.5 text-sm text-oxi-text outline-none transition-colors focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary';
+const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200';
 
 export function SAVForm({ open, onClose, clients, contrats, users, editing }: SAVFormProps) {
   const [clientId,    setClientId]    = useState(editing?.client_id       ?? '');
@@ -98,7 +98,7 @@ export function SAVForm({ open, onClose, clients, contrats, users, editing }: SA
 
           {/* Client */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Client <span className="text-oxi-danger">*</span></label>
+            <label className="block text-sm font-semibold text-slate-700">Client <span className="text-oxi-danger">*</span></label>
             <select value={clientId} onChange={(e) => { setClientId(e.target.value); setContratId(''); }} className={inputCls}>
               <option value="">— Sélectionner un client —</option>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
@@ -107,7 +107,7 @@ export function SAVForm({ open, onClose, clients, contrats, users, editing }: SA
 
           {/* Contrat lié + badge */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Contrat associé</label>
+            <label className="block text-sm font-semibold text-slate-700">Contrat associé</label>
             <select value={contratId} onChange={(e) => setContratId(e.target.value)} className={inputCls}>
               <option value="">— Hors contrat —</option>
               {filteredContrats.map((c) => (
@@ -117,7 +117,7 @@ export function SAVForm({ open, onClose, clients, contrats, users, editing }: SA
               ))}
             </select>
             {clientId && (
-              <p className={`text-xs font-medium ${contratId ? 'text-oxi-success' : 'text-oxi-text-muted'}`}>
+              <p className={`text-xs font-medium ${contratId ? 'text-oxi-success' : 'text-slate-400'}`}>
                 {contratId ? '✓ Sous contrat' : 'Hors contrat'}
               </p>
             )}
@@ -125,19 +125,19 @@ export function SAVForm({ open, onClose, clients, contrats, users, editing }: SA
 
           {/* Titre */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Titre <span className="text-oxi-danger">*</span></label>
+            <label className="block text-sm font-semibold text-slate-700">Titre <span className="text-oxi-danger">*</span></label>
             <input type="text" value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex. Imprimante ne répond plus" className={inputCls} required />
           </div>
 
           {/* Description */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Description <span className="text-oxi-danger">*</span></label>
+            <label className="block text-sm font-semibold text-slate-700">Description <span className="text-oxi-danger">*</span></label>
             <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} placeholder="Décrivez le problème…" className={`${inputCls} resize-none`} required />
           </div>
 
           {/* Priorité */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Priorité</label>
+            <label className="block text-sm font-semibold text-slate-700">Priorité</label>
             <div className="grid grid-cols-4 gap-2">
               {PRIORITES.map((p) => (
                 <button
@@ -147,8 +147,8 @@ export function SAVForm({ open, onClose, clients, contrats, users, editing }: SA
                   className={[
                     'rounded-lg border px-2 py-2 text-xs font-medium transition-colors',
                     priorite === p.value
-                      ? 'border-oxi-primary bg-oxi-primary-light text-oxi-primary'
-                      : `${p.color} hover:bg-oxi-bg`,
+                      ? 'border-blue-600 bg-blue-50 text-blue-600'
+                      : `${p.color} hover:bg-white`,
                   ].join(' ')}
                 >
                   {p.label}
@@ -159,7 +159,7 @@ export function SAVForm({ open, onClose, clients, contrats, users, editing }: SA
 
           {/* Statut */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Statut</label>
+            <label className="block text-sm font-semibold text-slate-700">Statut</label>
             <select value={statut} onChange={(e) => setStatut(e.target.value as SAVInput['statut'])} className={inputCls}>
               {STATUTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
@@ -167,7 +167,7 @@ export function SAVForm({ open, onClose, clients, contrats, users, editing }: SA
 
           {/* Technicien */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-oxi-text">Technicien assigné</label>
+            <label className="block text-sm font-semibold text-slate-700">Technicien assigné</label>
             <select value={assigneA} onChange={(e) => setAssigneA(e.target.value)} className={inputCls}>
               <option value="">— Non assigné —</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>)}
@@ -177,17 +177,17 @@ export function SAVForm({ open, onClose, clients, contrats, users, editing }: SA
           {/* Date résolution */}
           {(statut === 'resolu' || statut === 'cloture') && (
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Date de résolution</label>
+              <label className="block text-sm font-semibold text-slate-700">Date de résolution</label>
               <input type="date" value={resolution} onChange={(e) => setResolution(e.target.value)} className={inputCls} />
             </div>
           )}
         </div>
 
-        <div className="sticky bottom-0 flex gap-3 border-t border-oxi-border bg-oxi-surface p-5">
-          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors">
+        <div className="sticky bottom-0 flex gap-3 border-t border-slate-200 bg-white shadow-sm p-5">
+          <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-white transition-colors">
             Annuler
           </button>
-          <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-oxi-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors disabled:opacity-60">
+          <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60">
             {saving ? 'Enregistrement…' : editing ? 'Mettre à jour' : 'Créer le ticket'}
           </button>
         </div>

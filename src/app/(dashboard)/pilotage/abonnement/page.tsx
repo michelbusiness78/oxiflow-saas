@@ -112,19 +112,19 @@ export default async function AbonnementPage() {
     <div className="space-y-6">
       {/* Titre */}
       <div>
-        <h1 className="text-xl font-semibold text-oxi-text">Abonnement</h1>
-        <p className="mt-0.5 text-sm text-oxi-text-secondary">
+        <h1 className="text-xl font-semibold text-slate-800">Abonnement</h1>
+        <p className="mt-0.5 text-sm text-slate-500">
           Gérez votre plan et votre facturation
         </p>
       </div>
 
       {/* ── Abonnement actif ─────────────────────────────────────────────── */}
       {isActive && sub && (
-        <div className="rounded-2xl border border-oxi-border bg-oxi-surface p-6 shadow-oxi-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 shadow-oxi-sm">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <p className="text-lg font-bold text-oxi-text">
+                <p className="text-lg font-bold text-slate-800">
                   Plan {PLAN_LABEL[sub.plan] ?? sub.plan}
                 </p>
                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLOR[sub.status]}`}>
@@ -135,14 +135,14 @@ export default async function AbonnementPage() {
               <dl className="space-y-1 text-sm">
                 {sub.status === 'trialing' && sub.current_period_end && (
                   <div className="flex gap-2">
-                    <dt className="text-oxi-text-muted">Fin d&apos;essai :</dt>
-                    <dd className="font-medium text-oxi-text">{fmtDate(sub.current_period_end)}</dd>
+                    <dt className="text-slate-400">Fin d&apos;essai :</dt>
+                    <dd className="font-semibold text-slate-700">{fmtDate(sub.current_period_end)}</dd>
                   </div>
                 )}
                 {sub.status === 'active' && sub.current_period_end && (
                   <div className="flex gap-2">
-                    <dt className="text-oxi-text-muted">Prochain renouvellement :</dt>
-                    <dd className="font-medium text-oxi-text">{fmtDate(sub.current_period_end)}</dd>
+                    <dt className="text-slate-400">Prochain renouvellement :</dt>
+                    <dd className="font-semibold text-slate-700">{fmtDate(sub.current_period_end)}</dd>
                   </div>
                 )}
                 {sub.status === 'past_due' && (
@@ -154,7 +154,7 @@ export default async function AbonnementPage() {
                 )}
                 {sub.cancel_at && sub.status !== 'canceled' && (
                   <div className="flex gap-2">
-                    <dt className="text-oxi-text-muted">Annulation prévue le :</dt>
+                    <dt className="text-slate-400">Annulation prévue le :</dt>
                     <dd className="font-medium text-red-600">{fmtDate(sub.cancel_at)}</dd>
                   </div>
                 )}
@@ -176,10 +176,10 @@ export default async function AbonnementPage() {
       {/* ── Plans disponibles ─────────────────────────────────────────────── */}
       {!isActive && (
         <div>
-          <p className="text-sm font-medium text-oxi-text-secondary mb-4">
+          <p className="text-sm font-semibold text-slate-500 mb-4">
             Choisissez un plan pour démarrer votre essai gratuit de 14 jours.
           </p>
-          <p className="text-xs text-oxi-text-muted mb-6">
+          <p className="text-xs text-slate-400 mb-6">
             Sans carte bancaire · Annulation à tout moment
           </p>
         </div>
@@ -196,10 +196,10 @@ export default async function AbonnementPage() {
               className={[
                 'relative rounded-2xl flex flex-col',
                 plan.popular && !isCurrent
-                  ? 'border-2 border-[#2563EB] bg-oxi-surface shadow-lg shadow-blue-50'
+                  ? 'border-2 border-[#2563EB] bg-white shadow-lg shadow-blue-50'
                   : isCurrent
-                    ? 'border-2 border-oxi-primary bg-oxi-primary-light'
-                    : 'border border-oxi-border bg-oxi-surface',
+                    ? 'border-2 border-blue-600 bg-blue-50'
+                    : 'border border-slate-200 bg-white shadow-sm',
               ].join(' ')}
             >
               {plan.popular && !isCurrent && (
@@ -211,26 +211,26 @@ export default async function AbonnementPage() {
               )}
               {isCurrent && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                  <span className="rounded-full bg-oxi-primary px-4 py-1 text-xs font-semibold text-white shadow-sm">
+                  <span className="rounded-full bg-blue-600 px-4 py-1 text-xs font-semibold text-white shadow-sm">
                     Plan actuel
                   </span>
                 </div>
               )}
 
               <div className="p-6 flex-1">
-                <h2 className="font-bold text-lg text-oxi-text mb-1">{plan.label}</h2>
-                <p className="text-xs text-oxi-text-muted mb-4">{plan.desc}</p>
+                <h2 className="font-bold text-lg text-slate-800 mb-1">{plan.label}</h2>
+                <p className="text-xs text-slate-400 mb-4">{plan.desc}</p>
                 <div className="flex items-end gap-1 mb-5">
-                  <span className="text-3xl font-extrabold text-oxi-text">{plan.price}</span>
-                  <span className="text-oxi-text-muted text-sm mb-0.5">/mois</span>
+                  <span className="text-3xl font-extrabold text-slate-800">{plan.price}</span>
+                  <span className="text-slate-400 text-sm mb-0.5">/mois</span>
                 </div>
                 <ul className="space-y-2.5">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2">
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-oxi-primary mt-0.5" aria-hidden>
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-blue-600 mt-0.5" aria-hidden>
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
                       </svg>
-                      <span className="text-sm text-oxi-text-secondary">{f}</span>
+                      <span className="text-sm text-slate-500">{f}</span>
                     </li>
                   ))}
                 </ul>

@@ -89,9 +89,9 @@ function Input({
       step={step}
       required={required}
       className={[
-        'rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2 text-sm text-oxi-text',
-        'outline-none transition-colors focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary',
-        'placeholder:text-oxi-text-muted',
+        'rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800',
+        'outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
+        'placeholder:text-slate-400',
         className,
       ].join(' ')}
     />
@@ -248,7 +248,7 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
           required
         />
         {isOpen && (
-          <div className="absolute left-0 top-full z-30 mt-1 w-full min-w-[220px] rounded-lg border border-oxi-border bg-oxi-surface shadow-lg overflow-hidden">
+          <div className="absolute left-0 top-full z-30 mt-1 w-full min-w-[220px] rounded-lg border border-slate-200 bg-white shadow-sm shadow-lg overflow-hidden">
             {autocomplete!.results.length > 0 ? (
               autocomplete!.results.map((item) => (
                 <button
@@ -256,17 +256,17 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
                   type="button"
                   onMouseDown={(e) => e.preventDefault()} // empêche onBlur de se déclencher avant onClick
                   onClick={() => selectFromCatalogue(ligne._id, item)}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-oxi-bg transition-colors"
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-white transition-colors"
                 >
-                  <span className="flex-1 truncate text-oxi-text">{item.designation}</span>
-                  <span className="shrink-0 text-xs text-oxi-text-muted">
+                  <span className="flex-1 truncate text-slate-800">{item.designation}</span>
+                  <span className="shrink-0 text-xs text-slate-400">
                     {item.ref ? <span className="font-mono mr-2">{item.ref}</span> : null}
                     {item.prix_vente > 0 ? `${item.prix_vente.toFixed(2)} €` : ''}
                   </span>
                 </button>
               ))
             ) : (
-              <p className="px-3 py-2 text-sm text-oxi-text-muted">
+              <p className="px-3 py-2 text-sm text-slate-400">
                 Aucun produit trouvé — saisie libre
               </p>
             )}
@@ -294,13 +294,13 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
           {/* Client + Dates */}
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5 sm:col-span-3">
-              <label className="block text-sm font-medium text-oxi-text">
+              <label className="block text-sm font-semibold text-slate-700">
                 Client <span className="text-oxi-danger">*</span>
               </label>
               <select
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
-                className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3 py-2.5 text-sm text-oxi-text outline-none focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               >
                 <option value="">— Sélectionner un client —</option>
                 {clients.map((c) => (
@@ -309,11 +309,11 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-oxi-text">Date</label>
+              <label className="block text-sm font-semibold text-slate-700">Date</label>
               <Input type="date" value={date} onChange={setDate} className="w-full" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <label className="block text-sm font-medium text-oxi-text">Validité</label>
+              <label className="block text-sm font-semibold text-slate-700">Validité</label>
               <Input type="date" value={validite} onChange={setValidite} className="w-full" />
             </div>
           </div>
@@ -321,11 +321,11 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
           {/* Lignes */}
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-oxi-text">Lignes</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Lignes</h3>
               <button
                 type="button"
                 onClick={addLigne}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-oxi-primary hover:bg-oxi-primary-light transition-colors"
+                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -335,7 +335,7 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
             </div>
 
             {/* En-têtes colonnes */}
-            <div className="hidden grid-cols-[1fr_80px_90px_60px_60px_36px] gap-2 mb-1.5 px-1 text-xs font-semibold uppercase tracking-wider text-oxi-text-muted sm:grid">
+            <div className="hidden grid-cols-[1fr_80px_90px_60px_60px_36px] gap-2 mb-1.5 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400 sm:grid">
               <span>Désignation</span>
               <span>Qté</span>
               <span>PU HT (€)</span>
@@ -348,7 +348,7 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
               {lignes.map((ligne, i) => {
                 const { ht } = calcLigne(ligne);
                 return (
-                  <div key={ligne._id} className="rounded-lg border border-oxi-border bg-oxi-bg p-3">
+                  <div key={ligne._id} className="rounded-lg border border-slate-200 bg-white p-3">
                     {/* Mobile : empilé */}
                     <div className="flex flex-col gap-2 sm:hidden">
                       {renderDesignation(ligne, `Désignation ligne ${i + 1}`)}
@@ -359,7 +359,7 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
                         <Input type="number" value={ligne.remise_pct} onChange={(v) => updateLigne(ligne._id, 'remise_pct', v)} placeholder="Rem %" min="0" max="100" step="0.1" className="w-full" />
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-oxi-text-muted">Sous-total HT : <strong>{fmtEur(ht)}</strong></span>
+                        <span className="text-xs text-slate-400">Sous-total HT : <strong>{fmtEur(ht)}</strong></span>
                         <button type="button" onClick={() => removeLigne(ligne._id)} className="text-oxi-danger hover:underline text-xs">Supprimer</button>
                       </div>
                     </div>
@@ -375,7 +375,7 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
                         type="button"
                         onClick={() => removeLigne(ligne._id)}
                         disabled={lignes.length === 1}
-                        className="flex h-8 w-8 items-center justify-center rounded-md text-oxi-text-muted hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors disabled:opacity-30"
+                        className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors disabled:opacity-30"
                         title="Supprimer la ligne"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4" aria-hidden>
@@ -385,8 +385,8 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
                     </div>
 
                     {/* Sous-total desktop */}
-                    <p className="mt-1.5 hidden text-right text-xs text-oxi-text-muted sm:block">
-                      Sous-total HT : <strong className="text-oxi-text">{fmtEur(ht)}</strong>
+                    <p className="mt-1.5 hidden text-right text-xs text-slate-400 sm:block">
+                      Sous-total HT : <strong className="text-slate-800">{fmtEur(ht)}</strong>
                     </p>
                   </div>
                 );
@@ -395,30 +395,30 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
           </div>
 
           {/* Totaux */}
-          <div className="rounded-xl border border-oxi-border bg-oxi-bg p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between text-oxi-text-secondary">
+              <div className="flex justify-between text-slate-500">
                 <span>Total HT</span>
-                <span className="font-medium text-oxi-text">{fmtEur(totaux.ht)}</span>
+                <span className="font-semibold text-slate-700">{fmtEur(totaux.ht)}</span>
               </div>
-              <div className="flex justify-between text-oxi-text-secondary">
+              <div className="flex justify-between text-slate-500">
                 <span>TVA</span>
-                <span className="font-medium text-oxi-text">{fmtEur(totaux.tva)}</span>
+                <span className="font-semibold text-slate-700">{fmtEur(totaux.tva)}</span>
               </div>
-              <div className="flex justify-between border-t border-oxi-border pt-2 text-base font-bold text-oxi-text">
+              <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-800">
                 <span>Total TTC</span>
-                <span className="text-oxi-primary">{fmtEur(totaux.ttc)}</span>
+                <span className="text-blue-600">{fmtEur(totaux.ttc)}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer actions */}
-        <div className="sticky bottom-0 flex flex-wrap gap-2 border-t border-oxi-border bg-oxi-surface p-5">
+        <div className="sticky bottom-0 flex flex-wrap gap-2 border-t border-slate-200 bg-white shadow-sm p-5">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
+            className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-white transition-colors"
           >
             Annuler
           </button>
@@ -426,7 +426,7 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
             type="button"
             onClick={() => save('brouillon')}
             disabled={saving}
-            className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-sm font-medium text-oxi-text hover:bg-oxi-bg transition-colors disabled:opacity-60"
+            className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white transition-colors disabled:opacity-60"
           >
             {saving ? '…' : 'Brouillon'}
           </button>
@@ -434,7 +434,7 @@ export function DevisForm({ open, onClose, clients, catalogue, editing }: DevisF
             type="button"
             onClick={() => save('envoye')}
             disabled={saving}
-            className="flex-1 rounded-lg bg-oxi-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors disabled:opacity-60"
+            className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60"
           >
             {saving ? 'Enregistrement…' : 'Envoyer'}
           </button>
