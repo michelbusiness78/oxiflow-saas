@@ -89,31 +89,31 @@ export function DataTable<T>({
             value={query}
             onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             placeholder={searchPlaceholder}
-            className="w-full rounded-lg border border-oxi-border bg-oxi-bg py-2 pl-9 pr-4 text-sm text-oxi-text placeholder:text-oxi-text-muted outline-none focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary sm:max-w-xs"
+            className="w-full rounded-lg border border-oxi-border bg-oxi-surface py-2 pl-9 pr-4 text-sm text-oxi-text placeholder:text-oxi-text-muted outline-none focus:border-oxi-primary focus:ring-2 focus:ring-oxi-primary/20 sm:max-w-xs"
           />
         </div>
       )}
 
       {/* Tableau */}
-      <div className="overflow-x-auto rounded-xl border border-oxi-border">
+      <div className="overflow-x-auto rounded-xl border border-oxi-border shadow-oxi-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-oxi-border bg-oxi-bg">
+            <tr className="border-b border-oxi-border bg-[#F1F5F9]">
               {columns.map((col) => (
                 <th
                   key={col.key}
                   scope="col"
                   className={[
-                    'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-oxi-text-muted',
-                    col.sortable ? 'cursor-pointer select-none hover:text-oxi-text' : '',
+                    'px-4 py-3 text-left text-[11px] font-700 uppercase tracking-wider text-oxi-text-secondary',
+                    col.sortable ? 'cursor-pointer select-none hover:text-oxi-text hover:bg-[#E8EEF5] transition-colors' : '',
                     col.className ?? '',
                   ].join(' ')}
                   onClick={col.sortable ? () => toggleSort(col.key) : undefined}
                 >
-                  <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-1.5 font-bold">
                     {col.header}
                     {col.sortable && (
-                      <span className="text-oxi-text-muted">
+                      <span className={sortKey === col.key ? 'text-oxi-primary' : 'text-oxi-text-muted'}>
                         {sortKey === col.key
                           ? sortDir === 'asc' ? '↑' : '↓'
                           : '↕'}
@@ -123,13 +123,13 @@ export function DataTable<T>({
                 </th>
               ))}
               {actions && (
-                <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-oxi-text-muted">
+                <th scope="col" className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-oxi-text-secondary">
                   Actions
                 </th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-oxi-border bg-oxi-surface">
+          <tbody className="bg-oxi-surface">
             {paged.length === 0 ? (
               <tr>
                 <td
@@ -141,10 +141,16 @@ export function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              paged.map((row) => (
-                <tr key={keyExtractor(row)} className="hover:bg-oxi-bg/50 transition-colors">
+              paged.map((row, idx) => (
+                <tr
+                  key={keyExtractor(row)}
+                  className={[
+                    'border-b border-oxi-border-light transition-colors hover:bg-[#EFF6FF]',
+                    idx % 2 === 1 ? 'bg-[#F8FAFC]' : 'bg-white',
+                  ].join(' ')}
+                >
                   {columns.map((col) => (
-                    <td key={col.key} className={['px-4 py-3', col.className ?? ''].join(' ')}>
+                    <td key={col.key} className={['px-4 py-3 text-oxi-text', col.className ?? ''].join(' ')}>
                       {col.cell(row)}
                     </td>
                   ))}
@@ -168,17 +174,17 @@ export function DataTable<T>({
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="rounded-md px-2.5 py-1.5 hover:bg-oxi-bg disabled:opacity-40"
+              className="rounded-lg border border-oxi-border bg-oxi-surface px-3 py-1.5 text-sm hover:bg-oxi-bg disabled:opacity-40 transition-colors"
             >
               ←
             </button>
-            <span className="px-2">
+            <span className="px-3 py-1.5 text-sm font-medium">
               {page} / {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="rounded-md px-2.5 py-1.5 hover:bg-oxi-bg disabled:opacity-40"
+              className="rounded-lg border border-oxi-border bg-oxi-surface px-3 py-1.5 text-sm hover:bg-oxi-bg disabled:opacity-40 transition-colors"
             >
               →
             </button>

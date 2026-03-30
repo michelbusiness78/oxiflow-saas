@@ -19,11 +19,11 @@
   --color-oxi-info:          #0EA5E9;
   --color-oxi-info-light:    #E0F2FE;
 
-  /* Surfaces & neutres */
-  --color-oxi-bg:            #F8FAFC;
+  /* Surfaces & neutres — fond légèrement gris, bordures plus visibles */
+  --color-oxi-bg:            #F1F5F9;
   --color-oxi-surface:       #FFFFFF;
-  --color-oxi-border:        #E2E8F0;
-  --color-oxi-border-light:  #F1F5F9;
+  --color-oxi-border:        #CBD5E1;
+  --color-oxi-border-light:  #E2E8F0;
 
   /* Texte */
   --color-oxi-text:          #1E293B;
@@ -37,14 +37,15 @@
 
   /* Border radius */
   --radius-oxi-sm:  0.25rem;
-  --radius-oxi-md:  0.375rem;
-  --radius-oxi-lg:  0.5rem;
+  --radius-oxi-md:  0.5rem;
+  --radius-oxi-lg:  0.75rem;
   --radius-oxi-xl:  0.75rem;
 
-  /* Shadows */
-  --shadow-oxi-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-oxi-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
-  --shadow-oxi-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+  /* Shadows — renforcées pour plus de profondeur */
+  --shadow-oxi-sm: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+  --shadow-oxi-md: 0 4px 8px -1px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.08);
+  --shadow-oxi-lg: 0 10px 20px -3px rgb(0 0 0 / 0.10), 0 4px 8px -4px rgb(0 0 0 / 0.08);
+  --shadow-oxi-xl: 0 20px 40px -5px rgb(0 0 0 / 0.14), 0 8px 16px -6px rgb(0 0 0 / 0.10);
 }
 
 /* ─── Base ───────────────────────────────────────────────────────────────── */
@@ -56,7 +57,7 @@ html {
 
 body {
   height: 100%;
-  background-color: #F8FAFC;
+  background-color: #F1F5F9;
   color: #1E293B;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
@@ -80,6 +81,118 @@ body {
 /* ─── Utilitaires globaux ────────────────────────────────────────────────── */
 * {
   box-sizing: border-box;
+}
+
+/* ─── Composants dashboard ───────────────────────────────────────────────── */
+
+/* Cards & panneaux */
+.oxi-card {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+}
+
+/* Bouton primaire */
+.oxi-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.oxi-btn-primary:hover  { background: #1D4ED8; }
+.oxi-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Bouton secondaire */
+.oxi-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: #FFFFFF;
+  color: #1E293B;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  border: 1px solid #CBD5E1;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.oxi-btn-secondary:hover { background: #F1F5F9; }
+.oxi-btn-secondary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Bouton danger */
+.oxi-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: #DC2626;
+  color: #FFFFFF;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.oxi-btn-danger:hover { background: #B91C1C; }
+.oxi-btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Label formulaire */
+.oxi-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.375rem;
+}
+
+/* Input formulaire */
+.oxi-input {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  color: #1E293B;
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.oxi-input::placeholder { color: #94A3B8; }
+.oxi-input:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.12);
+}
+
+/* En-tête de tableau */
+.oxi-th {
+  padding: 0.625rem 1rem;
+  background: #F1F5F9;
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748B;
+  border-bottom: 1px solid #CBD5E1;
+}
+
+/* Cellule de tableau */
+.oxi-td {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #1E293B;
+  border-bottom: 1px solid #E2E8F0;
 }
 
 /* ─── Landing page — animations au scroll (CSS Scroll-Driven) ────────────── */

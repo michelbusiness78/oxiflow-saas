@@ -8,13 +8,13 @@ type BadgeVariant =
   | 'muted';
 
 const variants: Record<BadgeVariant, string> = {
-  default: 'bg-oxi-bg text-oxi-text border border-oxi-border',
-  primary: 'bg-oxi-primary-light text-oxi-primary',
-  success: 'bg-oxi-success-light text-oxi-success',
-  warning: 'bg-oxi-warning-light text-oxi-warning',
-  danger:  'bg-oxi-danger-light text-oxi-danger',
-  info:    'bg-oxi-info-light text-oxi-info',
-  muted:   'bg-oxi-bg text-oxi-text-muted',
+  default: 'bg-[#F1F5F9] text-[#64748B]  border border-[#CBD5E1]',
+  primary: 'bg-[#DBEAFE] text-[#1D4ED8]  border border-[#93C5FD]',
+  success: 'bg-[#DCFCE7] text-[#16A34A]  border border-[#86EFAC]',
+  warning: 'bg-[#FEF3C7] text-[#D97706]  border border-[#FCD34D]',
+  danger:  'bg-[#FEE2E2] text-[#DC2626]  border border-[#FCA5A5]',
+  info:    'bg-[#E0F2FE] text-[#0369A1]  border border-[#7DD3FC]',
+  muted:   'bg-[#F1F5F9] text-[#94A3B8]  border border-[#CBD5E1]',
 };
 
 interface BadgeProps {

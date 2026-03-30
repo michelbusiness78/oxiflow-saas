@@ -22,14 +22,14 @@ function Breadcrumb() {
     <nav aria-label="Fil d'Ariane">
       <ol className="flex items-center gap-1.5 text-sm">
         <li>
-          <span className="font-medium text-oxi-text">
+          <span className="font-bold text-oxi-navy">
             {segments.length === 0 ? 'Accueil' : getLabel(segments[0])}
           </span>
         </li>
         {segments.slice(1).map((seg, i) => (
           <li key={i} className="flex items-center gap-1.5">
             <NavIcon name="chevron-right" className="w-3.5 h-3.5 text-oxi-text-muted" />
-            <span className="text-oxi-text-secondary">{getLabel(seg)}</span>
+            <span className="font-medium text-oxi-text-secondary">{getLabel(seg)}</span>
           </li>
         ))}
       </ol>
@@ -58,7 +58,8 @@ export function DashboardShell({ children, userName, userEmail, userRole, allowe
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b border-oxi-border bg-oxi-surface px-4 md:px-6">
+        {/* Topbar — fond blanc, border + ombre pour séparer du contenu */}
+        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b border-oxi-border bg-oxi-surface px-4 shadow-oxi-sm md:px-6">
           <button
             onClick={() => setSidebarOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-oxi-text-secondary hover:bg-oxi-bg hover:text-oxi-text transition-colors md:hidden"
