@@ -42,9 +42,10 @@ function isAllowed(role: string, pathname: string): boolean {
   return allowed.some((m) => pathname === m || pathname.startsWith(m + '/'));
 }
 
-// ─── Proxy function ───────────────────────────────────────────────────────────
+// ─── Middleware / Proxy function ──────────────────────────────────────────────
+// Nommé "middleware" pour compatibilité Next.js + exporté aussi comme "proxy"
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const { supabaseResponse, user } = await updateSession(request);
 
@@ -112,6 +113,9 @@ export async function proxy(request: NextRequest) {
   supabaseResponse.headers.set('x-pathname', pathname);
   return supabaseResponse;
 }
+
+// Alias pour rétro-compatibilité si importé ailleurs
+export { middleware as proxy };
 
 export const config = {
   matcher: [
