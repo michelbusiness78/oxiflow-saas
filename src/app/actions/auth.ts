@@ -44,11 +44,15 @@ export async function signUp(_: unknown, formData: FormData) {
   }
 
   // 1. Créer le compte Supabase Auth
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://oxiflow-saas.vercel.app';
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name } },
+    options: {
+      data:            { name },
+      emailRedirectTo: `${baseUrl}/pilotage`,
+    },
   });
 
   if (authError || !authData.user) {

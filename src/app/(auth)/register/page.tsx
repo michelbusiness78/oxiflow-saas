@@ -1,11 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { signUp } from '@/app/actions/auth';
 
 export default function RegisterPage() {
   const [state, action, pending] = useActionState(signUp, null);
+
+  const [password, setPassword] = useState('');
+  const [confirm,  setConfirm]  = useState('');
+
+  const mismatch    = confirm.length > 0 && password !== confirm;
+  const submitReady = !pending && !mismatch && password.length >= 8 && confirm.length > 0;
 
   return (
     <>
@@ -79,21 +85,51 @@ export default function RegisterPage() {
             minLength={8}
             autoComplete="new-password"
             placeholder="8 caractères minimum"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-lg border border-oxi-border bg-oxi-bg px-3.5 py-2.5 text-sm text-oxi-text placeholder:text-oxi-text-muted outline-none transition-colors focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary"
           />
         </div>
 
+        <div className="space-y-1.5">
+          <label htmlFor="confirm" className="block text-sm font-medium text-oxi-text">
+            Confirmer le mot de passe
+          </label>
+          <input
+            id="confirm"
+            name="confirm"
+            type="password"
+            required
+            autoComplete="new-password"
+            placeholder="Répétez votre mot de passe"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            className={`w-full rounded-lg border bg-oxi-bg px-3.5 py-2.5 text-sm text-oxi-text placeholder:text-oxi-text-muted outline-none transition-colors focus:ring-1 ${
+              mismatch
+                ? 'border-oxi-danger focus:border-oxi-danger focus:ring-oxi-danger'
+                : 'border-oxi-border focus:border-oxi-primary focus:ring-oxi-primary'
+            }`}
+          />
+          {mismatch && (
+            <p className="text-xs text-oxi-danger">
+              Les mots de passe ne correspondent pas.
+            </p>
+          )}
+        </div>
+
         <button
           type="submit"
-          disabled={pending}
-          className="mt-2 w-full rounded-lg bg-oxi-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-oxi-primary-hover disabled:opacity-60"
+          disabled={!submitReady}
+          className="mt-2 w-full rounded-lg bg-oxi-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-oxi-primary-hover disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {pending ? 'Création…' : 'Créer mon compte'}
         </button>
 
         <p className="text-center text-xs text-oxi-text-muted">
           En créant un compte, vous acceptez nos{' '}
-          <span className="text-oxi-text-secondary">conditions d'utilisation</span>.
+          <Link href="/cgv" className="text-oxi-text-secondary hover:underline">
+            conditions d&apos;utilisation
+          </Link>.
         </p>
       </form>
 
