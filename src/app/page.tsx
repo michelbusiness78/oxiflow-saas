@@ -15,14 +15,23 @@ export const metadata: Metadata = {
     title: 'OxiFlow — Gérez votre PME avec la voix',
     description:
       'Devis, factures, techniciens, RH et agent vocal IA. La gestion PME intelligente, sans complexité.',
-    type: 'website',
-    locale: 'fr_FR',
+    type:     'website',
+    locale:   'fr_FR',
     siteName: 'OxiFlow',
+    images: [
+      {
+        url:    '/og-image.svg',
+        width:  1200,
+        height: 630,
+        alt:    'OxiFlow — Gérez votre PME avec la voix',
+      },
+    ],
   },
   twitter: {
-    card: 'summary_large_image',
-    title: 'OxiFlow — Gérez votre PME avec la voix',
+    card:        'summary_large_image',
+    title:       'OxiFlow — Gérez votre PME avec la voix',
     description: 'La gestion PME intelligente avec assistant vocal IA. 14 jours gratuits.',
+    images:      ['/og-image.svg'],
   },
 };
 
@@ -714,6 +723,50 @@ export default async function LandingPage() {
       </main>
 
       <MarketingFooter />
+
+      {/* ─── JSON-LD Structured Data ────────────────────────────────────────── */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'OxiFlow',
+            url: 'https://oxiflow.fr',
+            description:
+              'OxiFlow simplifie la gestion de votre PME : devis, factures, interventions terrain, RH. Avec un assistant vocal IA qui vous comprend.',
+            applicationCategory: 'BusinessApplication',
+            operatingSystem: 'Web',
+            inLanguage: 'fr',
+            offers: [
+              {
+                '@type': 'Offer',
+                name: 'Solo',
+                price: '29',
+                priceCurrency: 'EUR',
+                description: '1 utilisateur — Commerce, pilotage, 50 requêtes vocales/mois',
+                url: 'https://oxiflow.fr/#tarifs',
+              },
+              {
+                '@type': 'Offer',
+                name: 'Team',
+                price: '59',
+                priceCurrency: 'EUR',
+                description: '5 utilisateurs — Tous les modules, 200 requêtes vocales/mois',
+                url: 'https://oxiflow.fr/#tarifs',
+              },
+              {
+                '@type': 'Offer',
+                name: 'Pro',
+                price: '99',
+                priceCurrency: 'EUR',
+                description: '15 utilisateurs — Tous les modules, multi-sites, 500 requêtes vocales/mois',
+                url: 'https://oxiflow.fr/#tarifs',
+              },
+            ],
+          }),
+        }}
+      />
     </div>
   );
 }

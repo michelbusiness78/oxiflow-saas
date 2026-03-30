@@ -1,0 +1,19 @@
+{
+  "name": "OxiFlow",
+  "short_name": "OxiFlow",
+  "description": "OxiFlow simplifie la gestion de votre PME : devis, factures, interventions terrain, RH. Avec un assistant vocal IA qui vous comprend.",
+  "start_url": "/pilotage",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1B2A4A",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}

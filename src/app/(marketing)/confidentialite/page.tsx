@@ -1,8 +1,19 @@
 import { LegalLayout } from '@/components/marketing/LegalLayout';
 
 export const metadata = {
-  title: 'Politique de confidentialité — OxiFlow',
-  description: 'Politique de confidentialité et protection des données personnelles (RGPD) d\'OxiFlow.',
+  title: 'Politique de confidentialité',
+  description: "Politique de confidentialité et protection des données personnelles (RGPD) d'OxiFlow.",
+  openGraph: {
+    title:       'Politique de confidentialité — OxiFlow',
+    description: "Politique de confidentialité et protection des données personnelles (RGPD) d'OxiFlow.",
+    type:        'website' as const,
+    locale:      'fr_FR',
+    images:      [{ url: '/og-image.svg', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card:   'summary_large_image' as const,
+    images: ['/og-image.svg'],
+  },
 };
 
 export default function ConfidentialitePage() {

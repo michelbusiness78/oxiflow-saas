@@ -1,8 +1,19 @@
 import { LegalLayout } from '@/components/marketing/LegalLayout';
 
 export const metadata = {
-  title: 'Mentions légales — OxiFlow',
+  title: 'Mentions légales',
   description: 'Mentions légales du site OxiFlow.',
+  openGraph: {
+    title:       'Mentions légales — OxiFlow',
+    description: 'Mentions légales du site OxiFlow.',
+    type:        'website' as const,
+    locale:      'fr_FR',
+    images:      [{ url: '/og-image.svg', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card:   'summary_large_image' as const,
+    images: ['/og-image.svg'],
+  },
 };
 
 export default function MentionsLegalesPage() {

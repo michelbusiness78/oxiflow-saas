@@ -9,8 +9,26 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'OxiFlow — Gestion PME intelligente',
-  description: 'Pilotez votre entreprise avec OxiFlow : commerce, projets, RH et agent vocal IA.',
+  title: {
+    template: '%s | OxiFlow — Gestion PME avec IA',
+    default:  'OxiFlow — Gestion PME avec IA',
+  },
+  description:
+    'OxiFlow simplifie la gestion de votre PME : devis, factures, interventions terrain, RH. Avec un assistant vocal IA qui vous comprend.',
+  metadataBase: new URL('https://oxiflow.fr'),
+  openGraph: {
+    siteName: 'OxiFlow',
+    locale:   'fr_FR',
+    type:     'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
+  icons: {
+    icon:     '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -20,6 +38,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className={`${inter.variable} h-full`}>
+      <head>
+        <meta name="theme-color" content="#1B2A4A" />
+      </head>
       <body className="h-full">{children}</body>
     </html>
   );

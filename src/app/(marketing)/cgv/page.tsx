@@ -1,8 +1,19 @@
 import { LegalLayout } from '@/components/marketing/LegalLayout';
 
 export const metadata = {
-  title: 'Conditions Générales de Vente — OxiFlow',
+  title: 'Conditions Générales de Vente',
   description: 'Conditions générales de vente du logiciel SaaS OxiFlow.',
+  openGraph: {
+    title:       'Conditions Générales de Vente — OxiFlow',
+    description: 'Conditions générales de vente du logiciel SaaS OxiFlow.',
+    type:        'website' as const,
+    locale:      'fr_FR',
+    images:      [{ url: '/og-image.svg', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card:   'summary_large_image' as const,
+    images: ['/og-image.svg'],
+  },
 };
 
 export default function CgvPage() {
