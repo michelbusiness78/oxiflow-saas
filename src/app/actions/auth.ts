@@ -28,6 +28,21 @@ export async function signUp(_: unknown, formData: FormData) {
   const name      = formData.get('name') as string;
   const company   = formData.get('company') as string;
 
+  const admin  = createAdminClient();
+
+  // 0. Vérifie si un profil existe déjà pour cet email (inscription précédente avortée)
+  const { data: existingUser } = await admin
+    .from('users')
+    .select('id, tenant_id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (existingUser) {
+    // Un profil orphelin existe — on retourne une erreur explicite
+    console.error('[signUp] email already in public.users:', email);
+    return { error: 'Un compte existe déjà avec cet email. Connectez-vous ou utilisez "Mot de passe oublié".' };
+  }
+
   // 1. Créer le compte Supabase Auth
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -37,12 +52,13 @@ export async function signUp(_: unknown, formData: FormData) {
   });
 
   if (authError || !authData.user) {
+    console.error('[signUp] auth.signUp error:', authError?.message, authError?.status);
     return { error: authError?.message ?? 'Erreur lors de la création du compte.' };
   }
 
-  // 2. Créer le tenant + profil user avec le client admin (bypass RLS)
-  const admin = createAdminClient();
+  const authUserId = authData.user.id;
 
+  // 2. Créer le tenant (bypass RLS via admin)
   const { data: tenant, error: tenantError } = await admin
     .from('tenants')
     .insert({ name: company, email })
@@ -50,11 +66,15 @@ export async function signUp(_: unknown, formData: FormData) {
     .single();
 
   if (tenantError || !tenant) {
-    return { error: 'Erreur lors de la création de votre entreprise.' };
+    console.error('[signUp] tenant insert error — code:', tenantError?.code, '| message:', tenantError?.message, '| details:', tenantError?.details);
+    // Nettoie l'utilisateur Auth pour éviter un compte zombie sans profil
+    await admin.auth.admin.deleteUser(authUserId);
+    return { error: 'Erreur lors de la création de votre entreprise. Veuillez réessayer.' };
   }
 
+  // 3. Créer le profil utilisateur lié au tenant
   const { error: userError } = await admin.from('users').insert({
-    id:        authData.user.id,
+    id:        authUserId,
     tenant_id: tenant.id,
     email,
     name,
@@ -62,10 +82,14 @@ export async function signUp(_: unknown, formData: FormData) {
   });
 
   if (userError) {
-    return { error: 'Erreur lors de la création du profil utilisateur.' };
+    console.error('[signUp] user insert error — code:', userError.code, '| message:', userError.message, '| details:', userError.details, '| hint:', userError.hint);
+    // Nettoie le tenant orphelin et l'utilisateur Auth
+    await admin.from('tenants').delete().eq('id', tenant.id);
+    await admin.auth.admin.deleteUser(authUserId);
+    return { error: 'Erreur lors de la création du profil. Veuillez réessayer.' };
   }
 
-  // 3. Email de bienvenue (non bloquant)
+  // 4. Email de bienvenue (non bloquant)
   try {
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
