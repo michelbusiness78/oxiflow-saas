@@ -2,6 +2,8 @@
 
 import { redirect } from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { sendEmail } from '@/lib/email';
+import { welcomeEmail } from '@/lib/email-templates';
 
 // ─── Connexion ────────────────────────────────────────────────────────────────
 export async function signIn(_: unknown, formData: FormData) {
@@ -39,7 +41,7 @@ export async function signUp(_: unknown, formData: FormData) {
   }
 
   // 2. Créer le tenant + profil user avec le client admin (bypass RLS)
-  const admin = await createAdminClient();
+  const admin = createAdminClient();
 
   const { data: tenant, error: tenantError } = await admin
     .from('tenants')
@@ -61,6 +63,16 @@ export async function signUp(_: unknown, formData: FormData) {
 
   if (userError) {
     return { error: 'Erreur lors de la création du profil utilisateur.' };
+  }
+
+  // 3. Email de bienvenue (non bloquant)
+  try {
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 14);
+    const { subject, html } = welcomeEmail(name, trialEndDate);
+    await sendEmail(email, subject, html);
+  } catch (emailErr) {
+    console.error('[signUp] welcome email failed:', emailErr);
   }
 
   redirect('/pilotage');
