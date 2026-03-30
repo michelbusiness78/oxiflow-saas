@@ -37,7 +37,7 @@ export function MarketingFooter() {
             <p className="text-xs font-semibold uppercase tracking-wider mb-4 text-slate-400">Légal</p>
             <ul className="space-y-2.5">
               <li><Link href="/cgv" className="text-sm text-slate-400 hover:text-white transition-colors">CGV</Link></li>
-              <li><Link href="/rgpd" className="text-sm text-slate-400 hover:text-white transition-colors">RGPD</Link></li>
+              <li><Link href="/confidentialite" className="text-sm text-slate-400 hover:text-white transition-colors">Confidentialité</Link></li>
               <li>
                 <Link href="/mentions-legales" className="text-sm text-slate-400 hover:text-white transition-colors">
                   Mentions légales

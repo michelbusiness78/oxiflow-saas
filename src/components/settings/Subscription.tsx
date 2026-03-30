@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { PortalButton } from '@/components/stripe/SubscriptionActions';
+
 const PLANS = {
   trial: {
     label:    'Essai gratuit',
@@ -116,18 +119,13 @@ export function Subscription({ plan, plan_debut, plan_fin }: Props) {
 
       {/* CTA */}
       <div className="flex flex-col gap-3 sm:flex-row border-t border-oxi-border pt-5">
-        <a
-          href={process.env.NEXT_PUBLIC_STRIPE_PORTAL_URL ?? '#'}
-          className="flex-1 rounded-lg border border-oxi-border px-4 py-2.5 text-center text-sm font-medium text-oxi-text-secondary hover:bg-oxi-bg transition-colors"
-        >
-          Gérer mon abonnement
-        </a>
-        <a
-          href="/tarifs"
+        <PortalButton />
+        <Link
+          href="/pilotage/abonnement"
           className="flex-1 rounded-lg bg-oxi-primary px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-oxi-primary-hover transition-colors"
         >
           Changer de plan
-        </a>
+        </Link>
       </div>
 
       <p className="text-xs text-oxi-text-muted">
