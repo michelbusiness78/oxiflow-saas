@@ -8,14 +8,18 @@ const PATH = '/commerce';
 // ─── CLIENTS ──────────────────────────────────────────────────────────────────
 
 export type ClientInput = {
-  nom:     string;
-  contact: string;
-  email:   string;
-  tel:     string;
-  adresse: string;
-  cp:      string;
-  ville:   string;
-  notes:   string;
+  nom:                  string;
+  contact:              string;
+  email:                string;
+  tel:                  string;
+  adresse:              string;
+  cp:                   string;
+  ville:                string;
+  siret:                string;
+  tva_intra:            string;
+  conditions_paiement:  string;
+  notes:                string;
+  actif:                boolean;
 };
 
 export async function createClientAction(input: ClientInput) {

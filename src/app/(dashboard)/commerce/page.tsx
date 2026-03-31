@@ -37,7 +37,7 @@ async function fetchCommerceData() {
   const [clientsRes, devisRes, facturesRes, contratsRes, catalogueRes] = await Promise.all([
     admin
       .from('clients')
-      .select('id, nom, contact, email, tel, adresse, cp, ville, notes, created_at')
+      .select('id, nom, contact, email, tel, adresse, cp, ville, siret, tva_intra, conditions_paiement, notes, actif, created_at')
       .eq('tenant_id', tenantId)
       .order('nom'),
     admin

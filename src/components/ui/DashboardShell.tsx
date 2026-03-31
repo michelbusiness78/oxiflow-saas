@@ -38,14 +38,15 @@ function Breadcrumb() {
 }
 
 interface DashboardShellProps {
-  children:      React.ReactNode;
-  userName:      string;
-  userEmail:     string;
-  userRole:      string;
-  allowedHrefs?: string[];
+  children:       React.ReactNode;
+  userName:       string;
+  userEmail:      string;
+  userRole:       string;
+  allowedHrefs?:  string[];
+  moduleCounts?:  Record<string, number>;
 }
 
-export function DashboardShell({ children, userName, userEmail, userRole, allowedHrefs }: DashboardShellProps) {
+export function DashboardShell({ children, userName, userEmail, userRole, allowedHrefs, moduleCounts }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -55,6 +56,7 @@ export function DashboardShell({ children, userName, userEmail, userRole, allowe
         onClose={() => setSidebarOpen(false)}
         allowedHrefs={allowedHrefs}
         showSettings={userRole === 'dirigeant'}
+        moduleCounts={moduleCounts}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">

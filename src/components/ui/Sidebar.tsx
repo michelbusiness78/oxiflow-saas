@@ -11,9 +11,10 @@ interface SidebarProps {
   onClose:        () => void;
   allowedHrefs?:  string[];
   showSettings?:  boolean;
+  moduleCounts?:  Record<string, number>;
 }
 
-export function Sidebar({ isOpen, onClose, allowedHrefs, showSettings }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, allowedHrefs, showSettings, moduleCounts }: SidebarProps) {
   const pathname = usePathname();
   const router   = useRouter();
 
@@ -95,7 +96,12 @@ export function Sidebar({ isOpen, onClose, allowedHrefs, showSettings }: Sidebar
                       name={module.icon as Parameters<typeof NavIcon>[0]['name']}
                       className="w-5 h-5 shrink-0"
                     />
-                    <span>{module.label}</span>
+                    <span className="flex-1">{module.label}</span>
+                    {moduleCounts?.[module.href] != null && moduleCounts[module.href] > 0 && !isActive && (
+                      <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-xs font-medium text-white/80">
+                        {moduleCounts[module.href]}
+                      </span>
+                    )}
                     {isActive && (
                       <NavIcon
                         name="chevron-right"
