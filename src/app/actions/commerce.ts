@@ -202,15 +202,15 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
   const today       = new Date().toISOString().split('T')[0];
   const sevenAgo    = new Date(Date.now() - 7 * 86400_000).toISOString();
 
-  const [quotesRes, facturesRes, usersRes] = await Promise.all([
+  const [quotesRes, invoicesRes, usersRes] = await Promise.all([
     admin
       .from('quotes')
       .select('id, number, affair_number, objet, statut, date, validity, montant_ttc, project_created, client_id, commercial_user_id, chef_projet_user_id, created_at, clients(nom)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
     admin
-      .from('factures')
-      .select('id, statut, montant_ttc, echeance')
+      .from('invoices')
+      .select('id, status, total_ttc, date_echeance')
       .eq('tenant_id', tenantId),
     admin
       .from('users')
@@ -220,15 +220,15 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
   ]);
 
   const quotes   = quotesRes.data   ?? [];
-  const factures = facturesRes.data ?? [];
+  const invoices = invoicesRes.data ?? [];
   const users    = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
 
   // ── KPIs ──
   const accepted   = quotes.filter((q) => q.statut === 'accepte');
   const envoyes    = quotes.filter((q) => q.statut === 'envoye');
-  const payees     = factures.filter((f) => f.statut === 'payee');
-  const emises     = factures.filter((f) => f.statut === 'emise');
-  const enRetard   = emises.filter((f) => f.echeance && f.echeance < today);
+  const payees     = invoices.filter((f) => f.status === 'payee');
+  const emises     = invoices.filter((f) => f.status === 'emise');
+  const enRetard   = emises.filter((f) => f.date_echeance && (f.date_echeance as string) < today);
 
   const toQuote = (q: typeof quotes[0]): CommerceDashboardQuote => ({
     id:                  q.id,
@@ -251,9 +251,9 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
       caDevisTotal:     accepted.reduce((s, q) => s + (q.montant_ttc ?? 0), 0),
       totalDevis:       quotes.length,
       devisAcceptes:    accepted.length,
-      caEncaisse:       payees.reduce((s, f) => s + (f.montant_ttc ?? 0), 0),
+      caEncaisse:       payees.reduce((s, f) => s + (f.total_ttc ?? 0), 0),
       facturesSoldees:  payees.length,
-      aEncaisser:       emises.reduce((s, f) => s + (f.montant_ttc ?? 0), 0),
+      aEncaisser:       emises.reduce((s, f) => s + (f.total_ttc ?? 0), 0),
       facturesOuvertes: emises.length,
       facturesEnRetard: enRetard.length,
       devisEnAttente:   envoyes.length,

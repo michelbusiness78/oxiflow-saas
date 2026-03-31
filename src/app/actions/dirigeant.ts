@@ -56,8 +56,8 @@ export interface DirigeantDashboardData {
 
 const PALETTE = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0ea5e9'];
 
-function sum(rows: { montant_ttc?: number | null }[]) {
-  return rows.reduce((s, r) => s + (r.montant_ttc ?? 0), 0);
+function sum(rows: { total_ttc?: number | null }[]) {
+  return rows.reduce((s, r) => s + (r.total_ttc ?? 0), 0);
 }
 
 // ─── Action ───────────────────────────────────────────────────────────────────
@@ -92,18 +92,18 @@ export async function getDashboardDirigeant(
     admin.from('projets').select('id').eq('tenant_id', tenantId),
     admin.from('clients').select('id').eq('tenant_id', tenantId),
 
-    admin.from('factures').select('montant_ttc')
-      .eq('tenant_id', tenantId).eq('statut', 'payee').gte('date', monthStart),
+    admin.from('invoices').select('total_ttc')
+      .eq('tenant_id', tenantId).eq('status', 'payee').gte('date_facture', monthStart),
 
-    admin.from('factures').select('montant_ttc')
-      .eq('tenant_id', tenantId).eq('statut', 'payee')
-      .gte('date', prevMonthStart).lte('date', prevMonthEnd),
+    admin.from('invoices').select('total_ttc')
+      .eq('tenant_id', tenantId).eq('status', 'payee')
+      .gte('date_facture', prevMonthStart).lte('date_facture', prevMonthEnd),
 
-    admin.from('factures').select('montant_ttc')
-      .eq('tenant_id', tenantId).eq('statut', 'payee').gte('date', yearStart),
+    admin.from('invoices').select('total_ttc')
+      .eq('tenant_id', tenantId).eq('status', 'payee').gte('date_facture', yearStart),
 
-    admin.from('factures').select('id, num, montant_ttc, echeance')
-      .eq('tenant_id', tenantId).eq('statut', 'emise').lt('echeance', todayISO),
+    admin.from('invoices').select('id, number, total_ttc, date_echeance')
+      .eq('tenant_id', tenantId).eq('status', 'emise').lt('date_echeance', todayISO),
 
     admin.from('quotes').select('id, number, objet, montant_ttc, created_at, clients(nom)')
       .eq('tenant_id', tenantId).eq('statut', 'envoye')
@@ -197,14 +197,14 @@ export async function getDashboardDirigeant(
   }
 
   for (const f of facturesRetard.slice(0, 3)) {
-    const echeance = f.echeance as string | null;
+    const echeance = f.date_echeance as string | null;
     const jours    = echeance
       ? Math.max(0, Math.floor((now.getTime() - new Date(echeance).getTime()) / 86_400_000))
       : 0;
     priorites.push({
-      type: 'facture', id: f.id as string, titre: `Facture ${f.num ?? ''}`,
+      type: 'facture', id: f.id as string, titre: `Facture ${f.number ?? ''}`,
       echeance, lien: '/commerce?tab=factures', projetNom: null,
-      montant: (f.montant_ttc as number | null), joursRetard: jours,
+      montant: (f.total_ttc as number | null), joursRetard: jours,
     });
   }
 
