@@ -1,11 +1,13 @@
 import { redirect }                         from 'next/navigation';
 import { createClient, createAdminClient }   from '@/lib/supabase/server';
-import { SettingsTabs }   from '@/components/settings/SettingsTabs';
-import { SocieteForm }    from '@/components/settings/SocieteForm';
-import { UserManagement } from '@/components/settings/UserManagement';
-import { Subscription }   from '@/components/settings/Subscription';
+import { getCompanies }     from '@/app/actions/companies';
+import { SettingsTabs }     from '@/components/settings/SettingsTabs';
+import { CompanyList }      from '@/components/settings/CompanyList';
+import { SocieteForm }      from '@/components/settings/SocieteForm';
+import { UserManagement }   from '@/components/settings/UserManagement';
+import { Subscription }     from '@/components/settings/Subscription';
 
-// ── Fallback tenant vide si les données sont indisponibles ─────────────────────
+// ── Fallback tenant vide ───────────────────────────────────────────────────────
 const EMPTY_TENANT = {
   name: '', siret: null, tva_intra: null, address: null,
   cp: null, ville: null, phone: null, email: null,
@@ -14,97 +16,45 @@ const EMPTY_TENANT = {
 };
 
 export default async function ParametresPage() {
-  // ── Authentification ────────────────────────────────────────────────────────
+  // ── Auth ─────────────────────────────────────────────────────────────────────
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // ── Profil : client régulier d'abord, admin en fallback ────────────────────
-  // On tente les deux pour être robuste face aux variations RLS.
-  let profile: { tenant_id: string; role: string } | null = null;
+  const admin = createAdminClient();
 
-  const { data: regularProfile } = await supabase
+  // ── Profil ───────────────────────────────────────────────────────────────────
+  const { data: profile } = await admin
     .from('users')
     .select('tenant_id, role')
     .eq('id', user.id)
     .single();
 
-  if (regularProfile) {
-    profile = regularProfile as { tenant_id: string; role: string };
-  } else {
-    // Fallback admin (bypass RLS — utile si auth_tenant_id() renvoie null)
-    try {
-      const admin = await createAdminClient();
-      const { data: adminProfile } = await admin
-        .from('users')
-        .select('tenant_id, role')
-        .eq('id', user.id)
-        .single();
-      if (adminProfile) profile = adminProfile as { tenant_id: string; role: string };
-    } catch { /* service role key absent en dev → on continue */ }
-  }
-
-  // Seule redirection légitime : rôle explicitement non-dirigeant
-  const role = profile?.role ?? 'dirigeant';
+  const role = (profile?.role as string | null) ?? 'dirigeant';
   if (role !== 'dirigeant') redirect('/pilotage');
 
-  // ── Tenant + utilisateurs ─────────────────────────────────────────────────
-  const tenantId = profile?.tenant_id;
+  const tenantId = profile?.tenant_id as string;
 
-  let tenant: Record<string, unknown> | null = null;
-  let users: {
-    id: string; name: string; email: string;
-    role: string; status: string; created_at: string;
-  }[] = [];
+  // ── Données parallèles ───────────────────────────────────────────────────────
+  const [tenantRes, usersRes, companies] = await Promise.all([
+    admin.from('tenants').select('*').eq('id', tenantId).single(),
+    admin.from('users')
+      .select('id, name, email, role, status, created_at')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: true }),
+    getCompanies(tenantId),
+  ]);
 
-  if (tenantId) {
-    // Essaie avec le client régulier
-    const { data: t } = await supabase
-      .from('tenants').select('*').eq('id', tenantId).single();
-    tenant = t as Record<string, unknown> | null;
+  const tenant = tenantRes.data as Record<string, unknown> | null;
+  const users  = (usersRes.data ?? []).map((row) => ({
+    ...row,
+    status: (row as Record<string, unknown>).status as string ?? 'active',
+  }));
 
-    // Fallback admin si tenant toujours null
-    if (!tenant) {
-      try {
-        const admin = await createAdminClient();
-        const { data: t2 } = await admin
-          .from('tenants').select('*').eq('id', tenantId).single();
-        tenant = t2 as Record<string, unknown> | null;
-      } catch { /* ignore */ }
-    }
+  const plan       = (tenant?.plan       as string | null) ?? 'trial';
+  const plan_debut = (tenant?.plan_debut as string | null) ?? (tenant?.created_at as string | null) ?? new Date().toISOString();
+  const plan_fin   = (tenant?.plan_fin   as string | null) ?? new Date(Date.now() + 14 * 86_400_000).toISOString();
 
-    // Utilisateurs — admin pour contourner RLS si nécessaire
-    try {
-      const admin = await createAdminClient();
-      const { data: u } = await admin
-        .from('users')
-        .select('id, name, email, role, status, created_at')
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: true });
-      if (u) users = u.map((row) => ({
-        ...row,
-        status: (row as Record<string, unknown>).status as string ?? 'active',
-      }));
-    } catch {
-      // Fallback client régulier
-      const { data: u } = await supabase
-        .from('users')
-        .select('id, name, email, role, status, created_at')
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: true });
-      users = (u ?? []).map((row) => ({
-        ...row,
-        status: (row as Record<string, unknown>).status as string ?? 'active',
-      }));
-    }
-  }
-
-  // Valeurs par défaut pour les colonnes ajoutées en migration 007
-  const plan       = (tenant?.plan       as string  | null) ?? 'trial';
-  const plan_debut = (tenant?.plan_debut as string  | null) ?? (tenant?.created_at as string | null) ?? new Date().toISOString();
-  const plan_fin   = (tenant?.plan_fin   as string  | null) ?? new Date(Date.now() + 14 * 86_400_000).toISOString();
-
-  // Si tenant introuvable, on affiche un formulaire vide (pas de redirect)
   const tenantData = tenant
     ? {
         name:                (tenant.name                as string)      ?? '',
@@ -128,11 +78,12 @@ export default async function ParametresPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-800">Paramètres</h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          Configuration de votre société et de votre équipe
+          Gérez vos sociétés, votre équipe et votre abonnement
         </p>
       </div>
 
       <SettingsTabs
+        societes={<CompanyList companies={companies} />}
         societe={<SocieteForm tenant={tenantData} />}
         utilisateurs={
           <UserManagement
