@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
+import { createAdminClient } from '@/lib/supabase/server';
 
 const PATH = '/commerce';
 
@@ -157,6 +158,110 @@ export async function changeDevisStatutAction(
   revalidatePath(PATH);
   revalidatePath('/projets');
   return { success: true };
+}
+
+// ─── getDashboardCommerce ─────────────────────────────────────────────────────
+
+export type QuoteStatutDash = 'brouillon' | 'envoye' | 'accepte' | 'refuse';
+
+export interface CommerceDashboardQuote {
+  id:                  string;
+  number:              string;
+  affair_number:       string | null;
+  objet:               string | null;
+  statut:              QuoteStatutDash;
+  date:                string;
+  validity:            string | null;
+  montant_ttc:         number;
+  project_created:     boolean;
+  client_nom:          string;
+  commercial_user_id:  string | null;
+  chef_projet_user_id: string | null;
+  created_at:          string;
+}
+
+export interface CommerceDashboardData {
+  kpis: {
+    caDevisTotal:     number;
+    totalDevis:       number;
+    devisAcceptes:    number;
+    caEncaisse:       number;
+    facturesSoldees:  number;
+    aEncaisser:       number;
+    facturesOuvertes: number;
+    facturesEnRetard: number;
+    devisEnAttente:   number;
+  };
+  quotesRecentes: CommerceDashboardQuote[];
+  alertesRelance: CommerceDashboardQuote[];
+  users:          { id: string; name: string }[];
+}
+
+export async function getDashboardCommerce(tenantId: string): Promise<CommerceDashboardData> {
+  const admin = await createAdminClient();
+  const today       = new Date().toISOString().split('T')[0];
+  const sevenAgo    = new Date(Date.now() - 7 * 86400_000).toISOString();
+
+  const [quotesRes, facturesRes, usersRes] = await Promise.all([
+    admin
+      .from('quotes')
+      .select('id, number, affair_number, objet, statut, date, validity, montant_ttc, project_created, client_id, commercial_user_id, chef_projet_user_id, created_at, clients(nom)')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false }),
+    admin
+      .from('factures')
+      .select('id, statut, montant_ttc, echeance')
+      .eq('tenant_id', tenantId),
+    admin
+      .from('users')
+      .select('id, name')
+      .eq('tenant_id', tenantId)
+      .order('name'),
+  ]);
+
+  const quotes   = quotesRes.data   ?? [];
+  const factures = facturesRes.data ?? [];
+  const users    = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
+
+  // ── KPIs ──
+  const accepted   = quotes.filter((q) => q.statut === 'accepte');
+  const envoyes    = quotes.filter((q) => q.statut === 'envoye');
+  const payees     = factures.filter((f) => f.statut === 'payee');
+  const emises     = factures.filter((f) => f.statut === 'emise');
+  const enRetard   = emises.filter((f) => f.echeance && f.echeance < today);
+
+  const toQuote = (q: typeof quotes[0]): CommerceDashboardQuote => ({
+    id:                  q.id,
+    number:              q.number,
+    affair_number:       q.affair_number ?? null,
+    objet:               q.objet ?? null,
+    statut:              q.statut as QuoteStatutDash,
+    date:                q.date,
+    validity:            q.validity ?? null,
+    montant_ttc:         q.montant_ttc ?? 0,
+    project_created:     q.project_created ?? false,
+    client_nom:          (q.clients as unknown as { nom: string } | null)?.nom ?? '—',
+    commercial_user_id:  q.commercial_user_id ?? null,
+    chef_projet_user_id: q.chef_projet_user_id ?? null,
+    created_at:          q.created_at,
+  });
+
+  return {
+    kpis: {
+      caDevisTotal:     accepted.reduce((s, q) => s + (q.montant_ttc ?? 0), 0),
+      totalDevis:       quotes.length,
+      devisAcceptes:    accepted.length,
+      caEncaisse:       payees.reduce((s, f) => s + (f.montant_ttc ?? 0), 0),
+      facturesSoldees:  payees.length,
+      aEncaisser:       emises.reduce((s, f) => s + (f.montant_ttc ?? 0), 0),
+      facturesOuvertes: emises.length,
+      facturesEnRetard: enRetard.length,
+      devisEnAttente:   envoyes.length,
+    },
+    quotesRecentes: quotes.slice(0, 10).map(toQuote),
+    alertesRelance: envoyes.filter((q) => q.created_at < sevenAgo).map(toQuote),
+    users,
+  };
 }
 
 export async function dupliquerDevisAction(id: string) {

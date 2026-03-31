@@ -1,12 +1,14 @@
 import { redirect } from 'next/navigation';
 import { Suspense }  from 'react';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { Tabs, type TabItem } from '@/components/ui/Tabs';
-import { ClientList }    from '@/components/commerce/ClientList';
-import { QuoteList }     from '@/components/commerce/QuoteList';
-import { FactureList }   from '@/components/commerce/FactureList';
-import { ContratList }   from '@/components/commerce/ContratList';
-import { CatalogueList } from '@/components/commerce/CatalogueList';
+import { Tabs, type TabItem }  from '@/components/ui/Tabs';
+import { ClientList }          from '@/components/commerce/ClientList';
+import { QuoteList }           from '@/components/commerce/QuoteList';
+import { FactureList }         from '@/components/commerce/FactureList';
+import { ContratList }         from '@/components/commerce/ContratList';
+import { CatalogueList }       from '@/components/commerce/CatalogueList';
+import { CommerceDashboard }   from '@/components/commerce/CommerceDashboard';
+import { getDashboardCommerce } from '@/app/actions/commerce';
 import type { Client }         from '@/components/commerce/ClientList';
 import type { Facture }        from '@/components/commerce/FactureForm';
 import type { Contrat }        from '@/components/commerce/ContratForm';
@@ -14,7 +16,7 @@ import type { DevisLigne }     from '@/app/actions/commerce';
 import type { CatalogueItem }  from '@/app/actions/catalogue';
 import type { QuoteWithClient, TenantUser } from '@/components/commerce/QuoteForm';
 
-// ─── Fetch ────────────────────────────────────────────────────────────────────
+// ─── Fetch (onglets non-dashboard) ───────────────────────────────────────────
 
 async function fetchCommerceData() {
   const supabase = await createClient();
@@ -29,7 +31,7 @@ async function fetchCommerceData() {
     .eq('id', user.id)
     .single();
 
-  const tenantId = profile?.tenant_id as string;
+  const tenantId        = profile?.tenant_id as string;
   const currentUserName = (profile?.name as string) ?? user.email ?? 'Utilisateur';
 
   const [clientsRes, quotesRes, facturesRes, contratsRes, catalogueRes, devisRes, usersRes, tenantRes] =
@@ -59,19 +61,16 @@ async function fetchCommerceData() {
         .select('id, ref, designation, description, fournisseur, categorie, type, prix_achat, prix_vente, tva, unite, actif, imported_from, created_at')
         .eq('tenant_id', tenantId)
         .order('designation'),
-      // Old devis for FactureList from_devis
       admin
         .from('devis')
         .select('id, num, client_id, date, validite, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false }),
-      // Users du tenant (pour chef de projet selector)
       admin
         .from('users')
         .select('id, name')
         .eq('tenant_id', tenantId)
         .order('name'),
-      // Nom de la société
       admin
         .from('tenants')
         .select('name')
@@ -83,8 +82,8 @@ async function fetchCommerceData() {
 
   const quotes = (quotesRes.data ?? []).map((q) => ({
     ...q,
-    lignes:      (q.lignes as QuoteWithClient['lignes']) ?? [],
-    client_nom:  (q.clients as unknown as { nom: string } | null)?.nom ?? '—',
+    lignes:          (q.lignes as QuoteWithClient['lignes']) ?? [],
+    client_nom:      (q.clients as unknown as { nom: string } | null)?.nom ?? '—',
     deposit_percent: (q.deposit_percent as number) ?? 0,
   })) as QuoteWithClient[];
 
@@ -99,19 +98,19 @@ async function fetchCommerceData() {
     client_nom: (c.clients as unknown as { nom: string } | null)?.nom ?? '—',
   }));
 
-  const catalogue = (catalogueRes.data ?? []) as CatalogueItem[];
+  const catalogue  = (catalogueRes.data ?? []) as CatalogueItem[];
 
   const devis = (devisRes.data ?? []).map((d) => ({
     ...d,
-    lignes:     (d.lignes as import('@/app/actions/commerce').DevisLigne[]) ?? [],
+    lignes:     (d.lignes as DevisLigne[]) ?? [],
     client_nom: (d.clients as unknown as { nom: string } | null)?.nom ?? '—',
   }));
 
-  const users = (usersRes.data ?? []) as TenantUser[];
+  const users      = (usersRes.data ?? []) as TenantUser[];
   const tenantName = (tenantRes.data?.name as string) ?? '';
 
   return {
-    clients, quotes, factures, contrats, catalogue, devis,
+    tenantId, clients, quotes, factures, contrats, catalogue, devis,
     users, currentUserId: user.id, currentUserName, tenantName,
   };
 }
@@ -123,17 +122,53 @@ interface PageProps {
 }
 
 export default async function CommercePage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const tab    = params?.tab ?? 'dashboard';
+
+  // ── Tableau de bord (onglet par défaut) ─────────────────────────────────────
+  if (tab === 'dashboard') {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) redirect('/login');
+
+    const admin = await createAdminClient();
+    const { data: profile } = await admin
+      .from('users')
+      .select('tenant_id, name')
+      .eq('id', user.id)
+      .single();
+
+    const tenantId   = profile?.tenant_id as string;
+    const userName   = (profile?.name as string) ?? user.email ?? 'Utilisateur';
+    const dashData   = await getDashboardCommerce(tenantId);
+
+    const tabs: TabItem[] = [
+      { key: 'dashboard',  label: 'Tableau de bord'                            },
+      { key: 'clients',    label: 'Clients'                                     },
+      { key: 'catalogue',  label: 'Catalogue'                                   },
+      { key: 'devis',      label: 'Devis',     count: dashData.kpis.totalDevis  },
+      { key: 'factures',   label: 'Factures'                                    },
+      { key: 'contrats',   label: 'Contrats'                                    },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <Suspense>
+          <Tabs tabs={tabs} current={tab} />
+        </Suspense>
+        <CommerceDashboard data={dashData} userName={userName} />
+      </div>
+    );
+  }
+
+  // ── Autres onglets ──────────────────────────────────────────────────────────
   const {
     clients, quotes, factures, contrats, catalogue, devis,
     users, currentUserId, currentUserName, tenantName,
   } = await fetchCommerceData();
 
-  const params = await searchParams;
-  const tab    = params?.tab ?? 'clients';
-
-  const fromDevisId = params?.from_devis;
-  const fromDevis   = fromDevisId ? devis.find((d) => d.id === fromDevisId) ?? null : null;
-
+  const fromDevisId   = params?.from_devis;
+  const fromDevis     = fromDevisId ? devis.find((d) => d.id === fromDevisId) ?? null : null;
   const fromDevisData = fromDevis
     ? {
         id:          fromDevis.id,
@@ -146,22 +181,16 @@ export default async function CommercePage({ searchParams }: PageProps) {
     : null;
 
   const tabs: TabItem[] = [
-    { key: 'clients',   label: 'Clients',   count: clients.length   },
-    { key: 'catalogue', label: 'Catalogue', count: catalogue.length },
-    { key: 'devis',     label: 'Devis',     count: quotes.length    },
-    { key: 'factures',  label: 'Factures',  count: factures.length  },
-    { key: 'contrats',  label: 'Contrats',  count: contrats.length  },
+    { key: 'dashboard',  label: 'Tableau de bord'                        },
+    { key: 'clients',    label: 'Clients',   count: clients.length        },
+    { key: 'catalogue',  label: 'Catalogue', count: catalogue.length      },
+    { key: 'devis',      label: 'Devis',     count: quotes.length         },
+    { key: 'factures',   label: 'Factures',  count: factures.length       },
+    { key: 'contrats',   label: 'Contrats',  count: contrats.length       },
   ];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-800">Commerce</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Clients, devis, factures, contrats et catalogue
-        </p>
-      </div>
-
       <Suspense>
         <Tabs tabs={tabs} current={tab} />
       </Suspense>
