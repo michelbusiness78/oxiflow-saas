@@ -12,7 +12,9 @@ import {
   type QuoteLigne,
   type QuoteStatut,
 } from '@/app/actions/quotes';
-import { createProjectFromQuote } from '@/app/actions/projects';
+import { createProjectFromQuote }  from '@/app/actions/projects';
+import { createInvoiceFromQuote }  from '@/app/actions/invoices';
+import type { InvoiceStatus }      from '@/app/actions/invoices';
 import { fmtEur, fmtDate, todayISO, addDays } from '@/lib/format';
 import type { CatalogueItem, CatalogueType } from '@/app/actions/catalogue';
 
@@ -91,6 +93,7 @@ interface QuoteFormProps {
   currentUserId:   string;
   currentUserName: string;
   tenantName:      string;
+  relatedInvoice?: { id: string; number: string; status: InvoiceStatus } | null;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -268,9 +271,17 @@ const DEFAULT_CONDITIONS =
   `Conditions de paiement : 30 jours net à réception de facture.\n` +
   `Devis valable sous réserve d'acceptation dans les délais indiqués.`;
 
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  brouillon: 'Brouillon',
+  emise:     'Émise',
+  payee:     'Payée',
+  en_retard: 'En retard',
+};
+
 export function QuoteForm({
   open, onClose, editing, clients, catalogue,
   users, currentUserId, currentUserName, tenantName,
+  relatedInvoice,
 }: QuoteFormProps) {
   // ── Champs ──
   const [clientId,       setClientId]       = useState('');
@@ -292,6 +303,9 @@ export function QuoteForm({
   const [creatingProject, setCreatingProject] = useState(false);
   const [projectCreated,  setProjectCreated]  = useState(false);
   const [projectToast,    setProjectToast]    = useState('');
+
+  const [invoiceResult,   setInvoiceResult]   = useState<{ id: string; number: string; status: InvoiceStatus } | null>(null);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
 
   const statut   = editing?.statut ?? 'brouillon';
   const readonly = editing ? editing.statut !== 'brouillon' : false;
@@ -329,6 +343,7 @@ export function QuoteForm({
     }
     setProjectCreated(editing?.project_created ?? false);
     setProjectToast('');
+    setInvoiceResult(relatedInvoice ?? null);
     setError('');
     setConfirmDel(false);
   }, [open, editing]);
@@ -462,6 +477,16 @@ export function QuoteForm({
     setTimeout(() => setProjectToast(''), 5000);
   }
 
+  // ── Créer la facture ──
+  async function handleCreateInvoice() {
+    if (!editing) return;
+    setCreatingInvoice(true);
+    const res = await createInvoiceFromQuote(editing.id);
+    setCreatingInvoice(false);
+    if (res.error) { setError(res.error); return; }
+    if (res.invoice) setInvoiceResult(res.invoice);
+  }
+
   const forwardTransitions = editing ? (FORWARD_TRANSITIONS[statut] ?? []) : [];
   const backTransitions     = editing ? (BACK_TRANSITIONS[statut] ?? [])    : [];
 
@@ -557,24 +582,54 @@ export function QuoteForm({
               )}
 
               {/* Bloc facturation */}
-              <div className="flex items-center gap-3 rounded-xl border border-sky-200 bg-[#f0f9ff] px-4 py-3">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 shrink-0 text-sky-500" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                </svg>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-sky-800">🧾 Facturation</p>
-                  <p className="text-xs text-sky-600">
-                    Convertir ce devis en facture brouillon — tous les champs resteront éditables avant émission.
-                  </p>
+              {invoiceResult ? (
+                <div className="flex items-center gap-3 rounded-xl border border-sky-200 bg-[#f0f9ff] px-4 py-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 shrink-0 text-sky-500" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-sky-800">🧾 Facturation</p>
+                    <p className="text-xs text-sky-600">
+                      📄 Facture <span className="font-mono font-semibold">{invoiceResult.number}</span>
+                      {' — '}{INVOICE_STATUS_LABEL[invoiceResult.status]}
+                    </p>
+                  </div>
+                  <a
+                    href="/commerce?tab=factures"
+                    className="shrink-0 rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 transition-colors"
+                  >
+                    Voir la facture →
+                  </a>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => alert('Facturation — à implémenter (R5)')}
-                  className="shrink-0 rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 transition-colors"
-                >
-                  🧾 Créer une facture
-                </button>
-              </div>
+              ) : (
+                <div className="flex items-center gap-3 rounded-xl border border-sky-200 bg-[#f0f9ff] px-4 py-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 shrink-0 text-sky-500" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                  </svg>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-sky-800">🧾 Facturation</p>
+                    <p className="text-xs text-sky-600">
+                      Convertir ce devis en facture brouillon — tous les champs resteront éditables avant émission.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={creatingInvoice}
+                    onClick={handleCreateInvoice}
+                    className="shrink-0 rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-50 transition-colors"
+                  >
+                    {creatingInvoice ? (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        Création…
+                      </span>
+                    ) : '🧾 Créer une facture'}
+                  </button>
+                </div>
+              )}
 
             </div>
           )}

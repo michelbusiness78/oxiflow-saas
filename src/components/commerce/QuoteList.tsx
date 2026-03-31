@@ -5,6 +5,7 @@ import { QuoteForm, type QuoteWithClient, type TenantUser } from './QuoteForm';
 import { duplicateQuoteAction, type QuoteStatut } from '@/app/actions/quotes';
 import { fmtEur, fmtDate } from '@/lib/format';
 import type { CatalogueItem } from '@/app/actions/catalogue';
+import type { Invoice }       from '@/app/actions/invoices';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -31,11 +32,12 @@ interface QuoteListProps {
   currentUserId:   string;
   currentUserName: string;
   tenantName:      string;
+  invoices?:       Pick<Invoice, 'id' | 'number' | 'quote_id' | 'status'>[];
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export function QuoteList({ quotes, clients, catalogue, users, currentUserId, currentUserName, tenantName }: QuoteListProps) {
+export function QuoteList({ quotes, clients, catalogue, users, currentUserId, currentUserName, tenantName, invoices }: QuoteListProps) {
   const [formOpen,     setFormOpen]     = useState(false);
   const [editing,      setEditing]      = useState<QuoteWithClient | null>(null);
   const [statusFilter, setStatusFilter] = useState<QuoteStatut | 'tous'>('tous');
@@ -250,6 +252,11 @@ export function QuoteList({ quotes, clients, catalogue, users, currentUserId, cu
         currentUserId={currentUserId}
         currentUserName={currentUserName}
         tenantName={tenantName}
+        relatedInvoice={
+          editing && invoices
+            ? (invoices.find((i) => i.quote_id === editing.id) ?? null)
+            : null
+        }
       />
     </>
   );
