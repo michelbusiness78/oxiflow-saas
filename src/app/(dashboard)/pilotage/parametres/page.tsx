@@ -1,6 +1,6 @@
 import { redirect }                         from 'next/navigation';
 import { createClient, createAdminClient }   from '@/lib/supabase/server';
-import { getCompanies }     from '@/app/actions/companies';
+import { getCompanies, getCompanyObjectives } from '@/app/actions/companies';
 import { SettingsTabs }     from '@/components/settings/SettingsTabs';
 import { CompanyList }      from '@/components/settings/CompanyList';
 import { SocieteForm }      from '@/components/settings/SocieteForm';
@@ -36,13 +36,15 @@ export default async function ParametresPage() {
   const tenantId = profile?.tenant_id as string;
 
   // ── Données parallèles ───────────────────────────────────────────────────────
-  const [tenantRes, usersRes, companies] = await Promise.all([
+  const currentYear = new Date().getFullYear();
+  const [tenantRes, usersRes, companies, objectives] = await Promise.all([
     admin.from('tenants').select('*').eq('id', tenantId).single(),
     admin.from('users')
       .select('id, name, email, role, status, created_at')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: true }),
     getCompanies(tenantId),
+    getCompanyObjectives(tenantId, currentYear),
   ]);
 
   const tenant = tenantRes.data as Record<string, unknown> | null;
@@ -83,7 +85,7 @@ export default async function ParametresPage() {
       </div>
 
       <SettingsTabs
-        societes={<CompanyList companies={companies} />}
+        societes={<CompanyList companies={companies} objectives={objectives} />}
         societe={<SocieteForm tenant={tenantData} />}
         utilisateurs={
           <UserManagement
