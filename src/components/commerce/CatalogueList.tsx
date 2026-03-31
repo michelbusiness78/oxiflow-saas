@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { CatalogueForm } from './CatalogueForm';
+import { CatalogueForm }   from './CatalogueForm';
+import { CatalogueImport } from './CatalogueImport';
 import { fmtEur } from '@/lib/format';
 import type { CatalogueItem, CatalogueType } from '@/app/actions/catalogue';
 
@@ -52,8 +53,9 @@ interface CatalogueListProps {
 }
 
 export function CatalogueList({ catalogue }: CatalogueListProps) {
-  const [formOpen,  setFormOpen]  = useState(false);
-  const [editing,   setEditing]   = useState<CatalogueItem | null>(null);
+  const [formOpen,   setFormOpen]   = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [editing,    setEditing]    = useState<CatalogueItem | null>(null);
   const [search,    setSearch]    = useState('');
   const [typeFilter,      setTypeFilter]      = useState<CatalogueType | ''>('');
   const [fournisseurFilter, setFournisseurFilter] = useState('');
@@ -140,6 +142,15 @@ export function CatalogueList({ catalogue }: CatalogueListProps) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
           Nouveau produit
+        </button>
+        <button
+          onClick={() => setImportOpen(true)}
+          className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          Importer
         </button>
       </div>
 
@@ -287,6 +298,12 @@ export function CatalogueList({ catalogue }: CatalogueListProps) {
         editing={editing}
         fournisseurs={fournisseurs}
         categories={categories}
+      />
+
+      <CatalogueImport
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        catalogue={catalogue}
       />
     </>
   );
