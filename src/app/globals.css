@@ -62,6 +62,29 @@ body {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* ─── CSS Custom Properties ─────────────────────────────────────────────── */
+:root {
+  --bg:        #f0f3f9;
+  --bg2:       #ffffff;
+  --bg3:       #f5f7fc;
+  --bg4:       #eaeff8;
+  --card:      #ffffff;
+  --border:    #dde3f0;
+  --border2:   #c8d0e8;
+  --text:      #1a1f36;
+  --text2:     #5a6382;
+  --text3:     #9aa3be;
+  --blue:      #2563eb;
+  --blue2:     #1d4ed8;
+  --green:     #16a34a;
+  --amber:     #d97706;
+  --red:       #dc2626;
+  --purple:    #7c3aed;
+  --shadow:    0 1px 3px rgba(20,30,80,.07), 0 4px 12px rgba(20,30,80,.05);
+  --shadow-md: 0 2px 8px rgba(20,30,80,.09), 0 8px 24px rgba(20,30,80,.07);
+  --radius:    12px;
+}
+
 /* ─── Scrollbar discrète ─────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
