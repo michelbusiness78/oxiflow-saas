@@ -37,16 +37,16 @@ export default async function DashboardLayout({
   const role      = profile?.role      ?? 'dirigeant';
   const tenantId  = profile?.tenant_id ?? null;
 
-  // Compteur clients pour le badge sidebar
-  let clientCount = 0;
+  // Compteurs pour badges sidebar (produits actifs du catalogue)
+  let catalogueCount = 0;
   if (tenantId) {
     const admin = await createAdminClient();
     const { count } = await admin
-      .from('clients')
+      .from('catalogue')
       .select('*', { count: 'exact', head: true })
       .eq('tenant_id', tenantId)
       .eq('actif', true);
-    clientCount = count ?? 0;
+    catalogueCount = count ?? 0;
   }
 
   // dirigeant = aucune restriction (undefined = tout afficher)
@@ -58,7 +58,7 @@ export default async function DashboardLayout({
       userEmail={userEmail}
       userRole={role}
       allowedHrefs={allowedHrefs}
-      moduleCounts={{ '/commerce': clientCount }}
+      moduleCounts={{ '/commerce': catalogueCount }}
     >
       {children}
     </DashboardShell>

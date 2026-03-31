@@ -1,46 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CatalogueForm } from './CatalogueForm';
 import { fmtEur } from '@/lib/format';
 import type { CatalogueItem, CatalogueType } from '@/app/actions/catalogue';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Types helpers ────────────────────────────────────────────────────────────
 
-const TYPE_COLORS: Record<CatalogueType, string> = {
-  materiel:    'bg-blue-100   text-blue-700',
-  service:     'bg-green-100  text-green-700',
-  main_oeuvre: 'bg-orange-100 text-orange-700',
-  fourniture:  'bg-purple-100 text-purple-700',
+const TYPE_META: Record<CatalogueType, { label: string; cls: string }> = {
+  materiel:    { label: 'Matériel',     cls: 'bg-blue-100 text-blue-700'   },
+  service:     { label: 'Service',      cls: 'bg-purple-100 text-purple-700' },
+  forfait:     { label: 'Forfait',      cls: 'bg-amber-100 text-amber-700'  },
+  main_oeuvre: { label: "Main d'œuvre", cls: 'bg-orange-100 text-orange-700' },
+  fourniture:  { label: 'Fourniture',   cls: 'bg-slate-100 text-slate-600'   },
 };
 
-const TYPE_LABELS: Record<CatalogueType, string> = {
-  materiel:    'Matériel',
-  service:     'Service',
-  main_oeuvre: "Main d'œuvre",
-  fourniture:  'Fourniture',
-};
+const TYPE_CHIP_ORDER: CatalogueType[] = ['materiel', 'service', 'forfait', 'main_oeuvre', 'fourniture'];
 
-const UNITE_LABELS: Record<string, string> = {
-  u:      'unité',
-  h:      'heure',
-  j:      'jour',
-  ml:     'ml',
-  m2:     'm²',
-  kg:     'kg',
-  forfait:'forfait',
-};
-
-function calcMarge(achat: number, vente: number): number | null {
-  if (vente <= 0) return null;
-  return ((vente - achat) / vente) * 100;
+function TypeBadge({ type }: { type: CatalogueType }) {
+  const meta = TYPE_META[type] ?? { label: type, cls: 'bg-slate-100 text-slate-600' };
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>
+      {meta.label}
+    </span>
+  );
 }
 
-function margeCls(pct: number | null): string {
-  if (pct === null) return 'text-slate-400';
-  if (pct >= 30)   return 'font-semibold text-green-600';
-  if (pct >= 15)   return 'font-semibold text-orange-500';
-  return 'font-semibold text-red-500';
+function fmtAchat(v: number | null) {
+  if (v == null) return '—';
+  return fmtEur(v);
+}
+
+function fmtMarge(achat: number | null, vente: number) {
+  if (achat == null || vente <= 0) return '—';
+  const pct = ((vente - achat) / vente) * 100;
+  return { pct, cls: pct >= 30 ? 'text-green-600 font-semibold' : pct >= 15 ? 'text-amber-600 font-semibold' : 'text-red-500 font-semibold' };
+}
+
+function unique<T>(arr: (T | null | undefined)[]): T[] {
+  return [...new Set(arr.filter((v): v is T => v != null && v !== ''))];
+}
+
+function normalize(s: string) {
+  return s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -50,52 +52,89 @@ interface CatalogueListProps {
 }
 
 export function CatalogueList({ catalogue }: CatalogueListProps) {
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing,  setEditing]  = useState<CatalogueItem | null>(null);
-  const [search,   setSearch]   = useState('');
+  const [formOpen,  setFormOpen]  = useState(false);
+  const [editing,   setEditing]   = useState<CatalogueItem | null>(null);
+  const [search,    setSearch]    = useState('');
+  const [typeFilter,      setTypeFilter]      = useState<CatalogueType | ''>('');
+  const [fournisseurFilter, setFournisseurFilter] = useState('');
+  const [categorieFilter,   setCategorieFilter]   = useState('');
 
   function openCreate() { setEditing(null); setFormOpen(true); }
   function openEdit(item: CatalogueItem) { setEditing(item); setFormOpen(true); }
 
-  const filtered = search.trim()
-    ? catalogue.filter((p) => {
-        const q = search.toLowerCase();
-        return (
-          p.designation.toLowerCase().includes(q) ||
-          (p.ref ?? '').toLowerCase().includes(q)
-        );
-      })
-    : catalogue;
+  // Listes dynamiques pour filtres et autocomplete
+  const fournisseurs = useMemo(() => unique(catalogue.map((c) => c.fournisseur)).sort(), [catalogue]);
+  const categories   = useMemo(() => unique(catalogue.map((c) => c.categorie)).sort(), [catalogue]);
+
+  // Types présents dans le catalogue (pour n'afficher que les chips pertinents)
+  const typesPresents = useMemo(
+    () => new Set(catalogue.map((c) => c.type)),
+    [catalogue],
+  );
+
+  // Filtrage
+  const filtered = useMemo(() => {
+    const q = normalize(search.trim());
+    return catalogue.filter((item) => {
+      if (q && !(
+        normalize(item.designation).includes(q) ||
+        normalize(item.ref ?? '').includes(q) ||
+        normalize(item.fournisseur ?? '').includes(q)
+      )) return false;
+      if (typeFilter && item.type !== typeFilter) return false;
+      if (fournisseurFilter && item.fournisseur !== fournisseurFilter) return false;
+      if (categorieFilter && item.categorie !== categorieFilter) return false;
+      return true;
+    });
+  }, [catalogue, search, typeFilter, fournisseurFilter, categorieFilter]);
+
+  const hasFilters = !!typeFilter || !!fournisseurFilter || !!categorieFilter;
 
   return (
     <>
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative flex-1 min-w-0 max-w-xs">
-          <svg
-            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-            strokeWidth={1.75} stroke="currentColor"
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
-            aria-hidden
-          >
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Recherche */}
+        <div className="relative min-w-0 flex-1">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor"
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher désignation, réf…"
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            placeholder="Réf, désignation, fournisseur…"
+            className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           />
         </div>
 
-        <p className="text-sm text-slate-500 shrink-0">
-          {filtered.length} produit{filtered.length !== 1 ? 's' : ''}
-        </p>
+        {/* Filtres dropdown */}
+        {fournisseurs.length > 0 && (
+          <select
+            value={fournisseurFilter}
+            onChange={(e) => setFournisseurFilter(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+          >
+            <option value="">Tous les fournisseurs</option>
+            {fournisseurs.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+        )}
+
+        {categories.length > 0 && (
+          <select
+            value={categorieFilter}
+            onChange={(e) => setCategorieFilter(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+          >
+            <option value="">Toutes les catégories</option>
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
 
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          className="flex shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-4 w-4" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -104,13 +143,54 @@ export function CatalogueList({ catalogue }: CatalogueListProps) {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Chips type */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setTypeFilter('')}
+          className={[
+            'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+            typeFilter === '' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+          ].join(' ')}
+        >
+          Tous
+        </button>
+        {TYPE_CHIP_ORDER.filter((t) => typesPresents.has(t)).map((t) => {
+          const meta = TYPE_META[t];
+          return (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(typeFilter === t ? '' : t)}
+              className={[
+                'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                typeFilter === t ? meta.cls + ' ring-2 ring-offset-1' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+              ].join(' ')}
+            >
+              {meta.label}
+            </button>
+          );
+        })}
+
+        {/* Compteur + reset */}
+        <span className="ml-auto text-sm text-slate-500">
+          {filtered.length} produit{filtered.length !== 1 ? 's' : ''}
+        </span>
+        {hasFilters && (
+          <button
+            onClick={() => { setTypeFilter(''); setFournisseurFilter(''); setCategorieFilter(''); }}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            Réinitialiser les filtres
+          </button>
+        )}
+      </div>
+
+      {/* Tableau */}
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center">
+        <div className="rounded-xl border-2 border-dashed border-slate-200 py-14 text-center">
           <p className="text-sm text-slate-400 mb-3">
-            {search ? 'Aucun résultat pour cette recherche.' : 'Aucun produit dans le catalogue.'}
+            {search || hasFilters ? 'Aucun résultat pour ces filtres.' : 'Aucun produit dans le catalogue.'}
           </p>
-          {!search && (
+          {!search && !hasFilters && (
             <button
               onClick={openCreate}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
@@ -120,61 +200,71 @@ export function CatalogueList({ catalogue }: CatalogueListProps) {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-400">
                 <th className="px-4 py-3 text-left">Réf</th>
                 <th className="px-4 py-3 text-left">Désignation</th>
+                <th className="px-4 py-3 text-left hidden md:table-cell">Fournisseur</th>
+                <th className="px-4 py-3 text-left hidden lg:table-cell">Catégorie</th>
                 <th className="px-4 py-3 text-left hidden sm:table-cell">Type</th>
-                <th className="px-4 py-3 text-right hidden md:table-cell">P. achat</th>
+                <th className="px-4 py-3 text-right hidden lg:table-cell">P. achat</th>
                 <th className="px-4 py-3 text-right">P. vente</th>
                 <th className="px-4 py-3 text-right hidden md:table-cell">Marge</th>
                 <th className="px-4 py-3 text-center hidden lg:table-cell">TVA</th>
-                <th className="px-4 py-3 text-center hidden lg:table-cell">Unité</th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 text-left hidden lg:table-cell">Unité</th>
+                <th className="px-4 py-3 w-10" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 bg-white">
+            <tbody className="divide-y divide-slate-100">
               {filtered.map((item) => {
-                const marge    = calcMarge(item.prix_achat, item.prix_vente);
-                const typeKey  = item.type as CatalogueType;
+                const marge = fmtMarge(item.prix_achat, item.prix_vente);
                 return (
-                  <tr key={item.id} className="hover:bg-white/50 transition-colors">
+                  <tr
+                    key={item.id}
+                    className="hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => openEdit(item)}
+                  >
                     <td className="px-4 py-3 font-mono text-xs text-slate-400 whitespace-nowrap">
                       {item.ref || '—'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 max-w-[200px]">
                       <p className={`font-medium ${!item.actif ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                         {item.designation}
                       </p>
                       {item.description && (
-                        <p className="text-xs text-slate-400 truncate max-w-[200px]">{item.description}</p>
+                        <p className="text-xs text-slate-400 truncate">{item.description}</p>
                       )}
                     </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${TYPE_COLORS[typeKey] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {TYPE_LABELS[typeKey] ?? item.type}
-                      </span>
+                    <td className="px-4 py-3 text-slate-500 hidden md:table-cell whitespace-nowrap">
+                      {item.fournisseur || '—'}
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-500 hidden md:table-cell whitespace-nowrap">
-                      {fmtEur(item.prix_achat)}
+                    <td className="px-4 py-3 text-slate-500 hidden lg:table-cell whitespace-nowrap">
+                      {item.categorie || '—'}
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <TypeBadge type={item.type} />
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-500 hidden lg:table-cell whitespace-nowrap">
+                      {fmtAchat(item.prix_achat)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
                       {fmtEur(item.prix_vente)}
                     </td>
-                    <td className={`px-4 py-3 text-right hidden md:table-cell whitespace-nowrap ${margeCls(marge)}`}>
-                      {marge !== null ? `${marge.toFixed(1)} %` : '—'}
+                    <td className={`px-4 py-3 text-right hidden md:table-cell whitespace-nowrap ${typeof marge === 'object' ? marge.cls : 'text-slate-400'}`}>
+                      {typeof marge === 'object' ? `${marge.pct.toFixed(1)} %` : marge}
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-500 hidden lg:table-cell">
+                    <td className="px-4 py-3 text-center text-slate-500 hidden lg:table-cell whitespace-nowrap">
                       {item.tva} %
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-500 hidden lg:table-cell">
-                      {UNITE_LABELS[item.unite] ?? item.unite}
+                    <td className="px-4 py-3 text-slate-500 hidden lg:table-cell whitespace-nowrap">
+                      {item.unite}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3">
                       <button
-                        onClick={() => openEdit(item)}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openEdit(item); }}
                         className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-slate-800 transition-colors"
                         title="Modifier"
                       >
@@ -195,6 +285,8 @@ export function CatalogueList({ catalogue }: CatalogueListProps) {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         editing={editing}
+        fournisseurs={fournisseurs}
+        categories={categories}
       />
     </>
   );

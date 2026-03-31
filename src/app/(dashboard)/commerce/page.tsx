@@ -57,7 +57,7 @@ async function fetchCommerceData() {
       .order('created_at', { ascending: false }),
     admin
       .from('catalogue')
-      .select('id, ref, designation, description, type, prix_achat, prix_vente, tva, unite, actif, created_at')
+      .select('id, ref, designation, description, fournisseur, categorie, type, prix_achat, prix_vente, tva, unite, actif, imported_from, created_at')
       .eq('tenant_id', tenantId)
       .order('designation'),
   ]);
@@ -116,10 +116,10 @@ export default async function CommercePage({ searchParams }: PageProps) {
 
   const tabs: TabItem[] = [
     { key: 'clients',   label: 'Clients',   count: clients.length   },
+    { key: 'catalogue', label: 'Catalogue', count: catalogue.length },
     { key: 'devis',     label: 'Devis',     count: devis.length     },
     { key: 'factures',  label: 'Factures',  count: factures.length  },
     { key: 'contrats',  label: 'Contrats',  count: contrats.length  },
-    { key: 'catalogue', label: 'Catalogue', count: catalogue.length },
   ];
 
   return (

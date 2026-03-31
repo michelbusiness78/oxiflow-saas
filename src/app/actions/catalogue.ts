@@ -7,32 +7,41 @@ const PATH = '/commerce';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type CatalogueType = 'materiel' | 'service' | 'main_oeuvre' | 'fourniture';
-export type CatalogueUnite = 'u' | 'h' | 'j' | 'ml' | 'm2' | 'kg' | 'forfait';
+export type CatalogueType =
+  | 'materiel'
+  | 'service'
+  | 'forfait'
+  | 'main_oeuvre'
+  | 'fourniture';
 
 export interface CatalogueItem {
-  id:          string;
-  ref:         string | null;
-  designation: string;
-  description: string | null;
-  type:        CatalogueType;
-  prix_achat:  number;
-  prix_vente:  number;
-  tva:         number;
-  unite:       CatalogueUnite;
-  actif:       boolean;
-  created_at:  string;
+  id:            string;
+  ref:           string | null;
+  designation:   string;
+  description:   string | null;
+  fournisseur:   string | null;
+  categorie:     string | null;
+  type:          CatalogueType;
+  prix_achat:    number | null;
+  prix_vente:    number;
+  tva:           number;
+  unite:         string;
+  actif:         boolean;
+  imported_from: string | null;
+  created_at:    string;
 }
 
 export type CatalogueInput = {
   ref:         string;
   designation: string;
   description: string;
+  fournisseur: string;
+  categorie:   string;
   type:        CatalogueType;
-  prix_achat:  number;
+  prix_achat:  number | null;
   prix_vente:  number;
   tva:         number;
-  unite:       CatalogueUnite;
+  unite:       string;
   actif:       boolean;
 };
 
