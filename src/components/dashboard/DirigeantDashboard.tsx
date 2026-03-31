@@ -227,23 +227,20 @@ export function DirigeantDashboard({ data }: Props) {
           style={{ boxShadow: 'var(--shadow)' }}
         >
           <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
-            Usage IA — Tokens ce mois
+            🔑 Usage API Claude
           </p>
-          <div className="flex items-end gap-2 mb-2">
-            <span className="text-[22px] font-extrabold text-[var(--blue)]" style={{ letterSpacing: '-0.04em' }}>
-              {apiUsage.tokensUsed.toLocaleString('fr-FR')}
-            </span>
-            <span className="mb-1 text-xs text-[var(--text3)]">
-              / {(apiUsage.tokenMax / 1000).toFixed(0)} k
-            </span>
-            <span className="mb-1 ml-auto text-xs font-bold text-[var(--text2)]">
-              {apiPct} %
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-bold text-[var(--text2)]">{apiPct} %</span>
+            <span className="text-xs text-[var(--text3)]">
+              {apiUsage.tokensUsed.toLocaleString('fr-FR')} / {(apiUsage.tokenMax / 1000).toFixed(1)}k tokens
+              {' · '}
+              {new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date())}
             </span>
           </div>
-          <div className="h-2 w-full rounded-full bg-[var(--bg4)] overflow-hidden">
+          <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
             <div
-              className="h-full rounded-full bg-[var(--blue)] transition-all"
-              style={{ width: `${apiPct}%` }}
+              className="h-full rounded-full transition-all"
+              style={{ width: `${apiPct}%`, backgroundColor: '#2563eb' }}
             />
           </div>
         </div>
