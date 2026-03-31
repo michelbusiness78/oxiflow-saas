@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter }         from 'next/navigation';
 import { SlideOver }         from '@/components/ui/SlideOver';
 import { CatalogueSelector } from './CatalogueSelector';
 import {
@@ -191,26 +192,31 @@ interface InvoiceFormProps {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export function InvoiceForm({ open, onClose, editing, clients, catalogue }: InvoiceFormProps) {
-  const [clientId,    setClientId]    = useState('');
-  const [dateFact,    setDateFact]    = useState(todayISO());
-  const [dateEch,     setDateEch]     = useState(addDays(todayISO(), 30));
-  const [conditions,  setConditions]  = useState('');
-  const [notes,       setNotes]       = useState('');
-  const [lines,       setLines]       = useState<LineLocal[]>([emptyLine()]);
+  const router = useRouter();
+
+  const [clientId,     setClientId]     = useState('');
+  const [dateFact,     setDateFact]     = useState(todayISO());
+  const [dateEch,      setDateEch]      = useState(addDays(todayISO(), 30));
+  const [conditions,   setConditions]   = useState('');
+  const [notes,        setNotes]        = useState('');
+  const [lines,        setLines]        = useState<LineLocal[]>([emptyLine()]);
   const [loadingLines, setLoadingLines] = useState(false);
+  const [localStatus,  setLocalStatus]  = useState<InvoiceStatus | null>(null);
 
-  const [saving,      setSaving]      = useState(false);
-  const [deleting,    setDeleting]    = useState(false);
-  const [confirmDel,  setConfirmDel]  = useState(false);
-  const [statusBusy,  setStatusBusy]  = useState(false);
-  const [error,       setError]       = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [deleting,   setDeleting]   = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [error,      setError]      = useState('');
 
-  const status   = (editing?.status ?? 'brouillon') as InvoiceStatus;
+  // localStatus prend le dessus sur la prop (qui ne change pas après action serveur)
+  const status   = localStatus ?? ((editing?.status ?? 'brouillon') as InvoiceStatus);
   const readonly = status !== 'brouillon';
 
   // ── Sync state ──
   useEffect(() => {
     if (!open) return;
+    setLocalStatus(null);
     setClientId(editing?.client_id ?? '');
     setDateFact(editing?.date_facture ?? todayISO());
     setDateEch(editing?.date_echeance ?? addDays(todayISO(), 30));
@@ -340,7 +346,9 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue }: Invo
     setStatusBusy(true);
     const res = await changeInvoiceStatusAction(editing.id, s);
     setStatusBusy(false);
-    if (res.error) setError(res.error);
+    if (res.error) { setError(res.error); return; }
+    setLocalStatus(s);
+    router.refresh();
   }
 
   const title = editing ? `Facture ${editing.number}` : 'Nouvelle facture';
