@@ -110,6 +110,11 @@ export async function getDashboardDirigeant(
       .lt('created_at', fifteenAgo).order('created_at', { ascending: false }).limit(5),
   ]);
 
+  if (facturesMoisRes.error)   console.error('[getDashboardDirigeant] invoices mois error:',   facturesMoisRes.error);
+  if (facturesPrevRes.error)   console.error('[getDashboardDirigeant] invoices prev error:',   facturesPrevRes.error);
+  if (facturesAnnuelRes.error) console.error('[getDashboardDirigeant] invoices annuel error:', facturesAnnuelRes.error);
+  if (facturesRetardRes.error) console.error('[getDashboardDirigeant] invoices retard error:', facturesRetardRes.error);
+
   const userName       = (userRes.data?.name as string | null)  ?? '';
   const projetIds      = (projetsRes.data ?? []).map((p) => p.id as string);
   const clientIds      = (clientsRes.data ?? []).map((c) => c.id as string);

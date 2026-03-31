@@ -219,6 +219,10 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
       .order('name'),
   ]);
 
+  if (quotesRes.error)   console.error('[getDashboardCommerce] quotes error:',   quotesRes.error);
+  if (invoicesRes.error) console.error('[getDashboardCommerce] invoices error:', invoicesRes.error);
+  if (usersRes.error)    console.error('[getDashboardCommerce] users error:',    usersRes.error);
+
   const quotes   = quotesRes.data   ?? [];
   const invoices = invoicesRes.data ?? [];
   const users    = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
