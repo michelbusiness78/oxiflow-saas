@@ -91,7 +91,7 @@ async function fetchCommerceData() {
 
   const devis = (devisRes.data ?? []).map((d) => ({
     ...d,
-    lignes:     (d.lignes as DevisLigne[]) ?? [],
+    lignes:     (d.lignes as unknown[]) ?? [],
     client_nom: (d.clients as unknown as { nom: string } | null)?.nom ?? '—',
   }));
 

@@ -232,7 +232,7 @@ export async function saveInvoiceAction(
     await admin.from('invoice_lines').delete().eq('invoice_id', id);
     if (input.lines.length > 0) {
       const { error: lErr } = await admin.from('invoice_lines').insert(
-        input.lines.map((l, i) => ({ invoice_id: id, sort_order: i, ...l })),
+        input.lines.map((l, i) => ({ invoice_id: id, ...l, sort_order: i })),
       );
       if (lErr) return { error: lErr.message };
     }
@@ -251,7 +251,7 @@ export async function saveInvoiceAction(
 
   if (input.lines.length > 0) {
     await admin.from('invoice_lines').insert(
-      input.lines.map((l, i) => ({ invoice_id: data.id, sort_order: i, ...l })),
+      input.lines.map((l, i) => ({ invoice_id: data.id, ...l, sort_order: i })),
     );
   }
 
