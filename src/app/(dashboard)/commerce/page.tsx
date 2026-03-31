@@ -62,7 +62,7 @@ async function fetchCommerceData() {
         .order('created_at', { ascending: false }),
       admin
         .from('users')
-        .select('id, name')
+        .select('id, name, role')
         .eq('tenant_id', tenantId)
         .order('name'),
       admin

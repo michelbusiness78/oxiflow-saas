@@ -1,11 +1,12 @@
-import { redirect }                         from 'next/navigation';
-import { createClient, createAdminClient }   from '@/lib/supabase/server';
-import { getCompanies, getCompanyObjectives } from '@/app/actions/companies';
-import { SettingsTabs }     from '@/components/settings/SettingsTabs';
-import { CompanyList }      from '@/components/settings/CompanyList';
-import { SocieteForm }      from '@/components/settings/SocieteForm';
-import { UserManagement }   from '@/components/settings/UserManagement';
-import { Subscription }     from '@/components/settings/Subscription';
+import { redirect }                           from 'next/navigation';
+import { createClient, createAdminClient }     from '@/lib/supabase/server';
+import { getCompanies, getCompanyObjectives }  from '@/app/actions/companies';
+import { getTenantUsers }                      from '@/app/actions/users-management';
+import { SettingsTabs }  from '@/components/settings/SettingsTabs';
+import { CompanyList }   from '@/components/settings/CompanyList';
+import { UserList }      from '@/components/settings/UserList';
+import { SocieteForm }   from '@/components/settings/SocieteForm';
+import { Subscription }  from '@/components/settings/Subscription';
 
 // ── Fallback tenant vide ───────────────────────────────────────────────────────
 const EMPTY_TENANT = {
@@ -33,25 +34,18 @@ export default async function ParametresPage() {
   const role = (profile?.role as string | null) ?? 'dirigeant';
   if (role !== 'dirigeant') redirect('/pilotage');
 
-  const tenantId = profile?.tenant_id as string;
+  const tenantId   = profile?.tenant_id as string;
+  const currentYear = new Date().getFullYear();
 
   // ── Données parallèles ───────────────────────────────────────────────────────
-  const currentYear = new Date().getFullYear();
-  const [tenantRes, usersRes, companies, objectives] = await Promise.all([
+  const [tenantRes, tenantUsers, companies, objectives] = await Promise.all([
     admin.from('tenants').select('*').eq('id', tenantId).single(),
-    admin.from('users')
-      .select('id, name, email, role, status, created_at')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: true }),
+    getTenantUsers(tenantId),
     getCompanies(tenantId),
     getCompanyObjectives(tenantId, currentYear),
   ]);
 
   const tenant = tenantRes.data as Record<string, unknown> | null;
-  const users  = (usersRes.data ?? []).map((row) => ({
-    ...row,
-    status: (row as Record<string, unknown>).status as string ?? 'active',
-  }));
 
   const plan       = (tenant?.plan       as string | null) ?? 'trial';
   const plan_debut = (tenant?.plan_debut as string | null) ?? (tenant?.created_at as string | null) ?? new Date().toISOString();
@@ -88,9 +82,10 @@ export default async function ParametresPage() {
         societes={<CompanyList companies={companies} objectives={objectives} />}
         societe={<SocieteForm tenant={tenantData} />}
         utilisateurs={
-          <UserManagement
-            users={users}
-            currentId={user.id}
+          <UserList
+            users={tenantUsers}
+            companies={companies}
+            currentUserId={user.id}
             plan={plan}
           />
         }

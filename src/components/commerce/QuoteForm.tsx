@@ -81,6 +81,7 @@ export interface QuoteWithClient extends Quote {
 export interface TenantUser {
   id:   string;
   name: string;
+  role?: string;
 }
 
 interface QuoteFormProps {
@@ -686,9 +687,11 @@ export function QuoteForm({
                   className={inputCls}
                 >
                   <option value="">— À affecter après validation —</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
+                  {users
+                    .filter((u) => !u.role || u.role === 'chef' || u.role === 'chef_projet' || u.role === 'dirigeant')
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
                 </select>
               </div>
             </div>
