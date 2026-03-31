@@ -21,7 +21,7 @@ export async function getAuthContext() {
   const admin = await createAdminClient();
   const { data: profile } = await admin
     .from('users')
-    .select('tenant_id, role')
+    .select('tenant_id, role, name')
     .eq('id', user.id)
     .single();
 
@@ -33,5 +33,6 @@ export async function getAuthContext() {
     user,
     tenant_id: profile.tenant_id as string,
     role:      profile.role      as string,
+    name:      profile.name      as string,
   };
 }

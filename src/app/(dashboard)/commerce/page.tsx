@@ -3,29 +3,26 @@ import { Suspense }  from 'react';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { ClientList }    from '@/components/commerce/ClientList';
-import { DevisList }     from '@/components/commerce/DevisList';
+import { QuoteList }     from '@/components/commerce/QuoteList';
 import { FactureList }   from '@/components/commerce/FactureList';
 import { ContratList }   from '@/components/commerce/ContratList';
 import { CatalogueList } from '@/components/commerce/CatalogueList';
-import type { Client }       from '@/components/commerce/ClientList';
-import type { Devis }        from '@/components/commerce/DevisForm';
-import type { Facture }      from '@/components/commerce/FactureForm';
-import type { Contrat }      from '@/components/commerce/ContratForm';
-import type { DevisLigne }   from '@/app/actions/commerce';
-import type { CatalogueItem } from '@/app/actions/catalogue';
+import type { Client }         from '@/components/commerce/ClientList';
+import type { Facture }        from '@/components/commerce/FactureForm';
+import type { Contrat }        from '@/components/commerce/ContratForm';
+import type { DevisLigne }     from '@/app/actions/commerce';
+import type { CatalogueItem }  from '@/app/actions/catalogue';
+import type { QuoteWithClient } from '@/components/commerce/QuoteForm';
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchCommerceData() {
-  // Auth via client standard (cookies)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // Lecture des données via admin pour bypasser RLS
   const admin = await createAdminClient();
 
-  // Récupère le tenant_id de l'utilisateur
   const { data: profile } = await admin
     .from('users')
     .select('tenant_id')
@@ -34,15 +31,15 @@ async function fetchCommerceData() {
 
   const tenantId = profile?.tenant_id;
 
-  const [clientsRes, devisRes, facturesRes, contratsRes, catalogueRes] = await Promise.all([
+  const [clientsRes, quotesRes, facturesRes, contratsRes, catalogueRes, devisRes] = await Promise.all([
     admin
       .from('clients')
       .select('id, nom, contact, email, tel, adresse, cp, ville, siret, tva_intra, conditions_paiement, notes, actif, created_at')
       .eq('tenant_id', tenantId)
       .order('nom'),
     admin
-      .from('devis')
-      .select('id, num, client_id, date, validite, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
+      .from('quotes')
+      .select('id, number, client_id, objet, date, validity, statut, lignes, notes, conditions, montant_ht, tva_amount, montant_ttc, created_at, clients(nom)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
     admin
@@ -60,15 +57,21 @@ async function fetchCommerceData() {
       .select('id, ref, designation, description, fournisseur, categorie, type, prix_achat, prix_vente, tva, unite, actif, imported_from, created_at')
       .eq('tenant_id', tenantId)
       .order('designation'),
+    // Keep old devis for FactureList from_devis
+    admin
+      .from('devis')
+      .select('id, num, client_id, date, validite, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false }),
   ]);
 
   const clients = (clientsRes.data ?? []) as Client[];
 
-  const devis = (devisRes.data ?? []).map((d) => ({
-    ...d,
-    lignes:     (d.lignes as Devis['lignes']) ?? [],
-    client_nom: (d.clients as unknown as { nom: string } | null)?.nom ?? '—',
-  }));
+  const quotes = (quotesRes.data ?? []).map((q) => ({
+    ...q,
+    lignes:     (q.lignes as QuoteWithClient['lignes']) ?? [],
+    client_nom: (q.clients as unknown as { nom: string } | null)?.nom ?? '—',
+  })) as QuoteWithClient[];
 
   const factures = (facturesRes.data ?? []).map((f) => ({
     ...f,
@@ -83,7 +86,13 @@ async function fetchCommerceData() {
 
   const catalogue = (catalogueRes.data ?? []) as CatalogueItem[];
 
-  return { clients, devis, factures, contrats, catalogue };
+  const devis = (devisRes.data ?? []).map((d) => ({
+    ...d,
+    lignes:     (d.lignes as import('@/app/actions/commerce').DevisLigne[]) ?? [],
+    client_nom: (d.clients as unknown as { nom: string } | null)?.nom ?? '—',
+  }));
+
+  return { clients, quotes, factures, contrats, catalogue, devis };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -93,11 +102,11 @@ interface PageProps {
 }
 
 export default async function CommercePage({ searchParams }: PageProps) {
-  const { clients, devis, factures, contrats, catalogue } = await fetchCommerceData();
+  const { clients, quotes, factures, contrats, catalogue, devis } = await fetchCommerceData();
   const params = await searchParams;
   const tab    = params?.tab ?? 'clients';
 
-  // Pré-remplissage facture depuis un devis accepté
+  // Pré-remplissage facture depuis un devis accepté (ancien système)
   const fromDevisId = params?.from_devis;
   const fromDevis = fromDevisId
     ? devis.find((d) => d.id === fromDevisId) ?? null
@@ -117,7 +126,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
   const tabs: TabItem[] = [
     { key: 'clients',   label: 'Clients',   count: clients.length   },
     { key: 'catalogue', label: 'Catalogue', count: catalogue.length },
-    { key: 'devis',     label: 'Devis',     count: devis.length     },
+    { key: 'devis',     label: 'Devis',     count: quotes.length    },
     { key: 'factures',  label: 'Factures',  count: factures.length  },
     { key: 'contrats',  label: 'Contrats',  count: contrats.length  },
   ];
@@ -139,7 +148,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
         {tab === 'clients'   && <ClientList clients={clients} />}
 
         {tab === 'devis'     && (
-          <DevisList devis={devis} clients={clients} catalogue={catalogue} />
+          <QuoteList quotes={quotes} clients={clients} catalogue={catalogue} />
         )}
 
         {tab === 'factures'  && (
