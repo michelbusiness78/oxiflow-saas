@@ -101,7 +101,7 @@ export async function createInvoiceFromQuote(quoteId: string): Promise<{
 
   const { data: quote, error: qErr } = await admin
     .from('quotes')
-    .select('id, number, statut, client_id, company_id, conditions, lignes')
+    .select('id, number, statut, client_id, conditions, lignes')
     .eq('id', quoteId)
     .single();
 
@@ -167,7 +167,6 @@ export async function createInvoiceFromQuote(quoteId: string): Promise<{
       quote_id:      quote.id,
       quote_number:  quote.number,
       client_id:     quote.client_id,
-      company_id:    (quote.company_id as string | null) ?? null,
       date_facture:  today,
       date_echeance: echeance,
       status:        'brouillon',
