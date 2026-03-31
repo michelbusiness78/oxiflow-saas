@@ -40,6 +40,8 @@ export interface Quote {
   montant_ht:          number;
   tva_amount:          number;
   montant_ttc:         number;
+  project_created:     boolean;
+  project_id:          string | null;
   created_at:          string;
 }
 

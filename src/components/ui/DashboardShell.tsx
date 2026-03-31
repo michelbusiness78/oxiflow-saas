@@ -6,8 +6,10 @@ import { MobileNav } from './MobileNav';
 import { NavIcon } from './NavIcon';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { VoiceAgent } from '@/components/voice/VoiceAgent';
+import { ProjectNotificationBanner } from './ProjectNotificationBanner';
 import { usePathname } from 'next/navigation';
 import { navModules } from '@/lib/theme';
+import type { ProjectNotifData } from '@/app/actions/projects';
 
 function Breadcrumb() {
   const pathname = usePathname();
@@ -38,15 +40,16 @@ function Breadcrumb() {
 }
 
 interface DashboardShellProps {
-  children:       React.ReactNode;
-  userName:       string;
-  userEmail:      string;
-  userRole:       string;
-  allowedHrefs?:  string[];
-  moduleCounts?:  Record<string, number>;
+  children:               React.ReactNode;
+  userName:               string;
+  userEmail:              string;
+  userRole:               string;
+  allowedHrefs?:          string[];
+  moduleCounts?:          Record<string, number>;
+  notifications?:         ProjectNotifData[];
 }
 
-export function DashboardShell({ children, userName, userEmail, userRole, allowedHrefs, moduleCounts }: DashboardShellProps) {
+export function DashboardShell({ children, userName, userEmail, userRole, allowedHrefs, moduleCounts, notifications }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -79,6 +82,9 @@ export function DashboardShell({ children, userName, userEmail, userRole, allowe
 
         <main className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 md:pb-6">
           <div className="mx-auto w-full max-w-screen-xl">
+            {notifications && notifications.length > 0 && (
+              <ProjectNotificationBanner initialNotifications={notifications} />
+            )}
             {children}
           </div>
         </main>

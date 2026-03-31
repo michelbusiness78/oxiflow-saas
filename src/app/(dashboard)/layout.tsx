@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { DashboardShell } from '@/components/ui/DashboardShell';
 import { ensureUserProfile } from '@/lib/ensure-profile';
+import { getProjectNotifications } from '@/app/actions/projects';
 
 // Modules autorisés par rôle (en sync avec proxy.ts)
 const ROLE_MODULES: Record<string, string[]> = {
@@ -22,8 +23,6 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // Crée le profil si absent — seulement pour les dirigeants /register
-  // (les invités ont leur profil créé par inviteUserAction)
   await ensureUserProfile(user);
 
   const { data: profile } = await supabase
@@ -37,19 +36,33 @@ export default async function DashboardLayout({
   const role      = profile?.role      ?? 'dirigeant';
   const tenantId  = profile?.tenant_id ?? null;
 
-  // Compteurs pour badges sidebar (produits actifs du catalogue)
+  // Badges sidebar + notifications (tout en parallèle)
   let catalogueCount = 0;
+  let projectsCount  = 0;
+  let notifications: import('@/app/actions/projects').ProjectNotifData[] = [];
+
   if (tenantId) {
     const admin = await createAdminClient();
-    const { count } = await admin
-      .from('catalogue')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .eq('actif', true);
-    catalogueCount = count ?? 0;
+
+    const [catRes, projRes, notifs] = await Promise.all([
+      admin
+        .from('catalogue')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('actif', true),
+      admin
+        .from('projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .in('status', ['nouveau', 'en_cours']),
+      getProjectNotifications(user.id),
+    ]);
+
+    catalogueCount = catRes.count  ?? 0;
+    projectsCount  = projRes.count ?? 0;
+    notifications  = notifs as typeof notifications;
   }
 
-  // dirigeant = aucune restriction (undefined = tout afficher)
   const allowedHrefs = role === 'dirigeant' ? undefined : (ROLE_MODULES[role] ?? ROLE_MODULES.commercial);
 
   return (
@@ -58,7 +71,8 @@ export default async function DashboardLayout({
       userEmail={userEmail}
       userRole={role}
       allowedHrefs={allowedHrefs}
-      moduleCounts={{ '/commerce': catalogueCount }}
+      moduleCounts={{ '/commerce': catalogueCount, '/projets': projectsCount }}
+      notifications={notifications}
     >
       {children}
     </DashboardShell>

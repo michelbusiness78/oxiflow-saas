@@ -1,14 +1,16 @@
 import { redirect }  from 'next/navigation';
 import { Suspense }   from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
-import { DossierList } from '@/components/projets/DossierList';
-import { TacheList }   from '@/components/projets/TacheList';
-import { SAVList }     from '@/components/projets/SAVList';
-import { FicheClient } from '@/components/projets/FicheClient';
-import type { Dossier } from '@/components/projets/DossierForm';
-import type { Tache }   from '@/components/projets/TacheForm';
-import type { SAVTicket } from '@/components/projets/SAVForm';
+import { DossierList }   from '@/components/projets/DossierList';
+import { TacheList }     from '@/components/projets/TacheList';
+import { SAVList }       from '@/components/projets/SAVList';
+import { FicheClient }   from '@/components/projets/FicheClient';
+import { ProjectList }   from '@/components/projets/ProjectList';
+import { getProjects }   from '@/app/actions/projects';
+import type { Dossier }    from '@/components/projets/DossierForm';
+import type { Tache }      from '@/components/projets/TacheForm';
+import type { SAVTicket }  from '@/components/projets/SAVForm';
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
@@ -16,6 +18,15 @@ async function fetchProjetsData() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
+
+  // tenant_id pour les projets R4
+  const adminForProfile = await createAdminClient();
+  const { data: profile } = await adminForProfile
+    .from('users')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .single();
+  const tenantId = profile?.tenant_id as string | undefined;
 
   const [projetsRes, tachesRes, savRes, clientsRes, contratsRes, devisRes, facturesRes, usersRes] =
     await Promise.all([
@@ -99,7 +110,11 @@ async function fetchProjetsData() {
 
   const devisForForm = devis.map((d) => ({ id: d.id, num: d.num, client_id: d.client_id }));
 
-  return { dossiers, taches, savTickets, clients, contrats, devis, factures, users, devisForForm };
+  // Projets R4 (nouvelle table projects)
+  const projectsR4 = tenantId ? await getProjects(tenantId) : [];
+  const usersPlain = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
+
+  return { dossiers, taches, savTickets, clients, contrats, devis, factures, users, devisForForm, projectsR4, usersPlain };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -109,13 +124,14 @@ interface PageProps {
 }
 
 export default async function ProjetsPage({ searchParams }: PageProps) {
-  const { dossiers, taches, savTickets, clients, contrats, devis, factures, users, devisForForm } =
+  const { dossiers, taches, savTickets, clients, contrats, devis, factures, users, devisForForm, projectsR4, usersPlain } =
     await fetchProjetsData();
 
   const params = await searchParams;
-  const tab    = params?.tab ?? 'dossiers';
+  const tab    = params?.tab ?? 'projets';
 
   const tabs: TabItem[] = [
+    { key: 'projets',      label: 'Projets',     count: projectsR4.length  },
     { key: 'dossiers',     label: 'Dossiers',    count: dossiers.length    },
     { key: 'taches',       label: 'Tâches',       count: taches.length      },
     { key: 'sav',          label: 'SAV',          count: savTickets.filter((t) => t.statut === 'ouvert' || t.statut === 'en_cours').length },
@@ -136,6 +152,10 @@ export default async function ProjetsPage({ searchParams }: PageProps) {
       </Suspense>
 
       <div className="space-y-4">
+        {tab === 'projets' && (
+          <ProjectList projects={projectsR4} users={usersPlain} />
+        )}
+
         {tab === 'dossiers' && (
           <DossierList
             dossiers={dossiers}

@@ -12,6 +12,7 @@ import {
   type QuoteLigne,
   type QuoteStatut,
 } from '@/app/actions/quotes';
+import { createProjectFromQuote } from '@/app/actions/projects';
 import { fmtEur, fmtDate, todayISO, addDays } from '@/lib/format';
 import type { CatalogueItem, CatalogueType } from '@/app/actions/catalogue';
 
@@ -283,11 +284,14 @@ export function QuoteForm({
   const [depositPercent, setDepositPercent] = useState(0);
 
   // ── UI ──
-  const [saving,     setSaving]     = useState(false);
-  const [deleting,   setDeleting]   = useState(false);
-  const [confirmDel, setConfirmDel] = useState(false);
-  const [error,      setError]      = useState('');
-  const [statusBusy, setStatusBusy] = useState(false);
+  const [saving,          setSaving]          = useState(false);
+  const [deleting,        setDeleting]        = useState(false);
+  const [confirmDel,      setConfirmDel]      = useState(false);
+  const [error,           setError]           = useState('');
+  const [statusBusy,      setStatusBusy]      = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [projectCreated,  setProjectCreated]  = useState(false);
+  const [projectToast,    setProjectToast]    = useState('');
 
   const statut   = editing?.statut ?? 'brouillon';
   const readonly = editing ? editing.statut !== 'brouillon' : false;
@@ -323,6 +327,8 @@ export function QuoteForm({
       setConditions(DEFAULT_CONDITIONS);
       setDepositPercent(0);
     }
+    setProjectCreated(editing?.project_created ?? false);
+    setProjectToast('');
     setError('');
     setConfirmDel(false);
   }, [open, editing]);
@@ -439,6 +445,23 @@ export function QuoteForm({
     if (res.error) setError(res.error);
   }
 
+  // ── Créer le projet ──
+  async function handleCreateProject() {
+    if (!editing) return;
+    setCreatingProject(true);
+    setProjectToast('');
+    const res = await createProjectFromQuote(editing.id);
+    setCreatingProject(false);
+    if (res.error) {
+      setProjectToast(`❌ ${res.error}`);
+      setTimeout(() => setProjectToast(''), 5000);
+      return;
+    }
+    setProjectCreated(true);
+    setProjectToast('✅ Projet créé avec succès');
+    setTimeout(() => setProjectToast(''), 5000);
+  }
+
   const forwardTransitions = editing ? (FORWARD_TRANSITIONS[statut] ?? []) : [];
   const backTransitions     = editing ? (BACK_TRANSITIONS[statut] ?? [])    : [];
 
@@ -480,20 +503,79 @@ export function QuoteForm({
             </div>
           )}
 
-          {/* ── Bannière accepté ── */}
+          {/* ── Blocs devis accepté ── */}
           {statut === 'accepte' && (
-            <div className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 shrink-0 text-green-600" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-green-800">Devis accepté</p>
-                <p className="text-xs text-green-600">La création de projet sera disponible dans R4.</p>
+            <div className="mx-5 mt-4 space-y-3">
+
+              {/* Toast projet */}
+              {projectToast && (
+                <div className={`rounded-lg px-3 py-2 text-xs font-semibold ${projectToast.startsWith('✅') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {projectToast}
+                </div>
+              )}
+
+              {/* Bloc projet : créé ou à créer */}
+              {projectCreated ? (
+                <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-[#eff6ff] px-4 py-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 shrink-0 text-blue-500" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                  </svg>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-blue-800">🔗 Projet créé depuis ce devis</p>
+                    <p className="text-xs text-blue-600">Matériel pré-rempli · Visible dans le module Projets.</p>
+                  </div>
+                  <a href="/projets" className="shrink-0 rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 transition-colors">
+                    Voir →
+                  </a>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 shrink-0 text-green-600" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-green-800">Devis accepté</p>
+                    <p className="text-xs text-green-600">Créez le projet pour affecter le chef de projet et démarrer le suivi.</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={creatingProject}
+                    onClick={handleCreateProject}
+                    className="shrink-0 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  >
+                    {creatingProject ? (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        Création…
+                      </span>
+                    ) : 'Créer le projet'}
+                  </button>
+                </div>
+              )}
+
+              {/* Bloc facturation */}
+              <div className="flex items-center gap-3 rounded-xl border border-sky-200 bg-[#f0f9ff] px-4 py-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 shrink-0 text-sky-500" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-sky-800">🧾 Facturation</p>
+                  <p className="text-xs text-sky-600">
+                    Convertir ce devis en facture brouillon — tous les champs resteront éditables avant émission.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => alert('Facturation — à implémenter (R5)')}
+                  className="shrink-0 rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 transition-colors"
+                >
+                  🧾 Créer une facture
+                </button>
               </div>
-              <button type="button" disabled
-                className="shrink-0 cursor-not-allowed rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white opacity-40">
-                Créer le projet
-              </button>
+
             </div>
           )}
 

@@ -41,7 +41,7 @@ async function fetchCommerceData() {
         .order('nom'),
       admin
         .from('quotes')
-        .select('id, number, affair_number, client_id, commercial_user_id, chef_projet_user_id, objet, date, validity, statut, lignes, notes, conditions, deposit_percent, montant_ht, tva_amount, montant_ttc, created_at, clients(nom)')
+        .select('id, number, affair_number, client_id, commercial_user_id, chef_projet_user_id, objet, date, validity, statut, lignes, notes, conditions, deposit_percent, project_created, project_id, montant_ht, tva_amount, montant_ttc, created_at, clients(nom)')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false }),
       admin
