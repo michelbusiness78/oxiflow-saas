@@ -1,8 +1,10 @@
 import { redirect }    from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { ChefDashboard } from '@/components/chef-projet/ChefDashboard';
 import { ProjetList }    from '@/components/chef-projet/ProjetList';
 import { ProjetDetail }  from '@/components/chef-projet/ProjetDetail';
+import { ProjectList }   from '@/components/projets/ProjectList';
+import { getMyProjects } from '@/app/actions/projects';
 import type { Tache }    from '@/components/projets/TacheForm';
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
@@ -104,11 +106,19 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const profileRes = await supabase.from('users').select('name').eq('id', user.id).single();
-  const userName   = profileRes.data?.name ?? user.email ?? 'Chef de projet';
+  const admin = await createAdminClient();
+  const profileRes = await admin.from('users').select('name, tenant_id').eq('id', user.id).single();
+  const userName   = profileRes.data?.name      ?? user.email ?? 'Chef de projet';
+  const tenantId   = profileRes.data?.tenant_id ?? null;
 
-  const { projets, taches, interventions, clients, techniciens, allUsers } =
-    await fetchData(user.id);
+  const [{ projets, taches, interventions, clients, techniciens, allUsers }, projectsR4, usersRes] =
+    await Promise.all([
+      fetchData(user.id),
+      tenantId ? getMyProjects(tenantId, user.id) : Promise.resolve([]),
+      admin.from('users').select('id, name').order('name'),
+    ]);
+
+  const usersPlain = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
 
   const params   = await searchParams;
   const projetId = params?.projet;
@@ -150,11 +160,26 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
         interventions={interventions}
       />
 
-      {/* Liste des projets */}
-      <div className="space-y-4">
-        <h2 className="text-base font-semibold text-slate-800">Mes projets</h2>
-        <ProjetList projets={projets} clients={clients} />
-      </div>
+      {/* Projets R4 (créés depuis devis acceptés) */}
+      {projectsR4.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-base font-semibold text-slate-800">
+            Mes projets assignés
+            <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+              {projectsR4.length}
+            </span>
+          </h2>
+          <ProjectList projects={projectsR4} users={usersPlain} />
+        </div>
+      )}
+
+      {/* Liste des projets (ancienne table projets) */}
+      {projets.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-base font-semibold text-slate-800">Mes dossiers</h2>
+          <ProjetList projets={projets} clients={clients} />
+        </div>
+      )}
     </div>
   );
 }

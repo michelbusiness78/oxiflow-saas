@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   acceptProjectNotification,
   type ProjectNotifData,
@@ -12,6 +13,7 @@ interface ProjectNotificationBannerProps {
 }
 
 export function ProjectNotificationBanner({ initialNotifications }: ProjectNotificationBannerProps) {
+  const router = useRouter();
   const [notifications, setNotifications] = useState(initialNotifications);
   const [accepting,     setAccepting]     = useState<string | null>(null);
   const [toast,         setToast]         = useState('');
@@ -30,6 +32,7 @@ export function ProjectNotificationBanner({ initialNotifications }: ProjectNotif
     setNotifications((prev) => prev.filter((n) => n.id !== id));
     setToast('✅ Projet accepté — statut passé en cours');
     setTimeout(() => setToast(''), 4000);
+    router.refresh();
   }
 
   return (

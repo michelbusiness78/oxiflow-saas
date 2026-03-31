@@ -152,6 +152,7 @@ export async function acceptProjectNotification(
   ]);
 
   revalidatePath('/projets');
+  revalidatePath('/chef-projet');
   return { success: true };
 }
 
@@ -240,5 +241,39 @@ export async function getProjects(tenantId: string): Promise<Project[]> {
     client_nom:          (p.clients as unknown as { nom: string } | null)?.nom ?? '—',
     chef_nom:            '—',   // resolved client-side via users list
     commercial_nom:      '—',   // resolved client-side via users list
+  }));
+}
+
+// ─── getMyProjects ────────────────────────────────────────────────────────────
+
+export async function getMyProjects(tenantId: string, userId: string): Promise<Project[]> {
+  const admin = await createAdminClient();
+
+  const { data } = await admin
+    .from('projects')
+    .select('id, name, description, client_id, quote_id, quote_number, affair_number, chef_projet_user_id, commercial_user_id, amount_ttc, deadline, status, type, notes, created_at, clients(nom)')
+    .eq('tenant_id', tenantId)
+    .eq('chef_projet_user_id', userId)
+    .order('created_at', { ascending: false });
+
+  return (data ?? []).map((p) => ({
+    id:                  p.id,
+    name:                p.name,
+    description:         p.description ?? null,
+    client_id:           p.client_id ?? null,
+    quote_id:            p.quote_id ?? null,
+    quote_number:        p.quote_number ?? null,
+    affair_number:       p.affair_number ?? null,
+    chef_projet_user_id: p.chef_projet_user_id ?? null,
+    commercial_user_id:  p.commercial_user_id ?? null,
+    amount_ttc:          p.amount_ttc ?? 0,
+    deadline:            p.deadline ?? null,
+    status:              (p.status ?? 'nouveau') as ProjectStatus,
+    type:                p.type ?? null,
+    notes:               p.notes ?? null,
+    created_at:          p.created_at,
+    client_nom:          (p.clients as unknown as { nom: string } | null)?.nom ?? '—',
+    chef_nom:            '—',
+    commercial_nom:      '—',
   }));
 }
