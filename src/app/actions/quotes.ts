@@ -23,55 +23,66 @@ export interface QuoteLigne {
 }
 
 export interface Quote {
-  id:          string;
-  number:      string;
-  client_id:   string | null;
-  objet:       string | null;
-  date:        string;
-  validity:    string | null;
-  statut:      QuoteStatut;
-  lignes:      QuoteLigne[];
-  notes:       string | null;
-  conditions:  string | null;
-  montant_ht:  number;
-  tva_amount:  number;
-  montant_ttc: number;
-  created_at:  string;
+  id:                  string;
+  number:              string;
+  affair_number:       string | null;
+  client_id:           string | null;
+  commercial_user_id:  string | null;
+  chef_projet_user_id: string | null;
+  objet:               string | null;
+  date:                string;
+  validity:            string | null;
+  statut:              QuoteStatut;
+  lignes:              QuoteLigne[];
+  notes:               string | null;
+  conditions:          string | null;
+  deposit_percent:     number;
+  montant_ht:          number;
+  tva_amount:          number;
+  montant_ttc:         number;
+  created_at:          string;
 }
 
 export type QuoteInput = {
-  client_id:   string | null;
-  objet:       string;
-  date:        string;
-  validity:    string;
-  lignes:      QuoteLigne[];
-  notes:       string;
-  conditions:  string;
-  montant_ht:  number;
-  tva_amount:  number;
-  montant_ttc: number;
+  client_id:           string | null;
+  chef_projet_user_id: string | null;
+  objet:               string;
+  date:                string;
+  validity:            string;
+  lignes:              QuoteLigne[];
+  notes:               string;
+  conditions:          string;
+  deposit_percent:     number;
+  montant_ht:          number;
+  tva_amount:          number;
+  montant_ttc:         number;
 };
 
 // ─── Numérotation ─────────────────────────────────────────────────────────────
 
-async function nextQuoteNumber(
-  admin: Awaited<ReturnType<typeof getAuthContext>>['admin'],
+type AdminClient = Awaited<ReturnType<typeof getAuthContext>>['admin'];
+
+async function nextQuoteNumbers(
+  admin: AdminClient,
   tenant_id: string,
   userName: string,
-): Promise<string> {
+): Promise<{ number: string; affair_number: string }> {
   const year = new Date().getFullYear();
   const raw  = (userName ?? '').toUpperCase().replace(/[^A-Z]/g, '');
   const code = raw.slice(0, 4) || 'OXI';
-  const prefix = `DEV-${code}-${year}-`;
+  const devPrefix = `DEV-${code}-${year}-`;
 
   const { count } = await admin
     .from('quotes')
     .select('*', { count: 'exact', head: true })
     .eq('tenant_id', tenant_id)
-    .like('number', `${prefix}%`);
+    .like('number', `${devPrefix}%`);
 
   const seq = String((count ?? 0) + 1).padStart(3, '0');
-  return `${prefix}${seq}`;
+  return {
+    number:       `DEV-${code}-${year}-${seq}`,
+    affair_number: `AF-${code}-${year}-${seq}`,
+  };
 }
 
 // ─── Actions CRUD ─────────────────────────────────────────────────────────────
@@ -80,49 +91,43 @@ export async function saveQuoteAction(
   input: QuoteInput,
   id?: string,
 ): Promise<{ success?: true; id?: string; error?: string }> {
-  const { admin, tenant_id, name } = await getAuthContext();
+  const { admin, tenant_id, name, user } = await getAuthContext();
+
+  const common = {
+    client_id:           input.client_id,
+    chef_projet_user_id: input.chef_projet_user_id || null,
+    objet:               input.objet || null,
+    date:                input.date,
+    validity:            input.validity || null,
+    lignes:              input.lignes,
+    notes:               input.notes || null,
+    conditions:          input.conditions || null,
+    deposit_percent:     input.deposit_percent,
+    montant_ht:          input.montant_ht,
+    tva_amount:          input.tva_amount,
+    montant_ttc:         input.montant_ttc,
+  };
 
   if (id) {
-    // Update
     const { error } = await admin
       .from('quotes')
-      .update({
-        client_id:   input.client_id,
-        objet:       input.objet || null,
-        date:        input.date,
-        validity:    input.validity || null,
-        lignes:      input.lignes,
-        notes:       input.notes || null,
-        conditions:  input.conditions || null,
-        montant_ht:  input.montant_ht,
-        tva_amount:  input.tva_amount,
-        montant_ttc: input.montant_ttc,
-        updated_at:  new Date().toISOString(),
-      })
+      .update({ ...common, updated_at: new Date().toISOString() })
       .eq('id', id);
     if (error) return { error: error.message };
     revalidatePath(PATH);
     return { success: true, id };
   }
 
-  // Create
-  const number = await nextQuoteNumber(admin, tenant_id, name);
+  const { number, affair_number } = await nextQuoteNumbers(admin, tenant_id, name);
 
   const { data, error } = await admin
     .from('quotes')
     .insert({
       tenant_id,
       number,
-      client_id:   input.client_id,
-      objet:       input.objet || null,
-      date:        input.date,
-      validity:    input.validity || null,
-      lignes:      input.lignes,
-      notes:       input.notes || null,
-      conditions:  input.conditions || null,
-      montant_ht:  input.montant_ht,
-      tva_amount:  input.tva_amount,
-      montant_ttc: input.montant_ttc,
+      affair_number,
+      commercial_user_id: user.id,
+      ...common,
     })
     .select('id')
     .single();
@@ -152,7 +157,7 @@ export async function changeQuoteStatutAction(id: string, statut: QuoteStatut) {
 }
 
 export async function duplicateQuoteAction(id: string) {
-  const { admin, tenant_id, name } = await getAuthContext();
+  const { admin, tenant_id, name, user } = await getAuthContext();
 
   const { data: source, error: fetchErr } = await admin
     .from('quotes')
@@ -162,24 +167,28 @@ export async function duplicateQuoteAction(id: string) {
 
   if (fetchErr || !source) return { error: fetchErr?.message ?? 'Devis introuvable' };
 
-  const number = await nextQuoteNumber(admin, tenant_id, name);
+  const { number, affair_number } = await nextQuoteNumbers(admin, tenant_id, name);
 
   const { error } = await admin
     .from('quotes')
     .insert({
       tenant_id,
       number,
-      client_id:   source.client_id,
-      objet:       source.objet ? `(Copie) ${source.objet}` : '(Copie)',
-      date:        new Date().toISOString().split('T')[0],
-      validity:    source.validity,
-      statut:      'brouillon',
-      lignes:      source.lignes,
-      notes:       source.notes,
-      conditions:  source.conditions,
-      montant_ht:  source.montant_ht,
-      tva_amount:  source.tva_amount,
-      montant_ttc: source.montant_ttc,
+      affair_number,
+      commercial_user_id:  user.id,
+      chef_projet_user_id: source.chef_projet_user_id,
+      client_id:           source.client_id,
+      objet:               source.objet ? `(Copie) ${source.objet}` : '(Copie)',
+      date:                new Date().toISOString().split('T')[0],
+      validity:            source.validity,
+      statut:              'brouillon',
+      lignes:              source.lignes,
+      notes:               source.notes,
+      conditions:          source.conditions,
+      deposit_percent:     source.deposit_percent ?? 0,
+      montant_ht:          source.montant_ht,
+      tva_amount:          source.tva_amount,
+      montant_ttc:         source.montant_ttc,
     });
 
   if (error) return { error: error.message };

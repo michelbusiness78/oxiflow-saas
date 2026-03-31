@@ -12,7 +12,7 @@ import type { Facture }        from '@/components/commerce/FactureForm';
 import type { Contrat }        from '@/components/commerce/ContratForm';
 import type { DevisLigne }     from '@/app/actions/commerce';
 import type { CatalogueItem }  from '@/app/actions/catalogue';
-import type { QuoteWithClient } from '@/components/commerce/QuoteForm';
+import type { QuoteWithClient, TenantUser } from '@/components/commerce/QuoteForm';
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
@@ -25,52 +25,67 @@ async function fetchCommerceData() {
 
   const { data: profile } = await admin
     .from('users')
-    .select('tenant_id')
+    .select('tenant_id, name')
     .eq('id', user.id)
     .single();
 
-  const tenantId = profile?.tenant_id;
+  const tenantId = profile?.tenant_id as string;
+  const currentUserName = (profile?.name as string) ?? user.email ?? 'Utilisateur';
 
-  const [clientsRes, quotesRes, facturesRes, contratsRes, catalogueRes, devisRes] = await Promise.all([
-    admin
-      .from('clients')
-      .select('id, nom, contact, email, tel, adresse, cp, ville, siret, tva_intra, conditions_paiement, notes, actif, created_at')
-      .eq('tenant_id', tenantId)
-      .order('nom'),
-    admin
-      .from('quotes')
-      .select('id, number, client_id, objet, date, validity, statut, lignes, notes, conditions, montant_ht, tva_amount, montant_ttc, created_at, clients(nom)')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false }),
-    admin
-      .from('factures')
-      .select('id, num, client_id, devis_id, date, echeance, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false }),
-    admin
-      .from('contrats')
-      .select('id, client_id, type, date_debut, date_fin, montant_mensuel, actif, created_at, clients(nom)')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false }),
-    admin
-      .from('catalogue')
-      .select('id, ref, designation, description, fournisseur, categorie, type, prix_achat, prix_vente, tva, unite, actif, imported_from, created_at')
-      .eq('tenant_id', tenantId)
-      .order('designation'),
-    // Keep old devis for FactureList from_devis
-    admin
-      .from('devis')
-      .select('id, num, client_id, date, validite, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false }),
-  ]);
+  const [clientsRes, quotesRes, facturesRes, contratsRes, catalogueRes, devisRes, usersRes, tenantRes] =
+    await Promise.all([
+      admin
+        .from('clients')
+        .select('id, nom, contact, email, tel, adresse, cp, ville, siret, tva_intra, conditions_paiement, notes, actif, created_at')
+        .eq('tenant_id', tenantId)
+        .order('nom'),
+      admin
+        .from('quotes')
+        .select('id, number, affair_number, client_id, commercial_user_id, chef_projet_user_id, objet, date, validity, statut, lignes, notes, conditions, deposit_percent, montant_ht, tva_amount, montant_ttc, created_at, clients(nom)')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false }),
+      admin
+        .from('factures')
+        .select('id, num, client_id, devis_id, date, echeance, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false }),
+      admin
+        .from('contrats')
+        .select('id, client_id, type, date_debut, date_fin, montant_mensuel, actif, created_at, clients(nom)')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false }),
+      admin
+        .from('catalogue')
+        .select('id, ref, designation, description, fournisseur, categorie, type, prix_achat, prix_vente, tva, unite, actif, imported_from, created_at')
+        .eq('tenant_id', tenantId)
+        .order('designation'),
+      // Old devis for FactureList from_devis
+      admin
+        .from('devis')
+        .select('id, num, client_id, date, validite, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false }),
+      // Users du tenant (pour chef de projet selector)
+      admin
+        .from('users')
+        .select('id, name')
+        .eq('tenant_id', tenantId)
+        .order('name'),
+      // Nom de la société
+      admin
+        .from('tenants')
+        .select('name')
+        .eq('id', tenantId)
+        .single(),
+    ]);
 
   const clients = (clientsRes.data ?? []) as Client[];
 
   const quotes = (quotesRes.data ?? []).map((q) => ({
     ...q,
-    lignes:     (q.lignes as QuoteWithClient['lignes']) ?? [],
-    client_nom: (q.clients as unknown as { nom: string } | null)?.nom ?? '—',
+    lignes:      (q.lignes as QuoteWithClient['lignes']) ?? [],
+    client_nom:  (q.clients as unknown as { nom: string } | null)?.nom ?? '—',
+    deposit_percent: (q.deposit_percent as number) ?? 0,
   })) as QuoteWithClient[];
 
   const factures = (facturesRes.data ?? []).map((f) => ({
@@ -92,7 +107,13 @@ async function fetchCommerceData() {
     client_nom: (d.clients as unknown as { nom: string } | null)?.nom ?? '—',
   }));
 
-  return { clients, quotes, factures, contrats, catalogue, devis };
+  const users = (usersRes.data ?? []) as TenantUser[];
+  const tenantName = (tenantRes.data?.name as string) ?? '';
+
+  return {
+    clients, quotes, factures, contrats, catalogue, devis,
+    users, currentUserId: user.id, currentUserName, tenantName,
+  };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -102,15 +123,16 @@ interface PageProps {
 }
 
 export default async function CommercePage({ searchParams }: PageProps) {
-  const { clients, quotes, factures, contrats, catalogue, devis } = await fetchCommerceData();
+  const {
+    clients, quotes, factures, contrats, catalogue, devis,
+    users, currentUserId, currentUserName, tenantName,
+  } = await fetchCommerceData();
+
   const params = await searchParams;
   const tab    = params?.tab ?? 'clients';
 
-  // Pré-remplissage facture depuis un devis accepté (ancien système)
   const fromDevisId = params?.from_devis;
-  const fromDevis = fromDevisId
-    ? devis.find((d) => d.id === fromDevisId) ?? null
-    : null;
+  const fromDevis   = fromDevisId ? devis.find((d) => d.id === fromDevisId) ?? null : null;
 
   const fromDevisData = fromDevis
     ? {
@@ -148,7 +170,15 @@ export default async function CommercePage({ searchParams }: PageProps) {
         {tab === 'clients'   && <ClientList clients={clients} />}
 
         {tab === 'devis'     && (
-          <QuoteList quotes={quotes} clients={clients} catalogue={catalogue} />
+          <QuoteList
+            quotes={quotes}
+            clients={clients}
+            catalogue={catalogue}
+            users={users}
+            currentUserId={currentUserId}
+            currentUserName={currentUserName}
+            tenantName={tenantName}
+          />
         )}
 
         {tab === 'factures'  && (

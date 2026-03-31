@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { QuoteForm, type QuoteWithClient } from './QuoteForm';
+import { QuoteForm, type QuoteWithClient, type TenantUser } from './QuoteForm';
 import { duplicateQuoteAction, type QuoteStatut } from '@/app/actions/quotes';
 import { fmtEur, fmtDate } from '@/lib/format';
 import type { CatalogueItem } from '@/app/actions/catalogue';
@@ -24,14 +24,18 @@ function normalize(s: string) {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface QuoteListProps {
-  quotes:    QuoteWithClient[];
-  clients:   { id: string; nom: string }[];
-  catalogue: CatalogueItem[];
+  quotes:          QuoteWithClient[];
+  clients:         { id: string; nom: string }[];
+  catalogue:       CatalogueItem[];
+  users:           TenantUser[];
+  currentUserId:   string;
+  currentUserName: string;
+  tenantName:      string;
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export function QuoteList({ quotes, clients, catalogue }: QuoteListProps) {
+export function QuoteList({ quotes, clients, catalogue, users, currentUserId, currentUserName, tenantName }: QuoteListProps) {
   const [formOpen,     setFormOpen]     = useState(false);
   const [editing,      setEditing]      = useState<QuoteWithClient | null>(null);
   const [statusFilter, setStatusFilter] = useState<QuoteStatut | 'tous'>('tous');
@@ -242,6 +246,10 @@ export function QuoteList({ quotes, clients, catalogue }: QuoteListProps) {
         editing={editing}
         clients={clients}
         catalogue={catalogue}
+        users={users}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+        tenantName={tenantName}
       />
     </>
   );
