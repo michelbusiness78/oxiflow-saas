@@ -157,16 +157,16 @@ export function CompanyList({ companies, objectives }: Props) {
 
       {/* ── Sociétés ── */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-slate-800">
-            MES SOCIÉTÉS ({companies.length})
+            Mes sociétés ({companies.length})
           </h2>
           <button
             type="button"
-            onClick={openCreate}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+            onClick={() => { setEditing(null); setOpen(true); }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
           >
-            <span className="text-lg leading-none">+</span> Ajouter
+            + Ajouter
           </button>
         </div>
 
