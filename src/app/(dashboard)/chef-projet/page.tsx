@@ -1,15 +1,18 @@
 import { redirect }    from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { ChefDashboard } from '@/components/chef-projet/ChefDashboard';
-import { ProjetList }    from '@/components/chef-projet/ProjetList';
-import { ProjetDetail }  from '@/components/chef-projet/ProjetDetail';
-import { ProjectList }   from '@/components/projets/ProjectList';
-import { getMyProjects } from '@/app/actions/projects';
-import type { Tache }    from '@/components/projets/TacheForm';
+import { ProjetDetail }    from '@/components/chef-projet/ProjetDetail';
+import { ProjectList }     from '@/components/projets/ProjectList';
+import { ProjetList }      from '@/components/chef-projet/ProjetList';
+import { ChefDashboard }   from '@/components/chef-projet/ChefDashboard';
+import { ChefDashboardV2 } from '@/components/chef-projet/ChefDashboardV2';
+import { CalendarView }    from '@/components/chef-projet/CalendarView';
+import { getMyProjects }   from '@/app/actions/projects';
+import { getDashboardChefProjet, getCalendarEvents } from '@/app/actions/chef-projet';
+import type { Tache } from '@/components/projets/TacheForm';
 
-// ─── Fetch ────────────────────────────────────────────────────────────────────
+// ─── Legacy fetch (gardé pour la vue détail et ProjetList) ────────────────────
 
-async function fetchData(userId: string) {
+async function fetchLegacyData(userId: string) {
   const supabase = await createClient();
 
   const [projetsRes, tachesRes, interventionsRes, clientsRes, techniciensRes, allUsersRes] =
@@ -30,23 +33,9 @@ async function fetchData(userId: string) {
         .select('id, projet_id, technicien_id, date, type, statut, duree_minutes, clients(nom), users(name)')
         .order('date', { ascending: false }),
 
-      supabase
-        .from('clients')
-        .select('id, nom')
-        .order('nom'),
-
-      // Techniciens uniquement pour le dropdown "Assigner"
-      supabase
-        .from('users')
-        .select('id, name')
-        .eq('role', 'technicien')
-        .order('name'),
-
-      // Tous les users pour le formulaire TacheList
-      supabase
-        .from('users')
-        .select('id, name')
-        .order('name'),
+      supabase.from('clients').select('id, nom').order('nom'),
+      supabase.from('users').select('id, name').eq('role', 'technicien').order('name'),
+      supabase.from('users').select('id, name').order('name'),
     ]);
 
   const projets = (projetsRes.data ?? []).map((p) => ({
@@ -69,11 +58,11 @@ async function fetchData(userId: string) {
     .filter((t) => t.projet_id && projetIds.has(t.projet_id))
     .map((t) => ({
       ...t,
-      description:    t.description   ?? null,
-      assigne_a:      t.assigne_a     ?? null,
-      date_echeance:  t.date_echeance ?? null,
-      projet_nom:     (t.projets as unknown as { nom: string } | null)?.nom,
-      assigne_nom:    (t.users   as unknown as { name: string } | null)?.name,
+      description:   t.description   ?? null,
+      assigne_a:     t.assigne_a     ?? null,
+      date_echeance: t.date_echeance ?? null,
+      projet_nom:    (t.projets as unknown as { nom: string } | null)?.nom,
+      assigne_nom:   (t.users   as unknown as { name: string } | null)?.name,
     })) as (Tache & { projet_nom?: string; assigne_nom?: string })[];
 
   const interventions = (interventionsRes.data ?? [])
@@ -88,17 +77,20 @@ async function fetchData(userId: string) {
       technicien_nom: (i.users as unknown as { name: string } | null)?.name ?? '—',
     }));
 
-  const clients     = clientsRes.data     ?? [];
-  const techniciens = (techniciensRes.data ?? []).map((u) => ({ id: u.id, name: u.name }));
-  const allUsers    = (allUsersRes.data    ?? []).map((u) => ({ id: u.id, nom: u.name, prenom: '' }));
-
-  return { projets, taches, interventions, clients, techniciens, allUsers };
+  return {
+    projets,
+    taches,
+    interventions,
+    clients:     clientsRes.data     ?? [],
+    techniciens: (techniciensRes.data ?? []).map((u) => ({ id: u.id, name: u.name })),
+    allUsers:    (allUsersRes.data    ?? []).map((u) => ({ id: u.id, nom: u.name, prenom: '' })),
+  };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 interface PageProps {
-  searchParams: Promise<{ projet?: string }>;
+  searchParams: Promise<{ projet?: string; tab?: string }>;
 }
 
 export default async function ChefProjetPage({ searchParams }: PageProps) {
@@ -108,77 +100,134 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
 
   const admin = await createAdminClient();
   const profileRes = await admin.from('users').select('name, tenant_id').eq('id', user.id).single();
-  const userName   = profileRes.data?.name      ?? user.email ?? 'Chef de projet';
-  const tenantId   = profileRes.data?.tenant_id ?? null;
-
-  const [{ projets, taches, interventions, clients, techniciens, allUsers }, projectsR4, usersRes] =
-    await Promise.all([
-      fetchData(user.id),
-      tenantId ? getMyProjects(tenantId, user.id) : Promise.resolve([]),
-      admin.from('users').select('id, name').order('name'),
-    ]);
-
-  const usersPlain = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
+  const userName = profileRes.data?.name      ?? user.email ?? 'Chef de projet';
+  const tenantId = profileRes.data?.tenant_id ?? null;
 
   const params   = await searchParams;
   const projetId = params?.projet;
+  const activeTab = params?.tab ?? 'dashboard';
 
-  // ── Vue détail ──────────────────────────────────────────────────────────────
+  // ── Vue détail (inchangée) ──────────────────────────────────────────────────
+
   if (projetId) {
-    const projet = projets.find((p) => p.id === projetId);
+    const legacyData = await fetchLegacyData(user.id);
+    const projet = legacyData.projets.find((p) => p.id === projetId);
     if (!projet) redirect('/chef-projet');
-
-    const projetTaches       = taches.filter((t) => t.projet_id === projetId);
-    const projetInterventions = interventions.filter((i) => i.projet_id === projetId);
 
     return (
       <ProjetDetail
         projet={projet}
-        taches={projetTaches}
-        interventions={projetInterventions}
-        users={allUsers}
-        techniciens={techniciens}
+        taches={legacyData.taches.filter((t) => t.projet_id === projetId)}
+        interventions={legacyData.interventions.filter((i) => i.projet_id === projetId)}
+        users={legacyData.allUsers}
+        techniciens={legacyData.techniciens}
       />
     );
   }
 
-  // ── Vue liste ───────────────────────────────────────────────────────────────
+  // ── Calcul de la plage calendrier initiale (semaine courante) ───────────────
+
+  const now    = new Date();
+  const monday = new Date(now);
+  const day    = now.getDay();
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  // ── Fetch parallèle ─────────────────────────────────────────────────────────
+
+  const [legacyData, dashData, projectsR4, usersRes, initialEvents] = await Promise.all([
+    fetchLegacyData(user.id),
+    getDashboardChefProjet(),
+    tenantId ? getMyProjects(tenantId, user.id) : Promise.resolve([]),
+    admin.from('users').select('id, name').order('name'),
+    getCalendarEvents(monday.toISOString(), sunday.toISOString()),
+  ]);
+
+  const { projets, taches, interventions, clients } = legacyData;
+  const usersPlain      = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
+  const clientsForModal = clients.map((c) => ({ id: c.id, nom: c.nom as string }));
+
+  // ── Vue principale : deux onglets ───────────────────────────────────────────
+
   return (
-    <div className="space-y-8">
-      {/* Titre */}
+    <div className="space-y-6">
+      {/* En-tête */}
       <div>
         <h1 className="text-xl font-semibold text-slate-800">Chef de Projet</h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          {userName} · {projets.length} projet{projets.length !== 1 ? 's' : ''} assigné{projets.length !== 1 ? 's' : ''}
+          {userName} · {projets.length} dossier{projets.length !== 1 ? 's' : ''}
+          {projectsR4.length > 0 && ` · ${projectsR4.length} projet${projectsR4.length !== 1 ? 's' : ''} assigné${projectsR4.length !== 1 ? 's' : ''}`}
         </p>
       </div>
 
-      {/* Tableau de bord */}
-      <ChefDashboard
-        projets={projets}
-        taches={taches}
-        interventions={interventions}
-      />
+      {/* Onglets */}
+      <div className="border-b border-slate-200">
+        <nav className="-mb-px flex gap-6">
+          {[
+            { key: 'dashboard', label: 'Tableau de bord' },
+            { key: 'planning',  label: 'Planning'        },
+          ].map(({ key, label }) => (
+            <a
+              key={key}
+              href={`/chef-projet?tab=${key}`}
+              className={[
+                'whitespace-nowrap border-b-2 pb-3 text-sm font-medium transition-colors',
+                activeTab === key
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700',
+              ].join(' ')}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      </div>
 
-      {/* Projets R4 (créés depuis devis acceptés) */}
-      {projectsR4.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold text-slate-800">
-            Mes projets assignés
-            <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-              {projectsR4.length}
-            </span>
-          </h2>
-          <ProjectList projects={projectsR4} users={usersPlain} />
+      {/* Contenu onglet Tableau de bord */}
+      {activeTab === 'dashboard' && (
+        <div className="space-y-8">
+          <ChefDashboardV2 data={dashData} />
+
+          {projectsR4.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-base font-semibold text-slate-800">
+                Mes projets assignés
+                <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                  {projectsR4.length}
+                </span>
+              </h2>
+              <ProjectList projects={projectsR4} users={usersPlain} />
+            </div>
+          )}
+
+          {projets.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-base font-semibold text-slate-800">Mes dossiers</h2>
+              <ProjetList projets={projets} clients={clients} />
+            </div>
+          )}
+
+          {/* Ancien dashboard KPI (fallback alerts) */}
+          {(taches.length > 0 || interventions.length > 0) && (
+            <ChefDashboard
+              projets={projets}
+              taches={taches}
+              interventions={interventions}
+            />
+          )}
         </div>
       )}
 
-      {/* Liste des projets (ancienne table projets) */}
-      {projets.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold text-slate-800">Mes dossiers</h2>
-          <ProjetList projets={projets} clients={clients} />
-        </div>
+      {/* Contenu onglet Planning */}
+      {activeTab === 'planning' && (
+        <CalendarView
+          initialEvents={initialEvents}
+          clients={clientsForModal}
+          users={usersPlain}
+        />
       )}
     </div>
   );
