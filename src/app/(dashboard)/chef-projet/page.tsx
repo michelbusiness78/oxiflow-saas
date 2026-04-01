@@ -1,13 +1,15 @@
 import { redirect }    from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { ProjetDetail }    from '@/components/chef-projet/ProjetDetail';
-import { ProjectList }     from '@/components/projets/ProjectList';
-import { ProjetList }      from '@/components/chef-projet/ProjetList';
-import { ChefDashboard }   from '@/components/chef-projet/ChefDashboard';
-import { ChefDashboardV2 } from '@/components/chef-projet/ChefDashboardV2';
-import { CalendarView }    from '@/components/chef-projet/CalendarView';
-import { getMyProjects }   from '@/app/actions/projects';
-import { getDashboardChefProjet, getCalendarEvents, getProjectsForPlanning, getContractedClientIds } from '@/app/actions/chef-projet';
+import { ProjetDetail }       from '@/components/chef-projet/ProjetDetail';
+import { ProjectDetailFull }  from '@/components/chef-projet/ProjectDetailFull';
+import { ProjectList }        from '@/components/projets/ProjectList';
+import { ProjetList }         from '@/components/chef-projet/ProjetList';
+import { ChefDashboard }      from '@/components/chef-projet/ChefDashboard';
+import { ChefDashboardV2 }    from '@/components/chef-projet/ChefDashboardV2';
+import { CalendarView }       from '@/components/chef-projet/CalendarView';
+import { getMyProjects }      from '@/app/actions/projects';
+import { getDashboardChefProjet, getCalendarEvents, getProjectsForPlanning, getContractedClientIds, getProjectFull } from '@/app/actions/chef-projet';
+import { getProjectTasks }    from '@/app/actions/project-tasks';
 import type { Tache } from '@/components/projets/TacheForm';
 
 // ─── Legacy fetch (gardé pour la vue détail et ProjetList) ────────────────────
@@ -90,7 +92,7 @@ async function fetchLegacyData(userId: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 interface PageProps {
-  searchParams: Promise<{ projet?: string; tab?: string }>;
+  searchParams: Promise<{ projet?: string; project?: string; tab?: string }>;
 }
 
 export default async function ChefProjetPage({ searchParams }: PageProps) {
@@ -103,11 +105,25 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
   const userName = profileRes.data?.name      ?? user.email ?? 'Chef de projet';
   const tenantId = profileRes.data?.tenant_id ?? null;
 
-  const params   = await searchParams;
-  const projetId = params?.projet;
+  const params    = await searchParams;
+  const projetId  = params?.projet;
+  const projectId = params?.project;
   const activeTab = params?.tab ?? 'dashboard';
 
-  // ── Vue détail (inchangée) ──────────────────────────────────────────────────
+  // ── Vue détail projet moderne (?project=ID) ────────────────────────────────
+
+  if (projectId && tenantId) {
+    const [project, tasks] = await Promise.all([
+      getProjectFull(projectId, tenantId),
+      getProjectTasks(projectId, tenantId),
+    ]);
+    if (!project) redirect('/chef-projet');
+    return (
+      <ProjectDetailFull project={project} tasks={tasks} tenantId={tenantId} />
+    );
+  }
+
+  // ── Vue détail projet legacy (?projet=ID) ──────────────────────────────────
 
   if (projetId) {
     const legacyData = await fetchLegacyData(user.id);
@@ -149,6 +165,23 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
   ]);
 
   const { projets, taches, interventions, clients } = legacyData;
+
+  // Task counts pour les cartes ProjectList
+  const taskCountsMap: Record<string, { done: number; total: number }> = {};
+  if (tenantId && projectsR4.length > 0) {
+    const projectIds = projectsR4.map((p) => p.id);
+    const { data: taskRows } = await admin
+      .from('project_tasks')
+      .select('project_id, done')
+      .eq('tenant_id', tenantId)
+      .in('project_id', projectIds);
+    for (const t of (taskRows ?? [])) {
+      const id = t.project_id as string;
+      if (!taskCountsMap[id]) taskCountsMap[id] = { done: 0, total: 0 };
+      taskCountsMap[id].total++;
+      if (t.done) taskCountsMap[id].done++;
+    }
+  }
   const usersPlain        = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
   const clientsFullForModal = clients.map((c) => ({
     id:      c.id,
@@ -207,7 +240,12 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
                   {projectsR4.length}
                 </span>
               </h2>
-              <ProjectList projects={projectsR4} users={usersPlain} />
+              <ProjectList
+                projects={projectsR4}
+                users={usersPlain}
+                taskCounts={taskCountsMap}
+                detailHref={(id) => `/chef-projet?project=${id}`}
+              />
             </div>
           )}
 

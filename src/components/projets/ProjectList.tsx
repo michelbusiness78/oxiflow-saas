@@ -22,9 +22,13 @@ function normalize(s: string) {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+interface TaskCount { done: number; total: number }
+
 interface ProjectListProps {
-  projects: Project[];
-  users:    { id: string; name: string }[];
+  projects:    Project[];
+  users:       { id: string; name: string }[];
+  taskCounts?: Record<string, TaskCount>;
+  detailHref?: (projectId: string) => string;
 }
 
 // ─── Panneau détail ───────────────────────────────────────────────────────────
@@ -110,7 +114,7 @@ function ProjectDetail({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export function ProjectList({ projects, users }: ProjectListProps) {
+export function ProjectList({ projects, users, taskCounts, detailHref }: ProjectListProps) {
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'tous'>('tous');
   const [search,       setSearch]       = useState('');
   const [selected,     setSelected]     = useState<Project | null>(null);
@@ -192,13 +196,12 @@ export function ProjectList({ projects, users }: ProjectListProps) {
           {filtered.map((p) => {
             const meta    = STATUS_META[p.status];
             const chefNom = users.find((u) => u.id === p.chef_projet_user_id)?.name;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSelected(p)}
-                className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-300 hover:shadow-md transition-all"
-              >
+            const tc      = taskCounts?.[p.id];
+            const tcPct   = tc && tc.total > 0 ? Math.round((tc.done / tc.total) * 100) : 0;
+            const href    = detailHref?.(p.id);
+
+            const cardContent = (
+              <>
                 {/* Header */}
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <p className="font-semibold text-slate-800 leading-tight line-clamp-2">{p.name}</p>
@@ -222,11 +225,46 @@ export function ProjectList({ projects, users }: ProjectListProps) {
                   </p>
                 )}
 
+                {/* Barre de tâches */}
+                {tc && tc.total > 0 && (
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>Tâches</span>
+                      <span className="font-medium">{tc.done}/{tc.total}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${tcPct === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                        style={{ width: `${tcPct}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Footer */}
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-sm font-semibold text-slate-800">{fmtEur(p.amount_ttc)}</span>
                   <span className="text-xs text-slate-400">{fmtDate(p.created_at)}</span>
                 </div>
+              </>
+            );
+
+            return href ? (
+              <a
+                key={p.id}
+                href={href}
+                className="block rounded-xl border border-slate-200 bg-white p-4 hover:border-blue-300 hover:shadow-md transition-all"
+              >
+                {cardContent}
+              </a>
+            ) : (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelected(p)}
+                className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-300 hover:shadow-md transition-all"
+              >
+                {cardContent}
               </button>
             );
           })}
