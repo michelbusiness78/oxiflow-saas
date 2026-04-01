@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition, useOptimistic } from 'react';
+import { useState, useTransition } from 'react';
+import { useRouter }               from 'next/navigation';
 import {
   addProjectTask,
   toggleProjectTask,
@@ -206,25 +207,25 @@ interface Props {
 // ── ProjectTasksSection ───────────────────────────────────────────────────────
 
 export function ProjectTasksSection({ initialTasks, projectId, tenantId }: Props) {
-  const [tasks,    setTasks]   = useState<ProjectTask[]>(initialTasks);
+  const router               = useRouter();
+  const [tasks,    setTasks] = useState<ProjectTask[]>(initialTasks);
   const [newName,  setNewName] = useState('');
   const [newDue,   setNewDue]  = useState('');
   const [isAdding, startAdd]   = useTransition();
+  const [,         startToggle] = useTransition();
 
-  // Optimistic toggles
-  const [optimisticTasks, toggleOptimistic] = useOptimistic(
-    tasks,
-    (state, taskId: string) =>
-      state.map((t) => t.id === taskId ? { ...t, done: !t.done } : t),
-  );
-
-  const done  = optimisticTasks.filter((t) => t.done).length;
-  const total = optimisticTasks.length;
+  const done  = tasks.filter((t) => t.done).length;
+  const total = tasks.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
 
   function handleToggle(id: string) {
-    toggleOptimistic(id);
-    toggleProjectTask(id);
+    // Mise à jour locale immédiate (pas de clignotement)
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, done: !t.done } : t));
+    // Sauvegarde serveur + invalidation du cache router (pour le KPI dashboard)
+    startToggle(async () => {
+      await toggleProjectTask(id);
+      router.refresh();
+    });
   }
 
   function handleDelete(id: string) {
@@ -286,12 +287,12 @@ export function ProjectTasksSection({ initialTasks, projectId, tenantId }: Props
 
       {/* Liste */}
       <div className="space-y-2">
-        {optimisticTasks.length === 0 && (
+        {tasks.length === 0 && (
           <p className="py-4 text-center text-sm text-slate-400">
             Aucune tâche. Ajoutez-en ci-dessous.
           </p>
         )}
-        {optimisticTasks.map((task) => (
+        {tasks.map((task) => (
           <TaskRow
             key={task.id}
             task={task}
