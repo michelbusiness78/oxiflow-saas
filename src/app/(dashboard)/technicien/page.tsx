@@ -1,23 +1,23 @@
-import { redirect }   from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { InterventionList }              from '@/components/technicien/InterventionList';
+import { InterventionList }               from '@/components/technicien/InterventionList';
 import { InterventionNotificationBanner } from '@/components/technicien/InterventionNotificationBanner';
-import { TechnicienPlanning }            from '@/components/technicien/TechnicienPlanning';
+import { TechnicienPlanning }             from '@/components/technicien/TechnicienPlanning';
+import { TechnicienKpis }                 from '@/components/technicien/TechnicienKpis';
 import {
   getInterventionNotifications,
   getMyInterventions,
+  getTechnicienKpis,
 } from '@/app/actions/technicien-notifications';
 import type { Intervention } from '@/components/technicien/InterventionForm';
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchTechnicienData() {
-  // Auth via client standard (cookies)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // Lecture via admin pour bypasser RLS
   const admin = await createAdminClient();
 
   const { data: profile } = await admin
@@ -29,7 +29,7 @@ async function fetchTechnicienData() {
   const profileName = profile?.name ?? user.email ?? 'Technicien';
   const tenantId    = profile?.tenant_id as string;
 
-  const [interventionsRes, clientsRes, catalogueRes, notifications, planning] =
+  const [interventionsRes, clientsRes, catalogueRes, notifications, planning, kpis] =
     await Promise.all([
       admin
         .from('interventions')
@@ -56,6 +56,7 @@ async function fetchTechnicienData() {
 
       getInterventionNotifications(tenantId, user.id),
       getMyInterventions(tenantId, user.id),
+      getTechnicienKpis(tenantId, user.id),
     ]);
 
   const interventions = (interventionsRes.data ?? []).map((i) => ({
@@ -72,11 +73,12 @@ async function fetchTechnicienData() {
 
   return {
     interventions,
-    clients:       clientsRes.data ?? [],
-    catalogue:     catalogueRes.data ?? [],
-    currentUser:   { id: user.id, name: profileName },
+    clients:     clientsRes.data ?? [],
+    catalogue:   catalogueRes.data ?? [],
+    currentUser: { id: user.id, name: profileName },
     notifications,
     planning,
+    kpis,
   };
 }
 
@@ -90,40 +92,42 @@ export default async function TechnicienPage() {
     currentUser,
     notifications,
     planning,
+    kpis,
   } = await fetchTechnicienData();
 
   return (
     <div className="space-y-6">
-      {/* Bandeau notifications */}
+
+      {/* A) Bandeau notifications — conditionnel */}
       <InterventionNotificationBanner initialNotifications={notifications} />
 
-      {/* Planning terrain (interventions chef-projet) */}
-      {planning.length > 0 && (
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-800">Planning terrain</h2>
-            <p className="mt-0.5 text-sm text-slate-500">
-              {planning.length} intervention{planning.length !== 1 ? 's' : ''} à venir
-            </p>
-          </div>
+      {/* En-tête */}
+      <div>
+        <h1 className="text-xl font-semibold text-slate-800">Mon espace</h1>
+        <p className="mt-0.5 text-sm text-slate-500">{currentUser.name}</p>
+      </div>
+
+      {/* B) KPIs — toujours visibles */}
+      <TechnicienKpis kpis={kpis} />
+
+      {/* C) Planning terrain (interventions chef-projet) */}
+      <section className="space-y-4">
+        <h2 className="text-base font-semibold text-slate-700">Planning terrain</h2>
+        <div id="planning-list">
           <TechnicienPlanning interventions={planning} />
-        </section>
-      )}
+        </div>
+      </section>
 
-      {/* Séparateur si les deux sections sont visibles */}
-      {planning.length > 0 && (
-        <hr className="border-[#dde3f0]" />
-      )}
+      <hr className="border-[#dde3f0]" />
 
-      {/* Liste interventions (module technicien — rapports terrain) */}
+      {/* Rapports d'intervention (module technicien historique) */}
       <section className="space-y-4">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800">Mes interventions</h1>
+          <h2 className="text-base font-semibold text-slate-700">Rapports d'intervention</h2>
           <p className="mt-0.5 text-sm text-slate-500">
-            {currentUser.name} · {interventions.length} intervention{interventions.length !== 1 ? 's' : ''}
+            {interventions.length} rapport{interventions.length !== 1 ? 's' : ''}
           </p>
         </div>
-
         <InterventionList
           interventions={interventions}
           clients={clients}
@@ -131,6 +135,7 @@ export default async function TechnicienPage() {
           currentUserId={currentUser.id}
         />
       </section>
+
     </div>
   );
 }
