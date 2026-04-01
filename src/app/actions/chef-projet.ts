@@ -228,6 +228,24 @@ export async function createIntervention(
     .single();
 
   if (error) return { error: error.message };
+
+  // Notifier le technicien si un tech_user_id est renseigné
+  if (data.tech_user_id && row?.id) {
+    const dateStr = new Intl.DateTimeFormat('fr-FR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(data.date_start));
+
+    await admin.from('intervention_notifications').insert({
+      tenant_id:       tenant_id,
+      intervention_id: row.id,
+      user_id:         data.tech_user_id,
+      type:            'assignment',
+      title:           'Nouvelle intervention assignée',
+      message:         `${data.title} — ${dateStr}`,
+    });
+  }
+
   revalidatePath(PATH);
   return { id: row?.id };
 }
