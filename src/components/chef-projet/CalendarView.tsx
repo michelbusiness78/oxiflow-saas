@@ -22,20 +22,57 @@ const localizer = dateFnsLocalizer({
 });
 
 const messages = {
-  allDay:     'Journée',
-  previous:   '‹',
-  next:       '›',
-  today:      "Aujourd'hui",
-  month:      'Mois',
-  week:       'Semaine',
-  day:        'Jour',
-  agenda:     'Agenda',
-  date:       'Date',
-  time:       'Heure',
-  event:      'Événement',
-  showMore:   (n: number) => `+ ${n} de plus`,
+  allDay:          'Journée',
+  previous:        '‹',
+  next:            '›',
+  today:           "Aujourd'hui",
+  month:           'Mois',
+  week:            'Semaine',
+  day:             'Jour',
+  agenda:          'Agenda',
+  date:            'Date',
+  time:            'Heure',
+  event:           'Événement',
+  showMore:        (n: number) => `+ ${n} de plus`,
   noEventsInRange: 'Aucun événement sur cette période.',
 };
+
+// ── Tech color system ─────────────────────────────────────────────────────────
+
+const TECH_COLORS = [
+  '#6366f1', // indigo
+  '#10b981', // emerald
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#8b5cf6', // violet
+  '#06b6d4', // cyan
+  '#ec4899', // pink
+  '#84cc16', // lime
+  '#f97316', // orange
+  '#14b8a6', // teal
+];
+
+/** Stable color per tech ID (hash-based, survives re-fetch / re-sort) */
+function techIdToColor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return TECH_COLORS[h % TECH_COLORS.length];
+}
+
+type TechColorMap = Map<string, { color: string; name: string }>;
+
+function buildTechColorMap(events: CalendarEventData[]): TechColorMap {
+  const map: TechColorMap = new Map();
+  for (const e of events) {
+    if (e.tech_user_id && !map.has(e.tech_user_id)) {
+      map.set(e.tech_user_id, {
+        color: techIdToColor(e.tech_user_id),
+        name:  e.techNom ?? 'Technicien',
+      });
+    }
+  }
+  return map;
+}
 
 // ── Internal event type ───────────────────────────────────────────────────────
 
@@ -51,11 +88,9 @@ function toCalEvents(data: CalendarEventData[]): CalEvent[] {
   return data.map((e) => {
     let prefix = '';
     if (e.type === 'intervention') {
-      if (e.nature === 'sav') {
-        prefix = e.urgency === 'critique' ? '🚨 ' : '🔧 ';
-      } else {
-        prefix = '🏗 ';
-      }
+      prefix = e.nature === 'sav'
+        ? (e.urgency === 'critique' ? '🚨 ' : '🔧 ')
+        : '🏗 ';
     }
     return {
       id:       e.id,
@@ -67,36 +102,104 @@ function toCalEvents(data: CalendarEventData[]): CalEvent[] {
   });
 }
 
-// ── Event style ───────────────────────────────────────────────────────────────
+// ── Custom event component (tooltip on hover) ─────────────────────────────────
 
-function eventStyleGetter(event: CalEvent) {
-  const color   = event.resource.color ?? '#93c5fd';
-  const nature  = event.resource.nature;
-  const urgency = event.resource.urgency;
+function EventContent({ event }: { event: CalEvent }) {
+  const techName = event.resource.techNom;
+  return (
+    <span title={techName ?? ''} className="truncate block w-full leading-tight">
+      {event.title}
+    </span>
+  );
+}
 
-  let borderLeft = 'none';
-  if (event.resource.type === 'intervention') {
-    if (nature === 'sav') {
-      if (urgency === 'critique') borderLeft = '4px solid #dc2626';
-      else if (urgency === 'urgent') borderLeft = '4px solid #ea580c';
-      else borderLeft = '4px solid #d97706';
-    } else {
-      borderLeft = '4px solid #2563eb';
-    }
-  }
+// ── Event style getter (uses tech color for left border) ──────────────────────
 
-  return {
-    style: {
-      backgroundColor: color,
-      borderRadius:    '6px',
-      border:          'none',
-      borderLeft,
-      color:           '#1e293b',
-      fontSize:        '12px',
-      fontWeight:      '500',
-      padding:         '2px 6px',
-    },
+function makeEventStyleGetter(techColorMap: TechColorMap, filterTechId: string | null) {
+  return function eventStyleGetter(event: CalEvent) {
+    const color   = event.resource.color ?? '#93c5fd';
+    const techId  = event.resource.tech_user_id;
+    const techColor = techId
+      ? (techColorMap.get(techId)?.color ?? '#94a3b8')
+      : '#94a3b8';
+
+    const isFiltered = filterTechId !== null
+      && event.resource.type === 'intervention'
+      && event.resource.tech_user_id !== filterTechId;
+
+    return {
+      style: {
+        backgroundColor: color,
+        borderRadius:    '6px',
+        border:          'none',
+        borderLeft:      `4px solid ${techColor}`,
+        color:           '#1e293b',
+        fontSize:        '12px',
+        fontWeight:      '500',
+        padding:         '2px 6px',
+        opacity:         isFiltered ? 0.25 : 1,
+        transition:      'opacity 0.15s',
+      },
+    };
   };
+}
+
+// ── Tech legend + filter bar ──────────────────────────────────────────────────
+
+function TechLegend({
+  techColorMap,
+  filterTechId,
+  onFilter,
+}: {
+  techColorMap: TechColorMap;
+  filterTechId: string | null;
+  onFilter:     (id: string | null) => void;
+}) {
+  const techs = Array.from(techColorMap.entries());
+  if (techs.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-lg mb-3">
+      <span className="text-xs text-slate-400 font-medium mr-1">Techniciens :</span>
+
+      {/* "Tous" pill */}
+      <button
+        onClick={() => onFilter(null)}
+        className={[
+          'rounded-full px-2.5 py-0.5 text-xs font-medium transition-all',
+          filterTechId === null
+            ? 'bg-blue-600 text-white ring-2 ring-blue-500 ring-offset-1'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+        ].join(' ')}
+      >
+        Tous
+      </button>
+
+      {/* One pill per tech */}
+      {techs.map(([id, { color, name }]) => {
+        const firstName = name.split(' ')[0];
+        const active    = filterTechId === id;
+        return (
+          <button
+            key={id}
+            onClick={() => onFilter(active ? null : id)}
+            className={[
+              'flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all text-slate-700',
+              active
+                ? 'bg-slate-100 ring-2 ring-blue-500 ring-offset-1'
+                : 'bg-slate-100 hover:bg-slate-200',
+            ].join(' ')}
+          >
+            <span
+              style={{ width: 10, height: 10, backgroundColor: color, flexShrink: 0 }}
+              className="inline-block rounded-full"
+            />
+            {firstName}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 // ── Detail panel ──────────────────────────────────────────────────────────────
@@ -116,15 +219,18 @@ const URGENCY_LABELS: Record<string, string> = {
 
 function EventDetailPanel({
   event,
+  techColorMap,
   onEdit,
   onClose,
 }: {
-  event: CalendarEventData;
-  onEdit: () => void;
-  onClose: () => void;
+  event:        CalendarEventData;
+  techColorMap: TechColorMap;
+  onEdit:       () => void;
+  onClose:      () => void;
 }) {
-  const start = new Date(event.startISO).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
-  const end   = new Date(event.endISO).toLocaleString('fr-FR',   { dateStyle: 'short', timeStyle: 'short' });
+  const start    = new Date(event.startISO).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+  const end      = new Date(event.endISO).toLocaleString('fr-FR',   { dateStyle: 'short', timeStyle: 'short' });
+  const techColor = event.tech_user_id ? techColorMap.get(event.tech_user_id)?.color : undefined;
 
   return (
     <div className="absolute right-4 top-4 z-50 w-72 rounded-xl border border-slate-200 bg-white shadow-xl p-4 space-y-3">
@@ -144,22 +250,30 @@ function EventDetailPanel({
       <div className="space-y-1.5 text-xs text-slate-500">
         <p>📅 {start} → {end}</p>
         {event.clientNom && <p>🏢 {event.clientNom}</p>}
-        {event.techNom   && <p>👷 {event.techNom}</p>}
+        {event.techNom && (
+          <p className="flex items-center gap-1.5">
+            {techColor && (
+              <span
+                style={{ width: 8, height: 8, backgroundColor: techColor }}
+                className="inline-block rounded-full shrink-0"
+              />
+            )}
+            👷 {event.techNom}
+          </p>
+        )}
 
         {/* Nature badge */}
         {event.type === 'intervention' && event.nature && (
-          <p>
+          <p className="flex flex-wrap gap-1">
             <span className={[
               'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
-              event.nature === 'sav'
-                ? 'bg-amber-100 text-amber-800'
-                : 'bg-blue-100 text-blue-800',
+              event.nature === 'sav' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800',
             ].join(' ')}>
               {event.nature === 'sav' ? '🔧 SAV' : '🏗 Projet'}
             </span>
             {event.nature === 'sav' && event.urgency && event.urgency !== 'normal' && (
               <span className={[
-                'ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
+                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
                 event.urgency === 'critique' ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800',
               ].join(' ')}>
                 {URGENCY_LABELS[event.urgency]}
@@ -210,21 +324,31 @@ export function CalendarView({
   projects,
   contractedClientIds,
 }: Props) {
-  const [events,     setEvents]     = useState<CalendarEventData[]>(initialEvents);
-  const [isPending,  startTransition] = useTransition();
-  const [selected,   setSelected]   = useState<CalendarEventData | null>(null);
-  const [formOpen,   setFormOpen]   = useState(false);
-  const [editing,    setEditing]    = useState<CalendarEventData | null>(null);
+  const [events,      setEvents]      = useState<CalendarEventData[]>(initialEvents);
+  const [isPending,   startTransition] = useTransition();
+  const [selected,    setSelected]    = useState<CalendarEventData | null>(null);
+  const [formOpen,    setFormOpen]    = useState(false);
+  const [editing,     setEditing]     = useState<CalendarEventData | null>(null);
   const [clickedSlot, setClickedSlot] = useState<string | undefined>(undefined);
+  const [filterTechId, setFilterTechId] = useState<string | null>(null);
 
-  const calEvents = useMemo(() => toCalEvents(events), [events]);
+  // Stable color map rebuilt only when event list changes
+  const techColorMap = useMemo(() => buildTechColorMap(events), [events]);
+
+  const allCalEvents = useMemo(() => toCalEvents(events), [events]);
+
+  // Dim non-matching events via opacity in eventStyleGetter; visually filter here too
+  // (we keep all events in RBC so the calendar layout doesn't shift)
+  const eventStyleGetter = useMemo(
+    () => makeEventStyleGetter(techColorMap, filterTechId),
+    [techColorMap, filterTechId],
+  );
 
   // Re-fetch when range changes
   const handleRangeChange = useCallback(
     (range: Date[] | { start: Date; end: Date }) => {
       const start = Array.isArray(range) ? range[0] : range.start;
       const end   = Array.isArray(range) ? range[range.length - 1] : range.end;
-
       startTransition(async () => {
         const data = await fetchEvents(start.toISOString(), end.toISOString());
         setEvents(data);
@@ -260,10 +384,14 @@ export function CalendarView({
     });
   }, []);
 
+  // Stable components object — avoids RBC remounting on every render
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const calComponents = useMemo(() => ({ event: EventContent as any }), []);
+
   return (
     <div className="relative">
       {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-slate-500">
           Cliquez sur un créneau libre pour créer une intervention.
         </p>
@@ -274,6 +402,13 @@ export function CalendarView({
           + Nouvelle intervention
         </button>
       </div>
+
+      {/* Tech legend + filter */}
+      <TechLegend
+        techColorMap={techColorMap}
+        filterTechId={filterTechId}
+        onFilter={setFilterTechId}
+      />
 
       {/* Loading indicator */}
       {isPending && (
@@ -286,7 +421,7 @@ export function CalendarView({
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden" style={{ height: 620 }}>
         <Calendar
           localizer={localizer}
-          events={calEvents}
+          events={allCalEvents}
           startAccessor="start"
           endAccessor="end"
           defaultView={Views.WEEK}
@@ -294,6 +429,7 @@ export function CalendarView({
           messages={messages}
           culture="fr"
           eventPropGetter={eventStyleGetter}
+          components={calComponents}
           onRangeChange={handleRangeChange}
           onSelectEvent={handleSelectEvent}
           onSelectSlot={handleSelectSlot}
@@ -306,6 +442,7 @@ export function CalendarView({
       {selected && (
         <EventDetailPanel
           event={selected}
+          techColorMap={techColorMap}
           onEdit={handleEdit}
           onClose={() => setSelected(null)}
         />
