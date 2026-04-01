@@ -248,7 +248,7 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
                 projects={projectsR4}
                 users={usersPlain}
                 taskCounts={taskCountsMap}
-                detailHref={(id) => `/chef-projet?project=${id}`}
+                detailBaseUrl="/chef-projet?project="
               />
             </div>
           )}

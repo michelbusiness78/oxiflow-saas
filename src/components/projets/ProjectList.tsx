@@ -28,7 +28,7 @@ interface ProjectListProps {
   projects:    Project[];
   users:       { id: string; name: string }[];
   taskCounts?: Record<string, TaskCount>;
-  detailHref?: (projectId: string) => string;
+  detailBaseUrl?: string;
 }
 
 // ─── Panneau détail ───────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ function ProjectDetail({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export function ProjectList({ projects, users, taskCounts, detailHref }: ProjectListProps) {
+export function ProjectList({ projects, users, taskCounts, detailBaseUrl }: ProjectListProps) {
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'tous'>('tous');
   const [search,       setSearch]       = useState('');
   const [selected,     setSelected]     = useState<Project | null>(null);
@@ -198,7 +198,7 @@ export function ProjectList({ projects, users, taskCounts, detailHref }: Project
             const chefNom = users.find((u) => u.id === p.chef_projet_user_id)?.name;
             const tc      = taskCounts?.[p.id];
             const tcPct   = tc && tc.total > 0 ? Math.round((tc.done / tc.total) * 100) : 0;
-            const href    = detailHref?.(p.id);
+            const href    = detailBaseUrl ? `${detailBaseUrl}${p.id}` : undefined;
 
             const cardContent = (
               <>
