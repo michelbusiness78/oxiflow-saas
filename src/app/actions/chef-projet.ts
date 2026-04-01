@@ -139,7 +139,7 @@ export async function getDashboardChefProjet(): Promise<DashboardData> {
   const todayStart = `${todayStr}T00:00:00+00:00`;
   const todayEnd   = `${todayStr}T23:59:59+00:00`;
 
-  const [projRes, intRes, tachRes, projData, ptaskRes] = await Promise.all([
+  const [projRes, intRes, tachRes, projData] = await Promise.all([
     admin
       .from('projects')
       .select('*', { count: 'exact', head: true })
@@ -168,27 +168,33 @@ export async function getDashboardChefProjet(): Promise<DashboardData> {
       .in('status', ['nouveau', 'en_cours'])
       .order('deadline', { ascending: true, nullsFirst: false })
       .limit(6),
-
-    // Tâches project_tasks en retard
-    admin
-      .from('project_tasks')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenant_id)
-      .eq('done', false)
-      .not('due', 'is', null)
-      .lt('due', todayStr),
   ]);
 
-  // Comptes de tâches par projet pour les chantiers en cours
-  const projectIds = (projData.data ?? []).map((p) => p.id);
+  // project_tasks : table optionnelle (peut ne pas encore exister)
+  let ptaskCount = 0;
   let taskRows: { project_id: string; done: boolean }[] = [];
-  if (projectIds.length > 0) {
-    const { data: tr } = await admin
-      .from('project_tasks')
-      .select('project_id, done')
-      .eq('tenant_id', tenant_id)
-      .in('project_id', projectIds);
-    taskRows = (tr ?? []) as { project_id: string; done: boolean }[];
+  try {
+    const projectIds = (projData.data ?? []).map((p) => p.id as string);
+    const [ptaskRes, ptaskDetailRes] = await Promise.all([
+      admin
+        .from('project_tasks')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenant_id)
+        .eq('done', false)
+        .not('due', 'is', null)
+        .lt('due', todayStr),
+      projectIds.length > 0
+        ? admin
+            .from('project_tasks')
+            .select('project_id, done')
+            .eq('tenant_id', tenant_id)
+            .in('project_id', projectIds)
+        : Promise.resolve({ data: [] as { project_id: string; done: boolean }[] }),
+    ]);
+    ptaskCount = ptaskRes.count ?? 0;
+    taskRows   = (ptaskDetailRes.data ?? []) as { project_id: string; done: boolean }[];
+  } catch {
+    // table project_tasks absente — on ignore silencieusement
   }
 
   const taskCountMap = new Map<string, { done: number; total: number }>();
@@ -229,7 +235,7 @@ export async function getDashboardChefProjet(): Promise<DashboardData> {
   return {
     projetsEnCours:     projRes.count ?? 0,
     interventionsToday: (intRes.data ?? []).length,
-    tachesEnRetard:     (tachRes.count ?? 0) + (ptaskRes.count ?? 0),
+    tachesEnRetard:     (tachRes.count ?? 0) + ptaskCount,
     techsActifs:        equipeMap.size,
     equipeAujourdhui,
     chantiersEnCours,
@@ -514,39 +520,46 @@ export async function getContractedClientIds(): Promise<string[]> {
 // ── getOverdueProjectTasks ────────────────────────────────────────────────────
 
 export async function getOverdueProjectTasks(): Promise<OverdueTaskItem[]> {
-  const { admin, tenant_id } = await getAuthContext();
-  const todayStr = new Date().toISOString().split('T')[0];
+  try {
+    const { admin, tenant_id } = await getAuthContext();
+    const todayStr = new Date().toISOString().split('T')[0];
 
-  const { data: tasks } = await admin
-    .from('project_tasks')
-    .select('id, name, due, project_id, priority')
-    .eq('tenant_id', tenant_id)
-    .eq('done', false)
-    .not('due', 'is', null)
-    .lte('due', todayStr)
-    .order('due');
+    const { data: tasks } = await admin
+      .from('project_tasks')
+      .select('id, name, due, project_id, priority')
+      .eq('tenant_id', tenant_id)
+      .eq('done', false)
+      .not('due', 'is', null)
+      .lte('due', todayStr)
+      .order('due');
 
-  if (!tasks || tasks.length === 0) return [];
+    if (!tasks || tasks.length === 0) return [];
 
-  const projectIds = [...new Set(tasks.map((t) => t.project_id as string))];
-  const { data: projs } = await admin
-    .from('projects')
-    .select('id, name')
-    .in('id', projectIds);
+    const projectIds = [...new Set(tasks.map((t) => t.project_id as string))];
+    const { data: projs } = await admin
+      .from('projects')
+      .select('id, name')
+      .in('id', projectIds);
 
-  const projMap = new Map((projs ?? []).map((p) => [p.id as string, p.name as string]));
+    const projMap = new Map((projs ?? []).map((p) => [p.id as string, p.name as string]));
 
-  return tasks.map((t) => ({
-    id:           t.id as string,
-    name:         t.name as string,
-    due:          t.due as string,
-    project_id:   t.project_id as string,
-    project_name: projMap.get(t.project_id as string) ?? '—',
-    priority:     (t.priority as string) ?? 'mid',
-  }));
+    return tasks.map((t) => ({
+      id:           t.id as string,
+      name:         t.name as string,
+      due:          t.due as string,
+      project_id:   t.project_id as string,
+      project_name: projMap.get(t.project_id as string) ?? '—',
+      priority:     (t.priority as string) ?? 'mid',
+    }));
+  } catch {
+    return [];
+  }
 }
 
 // ── getProjectFull ────────────────────────────────────────────────────────────
+
+const BASE_PROJECT_SELECT = 'id, name, description, status, affair_number, quote_number, quote_id, client_id, deadline, amount_ttc, type, notes, clients(nom, adresse, ville, tel, email, contact)';
+const FULL_PROJECT_SELECT = `${BASE_PROJECT_SELECT}, purchase_amount, hours_sold, installer_name, installer_ref, installer_contact, supplier_name, materials, reminder_time, reminder_email, reminder_active`;
 
 export async function getProjectFull(
   projectId: string,
@@ -554,66 +567,143 @@ export async function getProjectFull(
 ): Promise<ProjectDetailData | null> {
   const admin = createAdminClient();
 
-  const [projRes, intRes] = await Promise.all([
-    admin
-      .from('projects')
-      .select('id, name, description, status, affair_number, quote_number, quote_id, client_id, deadline, amount_ttc, type, notes, purchase_amount, hours_sold, installer_name, installer_ref, installer_contact, supplier_name, materials, reminder_time, reminder_email, reminder_active, clients(nom, adresse, ville, tel, email, contact)')
-      .eq('id', projectId)
-      .eq('tenant_id', tenantId)
-      .single(),
+  // Try full select first; fall back to base columns if new columns don't exist yet
+  let projData: Record<string, unknown> | null = null;
+  let hasExtendedCols = true;
 
-    admin
-      .from('interventions')
-      .select('hours_planned')
-      .eq('project_id', projectId)
-      .eq('tenant_id', tenantId)
-      .not('hours_planned', 'is', null),
-  ]);
+  try {
+    const [projRes, intRes] = await Promise.all([
+      admin
+        .from('projects')
+        .select(FULL_PROJECT_SELECT)
+        .eq('id', projectId)
+        .eq('tenant_id', tenantId)
+        .single(),
 
-  if (projRes.error || !projRes.data) return null;
-  const p  = projRes.data;
-  const cl = (p.clients as unknown as {
-    nom: string; adresse: string | null; ville: string | null;
-    tel: string | null; email: string | null; contact: string | null;
-  } | null);
+      admin
+        .from('interventions')
+        .select('hours_planned')
+        .eq('project_id', projectId)
+        .eq('tenant_id', tenantId)
+        .not('hours_planned', 'is', null),
+    ]);
 
-  const hoursPlanified = (intRes.data ?? []).reduce(
-    (sum, i) => sum + ((i.hours_planned as number | null) ?? 0), 0,
-  );
+    if (projRes.error) {
+      // Possibly missing columns — retry with base select
+      throw projRes.error;
+    }
+    if (!projRes.data) return null;
+    projData = projRes.data as unknown as Record<string, unknown>;
 
-  const rawMaterials = (p.materials as unknown as string[] | null) ?? [];
+    const cl = (projData.clients as unknown as {
+      nom: string; adresse: string | null; ville: string | null;
+      tel: string | null; email: string | null; contact: string | null;
+    } | null);
 
-  return {
-    id:                p.id,
-    name:              p.name,
-    description:       (p.description as string | null) ?? null,
-    status:            (p.status as string) ?? 'nouveau',
-    affair_number:     (p.affair_number as string | null) ?? null,
-    quote_number:      (p.quote_number as string | null) ?? null,
-    quote_id:          (p.quote_id as string | null) ?? null,
-    client_id:         (p.client_id as string | null) ?? null,
-    deadline:          (p.deadline as string | null) ?? null,
-    amount_ttc:        (p.amount_ttc as number) ?? 0,
-    type:              (p.type as string | null) ?? null,
-    notes:             (p.notes as string | null) ?? null,
-    purchase_amount:   (p as unknown as { purchase_amount?: number | null }).purchase_amount ?? null,
-    hours_sold:        (p as unknown as { hours_sold?: number | null }).hours_sold ?? null,
-    installer_name:    (p as unknown as { installer_name?: string | null }).installer_name ?? null,
-    installer_ref:     (p as unknown as { installer_ref?: string | null }).installer_ref ?? null,
-    installer_contact: (p as unknown as { installer_contact?: string | null }).installer_contact ?? null,
-    supplier_name:     (p as unknown as { supplier_name?: string | null }).supplier_name ?? null,
-    materials:         rawMaterials,
-    reminder_time:     (p as unknown as { reminder_time?: string | null }).reminder_time ?? null,
-    reminder_email:    (p as unknown as { reminder_email?: string | null }).reminder_email ?? null,
-    reminder_active:   (p as unknown as { reminder_active?: boolean }).reminder_active ?? false,
-    client_nom:        cl?.nom     ?? '—',
-    client_adresse:    cl?.adresse ?? null,
-    client_ville:      cl?.ville   ?? null,
-    client_tel:        cl?.tel     ?? null,
-    client_email:      cl?.email   ?? null,
-    client_contact:    cl?.contact ?? null,
-    hours_planned:     Math.round(hoursPlanified * 10) / 10,
-  };
+    const hoursPlanified = (intRes.data ?? []).reduce(
+      (sum, i) => sum + ((i.hours_planned as number | null) ?? 0), 0,
+    );
+
+    const rawMaterials = (projData.materials as string[] | null) ?? [];
+
+    return {
+      id:                projData.id as string,
+      name:              projData.name as string,
+      description:       (projData.description as string | null) ?? null,
+      status:            (projData.status as string) ?? 'nouveau',
+      affair_number:     (projData.affair_number as string | null) ?? null,
+      quote_number:      (projData.quote_number as string | null) ?? null,
+      quote_id:          (projData.quote_id as string | null) ?? null,
+      client_id:         (projData.client_id as string | null) ?? null,
+      deadline:          (projData.deadline as string | null) ?? null,
+      amount_ttc:        (projData.amount_ttc as number) ?? 0,
+      type:              (projData.type as string | null) ?? null,
+      notes:             (projData.notes as string | null) ?? null,
+      purchase_amount:   (projData.purchase_amount as number | null) ?? null,
+      hours_sold:        (projData.hours_sold as number | null) ?? null,
+      installer_name:    (projData.installer_name as string | null) ?? null,
+      installer_ref:     (projData.installer_ref as string | null) ?? null,
+      installer_contact: (projData.installer_contact as string | null) ?? null,
+      supplier_name:     (projData.supplier_name as string | null) ?? null,
+      materials:         rawMaterials,
+      reminder_time:     (projData.reminder_time as string | null) ?? null,
+      reminder_email:    (projData.reminder_email as string | null) ?? null,
+      reminder_active:   (projData.reminder_active as boolean) ?? false,
+      client_nom:        cl?.nom     ?? '—',
+      client_adresse:    cl?.adresse ?? null,
+      client_ville:      cl?.ville   ?? null,
+      client_tel:        cl?.tel     ?? null,
+      client_email:      cl?.email   ?? null,
+      client_contact:    cl?.contact ?? null,
+      hours_planned:     Math.round(hoursPlanified * 10) / 10,
+    };
+  } catch {
+    hasExtendedCols = false;
+  }
+
+  // Fallback: base columns only (new columns not yet migrated)
+  if (!hasExtendedCols) {
+    const [projRes, intRes] = await Promise.all([
+      admin
+        .from('projects')
+        .select(BASE_PROJECT_SELECT)
+        .eq('id', projectId)
+        .eq('tenant_id', tenantId)
+        .single(),
+
+      admin
+        .from('interventions')
+        .select('hours_planned')
+        .eq('project_id', projectId)
+        .eq('tenant_id', tenantId)
+        .not('hours_planned', 'is', null),
+    ]);
+
+    if (projRes.error || !projRes.data) return null;
+    const p  = projRes.data as unknown as Record<string, unknown>;
+    const cl = (p.clients as unknown as {
+      nom: string; adresse: string | null; ville: string | null;
+      tel: string | null; email: string | null; contact: string | null;
+    } | null);
+
+    const hoursPlanified = (intRes.data ?? []).reduce(
+      (sum, i) => sum + ((i.hours_planned as number | null) ?? 0), 0,
+    );
+
+    return {
+      id:                p.id as string,
+      name:              p.name as string,
+      description:       (p.description as string | null) ?? null,
+      status:            (p.status as string) ?? 'nouveau',
+      affair_number:     (p.affair_number as string | null) ?? null,
+      quote_number:      (p.quote_number as string | null) ?? null,
+      quote_id:          (p.quote_id as string | null) ?? null,
+      client_id:         (p.client_id as string | null) ?? null,
+      deadline:          (p.deadline as string | null) ?? null,
+      amount_ttc:        (p.amount_ttc as number) ?? 0,
+      type:              (p.type as string | null) ?? null,
+      notes:             (p.notes as string | null) ?? null,
+      purchase_amount:   null,
+      hours_sold:        null,
+      installer_name:    null,
+      installer_ref:     null,
+      installer_contact: null,
+      supplier_name:     null,
+      materials:         [],
+      reminder_time:     null,
+      reminder_email:    null,
+      reminder_active:   false,
+      client_nom:        cl?.nom     ?? '—',
+      client_adresse:    cl?.adresse ?? null,
+      client_ville:      cl?.ville   ?? null,
+      client_tel:        cl?.tel     ?? null,
+      client_email:      cl?.email   ?? null,
+      client_contact:    cl?.contact ?? null,
+      hours_planned:     Math.round(hoursPlanified * 10) / 10,
+    };
+  }
+
+  return null;
 }
 
 // ── saveProjectDetail ─────────────────────────────────────────────────────────

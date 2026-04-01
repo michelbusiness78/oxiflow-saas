@@ -166,20 +166,24 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
 
   const { projets, taches, interventions, clients } = legacyData;
 
-  // Task counts pour les cartes ProjectList
+  // Task counts pour les cartes ProjectList (table optionnelle)
   const taskCountsMap: Record<string, { done: number; total: number }> = {};
   if (tenantId && projectsR4.length > 0) {
-    const projectIds = projectsR4.map((p) => p.id);
-    const { data: taskRows } = await admin
-      .from('project_tasks')
-      .select('project_id, done')
-      .eq('tenant_id', tenantId)
-      .in('project_id', projectIds);
-    for (const t of (taskRows ?? [])) {
-      const id = t.project_id as string;
-      if (!taskCountsMap[id]) taskCountsMap[id] = { done: 0, total: 0 };
-      taskCountsMap[id].total++;
-      if (t.done) taskCountsMap[id].done++;
+    try {
+      const projectIds = projectsR4.map((p) => p.id);
+      const { data: taskRows } = await admin
+        .from('project_tasks')
+        .select('project_id, done')
+        .eq('tenant_id', tenantId)
+        .in('project_id', projectIds);
+      for (const t of (taskRows ?? [])) {
+        const id = t.project_id as string;
+        if (!taskCountsMap[id]) taskCountsMap[id] = { done: 0, total: 0 };
+        taskCountsMap[id].total++;
+        if (t.done) taskCountsMap[id].done++;
+      }
+    } catch {
+      // table project_tasks absente — on ignore
     }
   }
   const usersPlain        = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
