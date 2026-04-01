@@ -205,17 +205,31 @@ export async function sendInterventionReport(
 
   if (ivErr || !iv) return { error: 'Intervention introuvable' };
 
-  // Trouver l'assistante ou le dirigeant
-  const { data: candidates } = await admin
+  // Chercher le dirigeant du tenant
+  const adminClient = createAdminClient();
+  const { data: dirigeants } = await adminClient
     .from('users')
     .select('email, name, role')
     .eq('tenant_id', tenant_id)
-    .in('role', ['assistante', 'dirigeant'])
-    .eq('active', true);
+    .eq('role', 'dirigeant')
+    .eq('active', true)
+    .limit(1);
 
-  const recipient =
-    (candidates ?? []).find((u) => u.role === 'assistante') ??
-    (candidates ?? []).find((u) => u.role === 'dirigeant');
+  let recipient = (dirigeants ?? [])[0] ?? null;
+
+  // Fallback : n'importe quel utilisateur actif avec un email valide
+  if (!recipient?.email) {
+    const { data: anyUser } = await adminClient
+      .from('users')
+      .select('email, name, role')
+      .eq('tenant_id', tenant_id)
+      .eq('active', true)
+      .not('email', 'is', null)
+      .limit(1);
+    recipient = (anyUser ?? [])[0] ?? null;
+  }
+
+  console.log('[sendInterventionReport] destinataire:', recipient?.email ?? 'aucun');
 
   if (!recipient?.email) return { error: 'Aucun destinataire configuré' };
 
