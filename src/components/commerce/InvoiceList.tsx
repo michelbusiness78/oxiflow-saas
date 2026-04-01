@@ -32,11 +32,12 @@ interface InvoiceListProps {
   invoices:  Invoice[];
   clients:   { id: string; nom: string }[];
   catalogue: CatalogueItem[];
+  companies?: { id: string; name: string }[];
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export function InvoiceList({ invoices, clients, catalogue }: InvoiceListProps) {
+export function InvoiceList({ invoices, clients, catalogue, companies = [] }: InvoiceListProps) {
   const [formOpen,     setFormOpen]     = useState(false);
   const [editing,      setEditing]      = useState<Invoice | null>(null);
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'tous'>('tous');
@@ -227,6 +228,7 @@ export function InvoiceList({ invoices, clients, catalogue }: InvoiceListProps) 
         editing={editing}
         clients={clients}
         catalogue={catalogue}
+        companies={companies}
       />
     </>
   );

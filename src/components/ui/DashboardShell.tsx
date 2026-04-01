@@ -47,6 +47,7 @@ interface DashboardShellProps {
   allowedHrefs?:  string[];
   moduleCounts?:  Record<string, number>;
   notifications?: ProjectNotifData[];
+  companies?:     { id: string; name: string; color?: string }[];
 }
 
 export function DashboardShell({
@@ -57,6 +58,7 @@ export function DashboardShell({
   allowedHrefs,
   moduleCounts,
   notifications,
+  companies,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -70,6 +72,7 @@ export function DashboardShell({
         moduleCounts={moduleCounts}
         userName={userName}
         userRole={userRole}
+        companies={companies}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">

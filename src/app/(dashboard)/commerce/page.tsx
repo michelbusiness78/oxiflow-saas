@@ -10,6 +10,7 @@ import { CommerceDashboard }   from '@/components/commerce/CommerceDashboard';
 import { InvoiceList }         from '@/components/commerce/InvoiceList';
 import { getDashboardCommerce } from '@/app/actions/commerce';
 import { getInvoices }         from '@/app/actions/invoices';
+import { getCompanies }        from '@/app/actions/companies';
 import type { Client }         from '@/components/commerce/ClientList';
 import type { Contrat }        from '@/components/commerce/ContratForm';
 import type { CatalogueItem }  from '@/app/actions/catalogue';
@@ -33,7 +34,7 @@ async function fetchCommerceData() {
   const tenantId        = profile?.tenant_id as string;
   const currentUserName = (profile?.name as string) ?? user.email ?? 'Utilisateur';
 
-  const [clientsRes, quotesRes, contratsRes, catalogueRes, devisRes, usersRes, tenantRes, invoicesData] =
+  const [clientsRes, quotesRes, contratsRes, catalogueRes, devisRes, usersRes, companiesData, invoicesData] =
     await Promise.all([
       admin
         .from('clients')
@@ -42,7 +43,7 @@ async function fetchCommerceData() {
         .order('nom'),
       admin
         .from('quotes')
-        .select('id, number, affair_number, client_id, commercial_user_id, chef_projet_user_id, objet, date, validity, statut, lignes, notes, conditions, deposit_percent, project_created, project_id, montant_ht, tva_amount, montant_ttc, created_at, clients(nom)')
+        .select('id, number, affair_number, client_id, company_id, commercial_user_id, chef_projet_user_id, objet, date, validity, statut, lignes, notes, conditions, deposit_percent, project_created, project_id, montant_ht, tva_amount, montant_ttc, created_at, clients(nom)')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false }),
       admin
@@ -65,11 +66,7 @@ async function fetchCommerceData() {
         .select('id, name, role')
         .eq('tenant_id', tenantId)
         .order('name'),
-      admin
-        .from('tenants')
-        .select('name')
-        .eq('id', tenantId)
-        .single(),
+      getCompanies(tenantId),
       getInvoices(tenantId),
     ]);
 
@@ -95,13 +92,13 @@ async function fetchCommerceData() {
     client_nom: (d.clients as unknown as { nom: string } | null)?.nom ?? '—',
   }));
 
-  const users      = (usersRes.data ?? []) as TenantUser[];
-  const tenantName = (tenantRes.data?.name as string) ?? '';
-  const invoices   = invoicesData;
+  const users    = (usersRes.data ?? []) as TenantUser[];
+  const companies = companiesData;
+  const invoices  = invoicesData;
 
   return {
     tenantId, clients, quotes, invoices, contrats, catalogue, devis,
-    users, currentUserId: user.id, currentUserName, tenantName,
+    users, currentUserId: user.id, currentUserName, companies,
   };
 }
 
@@ -154,7 +151,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
   // ── Autres onglets ──────────────────────────────────────────────────────────
   const {
     clients, quotes, invoices, contrats, catalogue,
-    users, currentUserId, currentUserName, tenantName,
+    users, currentUserId, currentUserName, companies,
   } = await fetchCommerceData();
 
   const tabs: TabItem[] = [
@@ -183,7 +180,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
             users={users}
             currentUserId={currentUserId}
             currentUserName={currentUserName}
-            tenantName={tenantName}
+            companies={companies}
             invoices={invoices}
           />
         )}
@@ -193,6 +190,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
             invoices={invoices}
             clients={clients}
             catalogue={catalogue}
+            companies={companies}
           />
         )}
 

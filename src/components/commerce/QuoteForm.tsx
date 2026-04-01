@@ -91,9 +91,9 @@ interface QuoteFormProps {
   clients:         { id: string; nom: string }[];
   catalogue:       CatalogueItem[];
   users:           TenantUser[];
+  companies:       { id: string; name: string; color?: string }[];
   currentUserId:   string;
   currentUserName: string;
-  tenantName:      string;
   relatedInvoice?: { id: string; number: string; status: InvoiceStatus } | null;
 }
 
@@ -281,11 +281,12 @@ const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
 
 export function QuoteForm({
   open, onClose, editing, clients, catalogue,
-  users, currentUserId, currentUserName, tenantName,
+  users, companies, currentUserId, currentUserName,
   relatedInvoice,
 }: QuoteFormProps) {
   // ── Champs ──
   const [clientId,       setClientId]       = useState('');
+  const [companyId,      setCompanyId]      = useState('');
   const [chefProjetId,   setChefProjetId]   = useState('');
   const [objet,          setObjet]          = useState('');
   const [date,           setDate]           = useState(todayISO());
@@ -322,6 +323,7 @@ export function QuoteForm({
     if (!open) return;
     if (editing) {
       setClientId(editing.client_id ?? '');
+      setCompanyId(editing.company_id ?? (companies.length === 1 ? companies[0].id : ''));
       setChefProjetId(editing.chef_projet_user_id ?? '');
       setObjet(editing.objet ?? '');
       setDate(editing.date);
@@ -333,6 +335,7 @@ export function QuoteForm({
     } else {
       const today = todayISO();
       setClientId('');
+      setCompanyId(companies.length === 1 ? companies[0].id : '');
       setChefProjetId('');
       setObjet('');
       setDate(today);
@@ -420,6 +423,7 @@ export function QuoteForm({
 
     const input: QuoteInput = {
       client_id:           clientId || null,
+      company_id:          companyId || null,
       chef_projet_user_id: chefProjetId || null,
       objet,
       date,
@@ -643,7 +647,16 @@ export function QuoteForm({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelCls}>Société émettrice</label>
-                <div className={roInputCls}>{tenantName || '—'}</div>
+                {companies.length > 0 ? (
+                  <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} disabled={readonly} className={inputCls}>
+                    <option value="">— Sélectionner —</option>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className={roInputCls}>Aucune société configurée</div>
+                )}
               </div>
               <div>
                 <label className={labelCls}>Statut</label>

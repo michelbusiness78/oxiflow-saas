@@ -40,6 +40,7 @@ export interface Quote {
   montant_ht:          number;
   tva_amount:          number;
   montant_ttc:         number;
+  company_id:          string | null;
   project_created:     boolean;
   project_id:          string | null;
   created_at:          string;
@@ -47,6 +48,7 @@ export interface Quote {
 
 export type QuoteInput = {
   client_id:           string | null;
+  company_id:          string | null;
   chef_projet_user_id: string | null;
   objet:               string;
   date:                string;
@@ -97,6 +99,7 @@ export async function saveQuoteAction(
 
   const common = {
     client_id:           input.client_id,
+    company_id:          input.company_id || null,
     chef_projet_user_id: input.chef_projet_user_id || null,
     objet:               input.objet || null,
     date:                input.date,

@@ -5,16 +5,7 @@ import { getTenantUsers }                      from '@/app/actions/users-managem
 import { SettingsTabs }  from '@/components/settings/SettingsTabs';
 import { CompanyList }   from '@/components/settings/CompanyList';
 import { UserList }      from '@/components/settings/UserList';
-import { SocieteForm }   from '@/components/settings/SocieteForm';
 import { Subscription }  from '@/components/settings/Subscription';
-
-// ── Fallback tenant vide ───────────────────────────────────────────────────────
-const EMPTY_TENANT = {
-  name: '', siret: null, tva_intra: null, address: null,
-  cp: null, ville: null, phone: null, email: null,
-  logo_url: null, iban: null, bic: null,
-  conditions_paiement: null, mentions_legales: null,
-};
 
 export default async function ParametresPage() {
   // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -34,40 +25,35 @@ export default async function ParametresPage() {
   const role = (profile?.role as string | null) ?? 'dirigeant';
   if (role !== 'dirigeant') redirect('/pilotage');
 
-  const tenantId   = profile?.tenant_id as string;
+  const tenantId    = profile?.tenant_id as string;
   const currentYear = new Date().getFullYear();
 
   // ── Données parallèles ───────────────────────────────────────────────────────
-  const [tenantRes, tenantUsers, companies, objectives] = await Promise.all([
-    admin.from('tenants').select('*').eq('id', tenantId).single(),
+  const [tenantRes, tenantUsers, companiesRaw, objectives] = await Promise.all([
+    admin.from('tenants').select('id, name, email').eq('id', tenantId).single(),
     getTenantUsers(tenantId),
     getCompanies(tenantId),
     getCompanyObjectives(tenantId, currentYear),
   ]);
 
-  const tenant = tenantRes.data as Record<string, unknown> | null;
+  const tenant = tenantRes.data as { id: string; name: string; email?: string } | null;
 
-  const plan       = (tenant?.plan       as string | null) ?? 'trial';
-  const plan_debut = (tenant?.plan_debut as string | null) ?? (tenant?.created_at as string | null) ?? new Date().toISOString();
-  const plan_fin   = (tenant?.plan_fin   as string | null) ?? new Date(Date.now() + 14 * 86_400_000).toISOString();
+  // ── Auto-migration : créer une company depuis le tenant si aucune n'existe ──
+  let companies = companiesRaw;
+  if (companies.length === 0 && tenant) {
+    await admin.from('companies').insert({
+      tenant_id: tenantId,
+      name:      tenant.name ?? 'Ma Société',
+      email:     (tenant as Record<string, unknown>).email ?? null,
+      active:    true,
+    });
+    companies = await getCompanies(tenantId);
+  }
 
-  const tenantData = tenant
-    ? {
-        name:                (tenant.name                as string)      ?? '',
-        siret:               (tenant.siret               as string|null) ?? null,
-        tva_intra:           (tenant.tva_intra           as string|null) ?? null,
-        address:             (tenant.address             as string|null) ?? null,
-        cp:                  (tenant.cp                  as string|null) ?? null,
-        ville:               (tenant.ville               as string|null) ?? null,
-        phone:               (tenant.phone               as string|null) ?? null,
-        email:               (tenant.email               as string|null) ?? null,
-        logo_url:            (tenant.logo_url            as string|null) ?? null,
-        iban:                (tenant.iban                as string|null) ?? null,
-        bic:                 (tenant.bic                 as string|null) ?? null,
-        conditions_paiement: (tenant.conditions_paiement as string|null) ?? null,
-        mentions_legales:    (tenant.mentions_legales    as string|null) ?? null,
-      }
-    : EMPTY_TENANT;
+  const tenant_ = tenantRes.data as Record<string, unknown> | null;
+  const plan       = (tenant_?.plan       as string | null) ?? 'trial';
+  const plan_debut = (tenant_?.plan_debut as string | null) ?? (tenant_?.created_at as string | null) ?? new Date().toISOString();
+  const plan_fin   = (tenant_?.plan_fin   as string | null) ?? new Date(Date.now() + 14 * 86_400_000).toISOString();
 
   return (
     <div className="space-y-6">
@@ -80,7 +66,6 @@ export default async function ParametresPage() {
 
       <SettingsTabs
         societes={<CompanyList companies={companies} objectives={objectives} />}
-        societe={<SocieteForm tenant={tenantData} />}
         utilisateurs={
           <UserList
             users={tenantUsers}

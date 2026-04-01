@@ -29,15 +29,15 @@ interface QuoteListProps {
   clients:         { id: string; nom: string }[];
   catalogue:       CatalogueItem[];
   users:           TenantUser[];
+  companies:       { id: string; name: string; color?: string }[];
   currentUserId:   string;
   currentUserName: string;
-  tenantName:      string;
   invoices?:       Pick<Invoice, 'id' | 'number' | 'quote_id' | 'status'>[];
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export function QuoteList({ quotes, clients, catalogue, users, currentUserId, currentUserName, tenantName, invoices }: QuoteListProps) {
+export function QuoteList({ quotes, clients, catalogue, users, companies, currentUserId, currentUserName, invoices }: QuoteListProps) {
   const [formOpen,     setFormOpen]     = useState(false);
   const [editing,      setEditing]      = useState<QuoteWithClient | null>(null);
   const [statusFilter, setStatusFilter] = useState<QuoteStatut | 'tous'>('tous');
@@ -249,9 +249,9 @@ export function QuoteList({ quotes, clients, catalogue, users, currentUserId, cu
         clients={clients}
         catalogue={catalogue}
         users={users}
+        companies={companies}
         currentUserId={currentUserId}
         currentUserName={currentUserName}
-        tenantName={tenantName}
         relatedInvoice={
           editing && invoices
             ? (invoices.find((i) => i.quote_id === editing.id) ?? null)

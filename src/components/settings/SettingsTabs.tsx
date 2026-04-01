@@ -2,23 +2,21 @@
 
 import { useState } from 'react';
 
-type Tab = 'societes' | 'societe' | 'utilisateurs' | 'abonnement';
+type Tab = 'societes' | 'utilisateurs' | 'abonnement';
 
 interface Props {
   societes:     React.ReactNode;
-  societe:      React.ReactNode;
   utilisateurs: React.ReactNode;
   abonnement:   React.ReactNode;
 }
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'societes',     label: 'Sociétés'     },
-  { key: 'societe',      label: 'Tenant'       },
   { key: 'utilisateurs', label: 'Utilisateurs' },
   { key: 'abonnement',   label: 'Abonnement'   },
 ];
 
-export function SettingsTabs({ societes, societe, utilisateurs, abonnement }: Props) {
+export function SettingsTabs({ societes, utilisateurs, abonnement }: Props) {
   const [tab, setTab] = useState<Tab>('societes');
 
   return (
@@ -46,7 +44,6 @@ export function SettingsTabs({ societes, societe, utilisateurs, abonnement }: Pr
       {/* Tab content */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
         {tab === 'societes'     && societes}
-        {tab === 'societe'      && societe}
         {tab === 'utilisateurs' && utilisateurs}
         {tab === 'abonnement'   && abonnement}
       </div>

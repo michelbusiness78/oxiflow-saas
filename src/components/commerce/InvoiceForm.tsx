@@ -182,19 +182,21 @@ function LigneRow({
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface InvoiceFormProps {
-  open:      boolean;
-  onClose:   () => void;
-  editing:   Invoice | null;
-  clients:   { id: string; nom: string }[];
-  catalogue: CatalogueItem[];
+  open:       boolean;
+  onClose:    () => void;
+  editing:    Invoice | null;
+  clients:    { id: string; nom: string }[];
+  catalogue:  CatalogueItem[];
+  companies?: { id: string; name: string }[];
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export function InvoiceForm({ open, onClose, editing, clients, catalogue }: InvoiceFormProps) {
+export function InvoiceForm({ open, onClose, editing, clients, catalogue, companies = [] }: InvoiceFormProps) {
   const router = useRouter();
 
   const [clientId,     setClientId]     = useState('');
+  const [companyId,    setCompanyId]    = useState('');
   const [dateFact,     setDateFact]     = useState(todayISO());
   const [dateEch,      setDateEch]      = useState(addDays(todayISO(), 30));
   const [conditions,   setConditions]   = useState('');
@@ -218,6 +220,7 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue }: Invo
     if (!open) return;
     setLocalStatus(null);
     setClientId(editing?.client_id ?? '');
+    setCompanyId(editing?.company_id ?? (companies.length === 1 ? companies[0].id : ''));
     setDateFact(editing?.date_facture ?? todayISO());
     setDateEch(editing?.date_echeance ?? addDays(todayISO(), 30));
     setConditions(editing?.conditions ?? '');
@@ -301,6 +304,7 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue }: Invo
 
     const input: InvoiceInput = {
       client_id:     clientId,
+      company_id:    companyId || null,
       quote_id:      editing?.quote_id ?? null,
       quote_number:  editing?.quote_number ?? null,
       date_facture:  dateFact,
@@ -420,6 +424,17 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue }: Invo
                 </div>
               </div>
             </div>
+
+            {companies.length > 0 && (
+              <div>
+                <label className={labelCls}>Société émettrice</label>
+                <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}
+                  disabled={readonly} className={inputCls}>
+                  <option value="">— Sélectionner —</option>
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className={labelCls}>Client *</label>

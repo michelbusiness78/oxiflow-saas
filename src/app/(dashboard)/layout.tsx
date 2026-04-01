@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { DashboardShell } from '@/components/ui/DashboardShell';
 import { ensureUserProfile } from '@/lib/ensure-profile';
 import { getProjectNotifications } from '@/app/actions/projects';
+import { getCompanies } from '@/app/actions/companies';
 
 // Modules autorisés par rôle (en sync avec proxy.ts)
 const ROLE_MODULES: Record<string, string[]> = {
@@ -40,11 +41,12 @@ export default async function DashboardLayout({
   let catalogueCount = 0;
   let projectsCount  = 0;
   let notifications: import('@/app/actions/projects').ProjectNotifData[] = [];
+  let companies: { id: string; name: string; color?: string }[] = [];
 
   if (tenantId) {
     const admin = await createAdminClient();
 
-    const [catRes, projRes, notifs] = await Promise.all([
+    const [catRes, projRes, notifs, companiesData] = await Promise.all([
       admin
         .from('catalogue')
         .select('*', { count: 'exact', head: true })
@@ -56,11 +58,13 @@ export default async function DashboardLayout({
         .eq('tenant_id', tenantId)
         .in('status', ['nouveau', 'en_cours']),
       getProjectNotifications(user.id),
+      getCompanies(tenantId),
     ]);
 
     catalogueCount = catRes.count  ?? 0;
     projectsCount  = projRes.count ?? 0;
     notifications  = notifs as typeof notifications;
+    companies      = companiesData;
   }
 
   const allowedHrefs = role === 'dirigeant' ? undefined : (ROLE_MODULES[role] ?? ROLE_MODULES.commercial);
@@ -73,6 +77,7 @@ export default async function DashboardLayout({
       allowedHrefs={allowedHrefs}
       moduleCounts={{ '/commerce': catalogueCount, '/projets': projectsCount }}
       notifications={notifications}
+      companies={companies}
     >
       {children}
     </DashboardShell>

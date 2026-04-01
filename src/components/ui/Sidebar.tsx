@@ -14,6 +14,7 @@ interface SidebarProps {
   moduleCounts?: Record<string, number>;
   userName?:     string;
   userRole?:     string;
+  companies?:    { id: string; name: string; color?: string }[];
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -53,6 +54,7 @@ export function Sidebar({
   moduleCounts,
   userName = '',
   userRole = '',
+  companies = [],
 }: SidebarProps) {
   const pathname = usePathname();
   const router   = useRouter();
@@ -165,6 +167,26 @@ export function Sidebar({
             })}
           </ul>
         </nav>
+
+        {/* ── Sociétés ── */}
+        {companies.length > 0 && (
+          <div className="mt-4 px-2.5">
+            <p className="mb-1.5 px-0 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+              Sociétés
+            </p>
+            <ul className="space-y-0.5">
+              {companies.map((co) => (
+                <li key={co.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: co.color ?? '#2563eb' }}
+                  />
+                  <span className="truncate text-[12px] font-medium text-slate-400">{co.name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* ── Footer ── */}
         <div className="shrink-0 border-t border-white/[0.06] p-3 space-y-0.5">
