@@ -21,6 +21,20 @@ export interface CalendarEventData {
   techNom?:     string;
   projectId?:   string;
   notes?:       string;
+  // Nature / urgence
+  nature?:      string;
+  urgency?:     string;
+}
+
+export interface ProjectForPlanning {
+  id:             string;
+  name:           string;
+  affair_number:  string | null;
+  client_id:      string | null;
+  client_nom:     string;
+  client_address: string | null;
+  client_city:    string | null;
+  client_phone:   string | null;
 }
 
 export interface DashboardData {
@@ -40,16 +54,23 @@ export interface DashboardData {
 }
 
 export interface InterventionInput {
-  title:         string;
-  date_start:    string;   // ISO
-  date_end?:     string;   // ISO
-  client_id?:    string;
-  project_id?:   string;
-  tech_user_id?: string;
-  tech_name?:    string;
-  status?:       string;
-  notes?:        string;
-  type?:         string;
+  title:              string;
+  date_start:         string;   // ISO
+  date_end?:          string;   // ISO
+  client_id?:         string;
+  project_id?:        string;
+  tech_user_id?:      string;
+  tech_name?:         string;
+  status?:            string;
+  notes?:             string;
+  type?:              string;
+  // Nature Projet / SAV
+  nature?:            string;   // 'projet' | 'sav'
+  type_intervention?: string;   // 'reseau' | 'securite' | 'telephonie' | 'informatique' | 'autre'
+  urgency?:           string;   // 'normal' | 'urgent' | 'critique'
+  hours_planned?:     number;
+  under_contract?:    boolean;
+  observations?:      string;   // description problème SAV (visible technicien)
 }
 
 // ── Colors ────────────────────────────────────────────────────────────────────
@@ -146,7 +167,7 @@ export async function getCalendarEvents(
   const [intRes, projRes] = await Promise.all([
     admin
       .from('interventions')
-      .select('id, title, date_start, date_end, status, client_id, tech_user_id, tech_name, project_id, notes, clients(nom)')
+      .select('id, title, date_start, date_end, status, client_id, tech_user_id, tech_name, project_id, notes, nature, urgency, clients(nom)')
       .eq('tenant_id', tenant_id)
       .gte('date_start', startDate)
       .lte('date_start', endDate)
@@ -165,6 +186,19 @@ export async function getCalendarEvents(
 
   for (const i of (intRes.data ?? [])) {
     if (!i.date_start) continue;
+    const nature  = (i as unknown as { nature?: string }).nature;
+    const urgency = (i as unknown as { urgency?: string }).urgency;
+
+    // Couleur : SAV → jaune/orange/rouge selon urgence, Projet → bleu/orange/vert selon statut
+    let color: string;
+    if (nature === 'sav') {
+      if (urgency === 'critique') color = '#fca5a5'; // red-300
+      else if (urgency === 'urgent') color = '#fdba74'; // orange-300
+      else color = '#fde68a'; // amber-200
+    } else {
+      color = INTERVENTION_COLORS[i.status ?? 'planifiee'] ?? '#93c5fd';
+    }
+
     events.push({
       id:           i.id,
       title:        i.title ?? 'Intervention',
@@ -172,13 +206,15 @@ export async function getCalendarEvents(
       endISO:       i.date_end ?? i.date_start,
       type:         'intervention',
       status:       i.status ?? 'planifiee',
-      color:        INTERVENTION_COLORS[i.status ?? 'planifiee'] ?? '#93c5fd',
+      color,
       client_id:    i.client_id    ?? undefined,
       tech_user_id: i.tech_user_id ?? undefined,
       clientNom:    (i.clients as unknown as { nom: string } | null)?.nom,
       techNom:      i.tech_name ?? undefined,
       projectId:    i.project_id ?? undefined,
       notes:        i.notes     ?? undefined,
+      nature:       nature ?? 'projet',
+      urgency:      urgency ?? 'normal',
     });
   }
 
@@ -290,8 +326,15 @@ export async function createIntervention(
       client_city:         clientCity,
       client_phone:        clientPhone,
       affair_number:       affairNumber,
-      // matériel pré-rempli depuis le devis
+      // matériel pré-rempli depuis le devis (uniquement pour les projets)
       materials_installed: materialsFromDevis,
+      // Nature / SAV
+      nature:              data.nature            ?? 'projet',
+      type_intervention:   data.type_intervention ?? null,
+      urgency:             data.urgency           ?? 'normal',
+      hours_planned:       data.hours_planned     ?? null,
+      under_contract:      data.under_contract    ?? false,
+      observations:        data.observations      ?? null,
     })
     .select('id')
     .single();
@@ -337,6 +380,55 @@ export async function updateIntervention(
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return {};
+}
+
+// ── getProjectsForPlanning ─────────────────────────────────────────────────────
+
+export async function getProjectsForPlanning(): Promise<ProjectForPlanning[]> {
+  const { admin, tenant_id } = await getAuthContext();
+
+  const { data } = await admin
+    .from('projects')
+    .select('id, name, affair_number, client_id, clients(nom, adresse, ville, tel)')
+    .eq('tenant_id', tenant_id)
+    .in('status', ['nouveau', 'en_cours'])
+    .order('name');
+
+  return (data ?? []).map((p) => {
+    const cl = p.clients as unknown as {
+      nom: string; adresse: string | null; ville: string | null; tel: string | null
+    } | null;
+    return {
+      id:             p.id,
+      name:           p.name,
+      affair_number:  p.affair_number ?? null,
+      client_id:      p.client_id     ?? null,
+      client_nom:     cl?.nom         ?? '—',
+      client_address: cl?.adresse     ?? null,
+      client_city:    cl?.ville       ?? null,
+      client_phone:   cl?.tel         ?? null,
+    };
+  });
+}
+
+// ── getContractedClientIds ────────────────────────────────────────────────────
+
+export async function getContractedClientIds(): Promise<string[]> {
+  const { admin, tenant_id } = await getAuthContext();
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    const { data } = await admin
+      .from('contrats')
+      .select('client_id')
+      .eq('tenant_id', tenant_id)
+      .eq('actif', true)
+      .or(`date_fin.is.null,date_fin.gte.${today}`);
+
+    return (data ?? []).map((c: { client_id: string }) => c.client_id);
+  } catch {
+    return [];
+  }
 }
 
 // ── assignerTechnicienProjetAction (existant) ─────────────────────────────────

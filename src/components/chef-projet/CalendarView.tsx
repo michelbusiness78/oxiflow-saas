@@ -7,8 +7,9 @@ import { fr } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 import { getCalendarEvents as fetchEvents } from '@/app/actions/chef-projet';
-import type { CalendarEventData } from '@/app/actions/chef-projet';
+import type { CalendarEventData, ProjectForPlanning } from '@/app/actions/chef-projet';
 import { InterventionFormModal } from '@/components/chef-projet/InterventionFormModal';
+import type { ClientFull } from '@/components/chef-projet/InterventionFormModal';
 
 // ── Localizer ─────────────────────────────────────────────────────────────────
 
@@ -47,24 +48,49 @@ interface CalEvent {
 }
 
 function toCalEvents(data: CalendarEventData[]): CalEvent[] {
-  return data.map((e) => ({
-    id:       e.id,
-    title:    e.title,
-    start:    new Date(e.startISO),
-    end:      new Date(e.endISO),
-    resource: e,
-  }));
+  return data.map((e) => {
+    let prefix = '';
+    if (e.type === 'intervention') {
+      if (e.nature === 'sav') {
+        prefix = e.urgency === 'critique' ? '🚨 ' : '🔧 ';
+      } else {
+        prefix = '🏗 ';
+      }
+    }
+    return {
+      id:       e.id,
+      title:    prefix + e.title,
+      start:    new Date(e.startISO),
+      end:      new Date(e.endISO),
+      resource: e,
+    };
+  });
 }
 
 // ── Event style ───────────────────────────────────────────────────────────────
 
 function eventStyleGetter(event: CalEvent) {
-  const color = event.resource.color ?? '#93c5fd';
+  const color   = event.resource.color ?? '#93c5fd';
+  const nature  = event.resource.nature;
+  const urgency = event.resource.urgency;
+
+  let borderLeft = 'none';
+  if (event.resource.type === 'intervention') {
+    if (nature === 'sav') {
+      if (urgency === 'critique') borderLeft = '4px solid #dc2626';
+      else if (urgency === 'urgent') borderLeft = '4px solid #ea580c';
+      else borderLeft = '4px solid #d97706';
+    } else {
+      borderLeft = '4px solid #2563eb';
+    }
+  }
+
   return {
     style: {
       backgroundColor: color,
       borderRadius:    '6px',
       border:          'none',
+      borderLeft,
       color:           '#1e293b',
       fontSize:        '12px',
       fontWeight:      '500',
@@ -80,6 +106,12 @@ const STATUS_LABELS: Record<string, string> = {
   en_cours:  'En cours',
   terminee:  'Terminée',
   annulee:   'Annulée',
+};
+
+const URGENCY_LABELS: Record<string, string> = {
+  normal:   'Normal',
+  urgent:   'Urgent',
+  critique: 'Critique',
 };
 
 function EventDetailPanel({
@@ -113,7 +145,30 @@ function EventDetailPanel({
         <p>📅 {start} → {end}</p>
         {event.clientNom && <p>🏢 {event.clientNom}</p>}
         {event.techNom   && <p>👷 {event.techNom}</p>}
-        {event.status    && (
+
+        {/* Nature badge */}
+        {event.type === 'intervention' && event.nature && (
+          <p>
+            <span className={[
+              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
+              event.nature === 'sav'
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-blue-100 text-blue-800',
+            ].join(' ')}>
+              {event.nature === 'sav' ? '🔧 SAV' : '🏗 Projet'}
+            </span>
+            {event.nature === 'sav' && event.urgency && event.urgency !== 'normal' && (
+              <span className={[
+                'ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
+                event.urgency === 'critique' ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800',
+              ].join(' ')}>
+                {URGENCY_LABELS[event.urgency]}
+              </span>
+            )}
+          </p>
+        )}
+
+        {event.status && (
           <p>
             Statut :{' '}
             <span className="font-semibold text-slate-700">
@@ -138,16 +193,23 @@ function EventDetailPanel({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-interface Client  { id: string; nom: string }
 interface UserRow { id: string; name: string }
 
 interface Props {
-  initialEvents: CalendarEventData[];
-  clients:       Client[];
-  users:         UserRow[];
+  initialEvents:       CalendarEventData[];
+  clients:             ClientFull[];
+  techniciens:         UserRow[];
+  projects:            ProjectForPlanning[];
+  contractedClientIds: string[];
 }
 
-export function CalendarView({ initialEvents, clients, users }: Props) {
+export function CalendarView({
+  initialEvents,
+  clients,
+  techniciens,
+  projects,
+  contractedClientIds,
+}: Props) {
   const [events,     setEvents]     = useState<CalendarEventData[]>(initialEvents);
   const [isPending,  startTransition] = useTransition();
   const [selected,   setSelected]   = useState<CalendarEventData | null>(null);
@@ -189,7 +251,6 @@ export function CalendarView({ initialEvents, clients, users }: Props) {
   }, [selected]);
 
   const handleSaved = useCallback(() => {
-    // Refetch current visible range — trigger by resetting events to force re-render
     startTransition(async () => {
       const now   = new Date();
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -257,7 +318,9 @@ export function CalendarView({ initialEvents, clients, users }: Props) {
         onSaved={handleSaved}
         editing={editing}
         clients={clients}
-        users={users}
+        techniciens={techniciens}
+        projects={projects}
+        contractedClientIds={contractedClientIds}
         defaultStart={clickedSlot}
       />
     </div>

@@ -7,7 +7,7 @@ import { ChefDashboard }   from '@/components/chef-projet/ChefDashboard';
 import { ChefDashboardV2 } from '@/components/chef-projet/ChefDashboardV2';
 import { CalendarView }    from '@/components/chef-projet/CalendarView';
 import { getMyProjects }   from '@/app/actions/projects';
-import { getDashboardChefProjet, getCalendarEvents } from '@/app/actions/chef-projet';
+import { getDashboardChefProjet, getCalendarEvents, getProjectsForPlanning, getContractedClientIds } from '@/app/actions/chef-projet';
 import type { Tache } from '@/components/projets/TacheForm';
 
 // ─── Legacy fetch (gardé pour la vue détail et ProjetList) ────────────────────
@@ -33,7 +33,7 @@ async function fetchLegacyData(userId: string) {
         .select('id, projet_id, technicien_id, date, type, statut, duree_minutes, clients(nom), users(name)')
         .order('date', { ascending: false }),
 
-      supabase.from('clients').select('id, nom').order('nom'),
+      supabase.from('clients').select('id, nom, adresse, ville, tel').order('nom'),
       supabase.from('users').select('id, name').eq('role', 'technicien').order('name'),
       supabase.from('users').select('id, name').order('name'),
     ]);
@@ -138,17 +138,25 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
 
   // ── Fetch parallèle ─────────────────────────────────────────────────────────
 
-  const [legacyData, dashData, projectsR4, usersRes, initialEvents] = await Promise.all([
+  const [legacyData, dashData, projectsR4, usersRes, initialEvents, projectsForPlanning, contractedIds] = await Promise.all([
     fetchLegacyData(user.id),
     getDashboardChefProjet(),
     tenantId ? getMyProjects(tenantId, user.id) : Promise.resolve([]),
     admin.from('users').select('id, name').order('name'),
     getCalendarEvents(monday.toISOString(), sunday.toISOString()),
+    getProjectsForPlanning(),
+    getContractedClientIds(),
   ]);
 
   const { projets, taches, interventions, clients } = legacyData;
-  const usersPlain      = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
-  const clientsForModal = clients.map((c) => ({ id: c.id, nom: c.nom as string }));
+  const usersPlain        = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
+  const clientsFullForModal = clients.map((c) => ({
+    id:      c.id,
+    nom:     c.nom     as string,
+    adresse: (c as unknown as { adresse?: string }).adresse ?? null,
+    ville:   (c as unknown as { ville?: string }).ville   ?? null,
+    tel:     (c as unknown as { tel?: string }).tel     ?? null,
+  }));
 
   // ── Vue principale : deux onglets ───────────────────────────────────────────
 
@@ -225,8 +233,10 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
       {activeTab === 'planning' && (
         <CalendarView
           initialEvents={initialEvents}
-          clients={clientsForModal}
-          users={usersPlain}
+          clients={clientsFullForModal}
+          techniciens={legacyData.techniciens}
+          projects={projectsForPlanning}
+          contractedClientIds={contractedIds}
         />
       )}
     </div>
