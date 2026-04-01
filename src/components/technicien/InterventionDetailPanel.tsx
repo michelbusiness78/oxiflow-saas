@@ -288,8 +288,10 @@ export function InterventionDetailPanel({
             {cfg.label}
           </span>
           {iv.nature === 'sav' && (
-            <span className="rounded-full bg-yellow-100 px-3 py-0.5 text-xs font-semibold text-yellow-700">
-              ⚠ SAV
+            <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${
+              iv.urgency === 'critique' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+            }`}>
+              {iv.urgency === 'critique' ? '🚨 SAV Critique' : '🔧 SAV'}
             </span>
           )}
         </div>
@@ -301,6 +303,28 @@ export function InterventionDetailPanel({
           onToggle={() => toggleSection('infos')}
         >
           <div className="space-y-3">
+            {/* Nature + contrat */}
+            <div className="flex flex-wrap gap-2">
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                iv.nature === 'sav' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {iv.nature === 'sav' ? '🔧 SAV' : '🏗 Projet'}
+              </span>
+              {iv.nature === 'sav' && (
+                iv.under_contract
+                  ? <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">✅ Sous contrat</span>
+                  : <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">⚠ Hors contrat</span>
+              )}
+            </div>
+
+            {/* Description du problème (SAV uniquement, pré-remplie par le chef de projet) */}
+            {iv.nature === 'sav' && iv.observations && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 mb-1">Description du problème</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap">{iv.observations}</p>
+              </div>
+            )}
+
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Date</p>
               <p className="text-sm text-slate-800">{fmtDateTime(iv.date_start)}</p>

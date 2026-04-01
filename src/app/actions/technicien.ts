@@ -51,6 +51,8 @@ export interface PlanningIntervention {
   client_phone:        string | null;
   affair_number:       string | null;
   type_intervention:   string | null;
+  urgency:             string | null;
+  under_contract:      boolean | null;
   // Pointage (horodatage automatique)
   hour_start:          string | null;
   hour_end:            string | null;
@@ -82,7 +84,7 @@ export async function getMyInterventions(
       id, title, date_start, date_end, status, type, nature, notes,
       hours_planned, is_new, client_id, tech_user_id, tech_name, project_id,
       client_name, client_address, client_city, client_phone,
-      affair_number, type_intervention,
+      affair_number, type_intervention, urgency, under_contract,
       hour_start, hour_end, timer_elapsed,
       observations, checklist, materials_installed,
       report_sent, report_sent_at, report_sent_to,
@@ -96,6 +98,7 @@ export async function getMyInterventions(
   return (data ?? []).map((i) => ({
     ...i,
     is_new:              (i.is_new              as boolean | null) ?? false,
+    under_contract:      (i.under_contract      as boolean | null) ?? null,
     report_sent:         (i.report_sent         as boolean | null) ?? false,
     checklist:           (i.checklist           as ChecklistItem[] | null) ?? [],
     materials_installed: (i.materials_installed as MaterialItem[]  | null) ?? [],

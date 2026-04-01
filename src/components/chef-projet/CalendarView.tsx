@@ -61,13 +61,15 @@ function techIdToColor(id: string): string {
 
 type TechColorMap = Map<string, { color: string; name: string }>;
 
-function buildTechColorMap(events: CalendarEventData[]): TechColorMap {
+function buildTechColorMap(events: CalendarEventData[], techniciens: UserRow[]): TechColorMap {
+  const techMap = new Map(techniciens.map((t) => [t.id, t]));
   const map: TechColorMap = new Map();
   for (const e of events) {
     if (e.tech_user_id && !map.has(e.tech_user_id)) {
+      const fromDB = techMap.get(e.tech_user_id);
       map.set(e.tech_user_id, {
-        color: techIdToColor(e.tech_user_id),
-        name:  e.techNom ?? 'Technicien',
+        color: fromDB?.color || techIdToColor(e.tech_user_id),
+        name:  e.techNom ?? fromDB?.name ?? 'Technicien',
       });
     }
   }
@@ -307,7 +309,7 @@ function EventDetailPanel({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-interface UserRow { id: string; name: string }
+interface UserRow { id: string; name: string; color?: string | null }
 
 interface Props {
   initialEvents:       CalendarEventData[];
@@ -332,8 +334,8 @@ export function CalendarView({
   const [clickedSlot, setClickedSlot] = useState<string | undefined>(undefined);
   const [filterTechId, setFilterTechId] = useState<string | null>(null);
 
-  // Stable color map rebuilt only when event list changes
-  const techColorMap = useMemo(() => buildTechColorMap(events), [events]);
+  // Stable color map rebuilt only when event list or techniciens change
+  const techColorMap = useMemo(() => buildTechColorMap(events, techniciens), [events, techniciens]);
 
   const allCalEvents = useMemo(() => toCalEvents(events), [events]);
 

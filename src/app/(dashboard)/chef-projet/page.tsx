@@ -34,7 +34,7 @@ async function fetchLegacyData(userId: string) {
         .order('date', { ascending: false }),
 
       supabase.from('clients').select('id, nom, adresse, ville, tel').order('nom'),
-      supabase.from('users').select('id, name').eq('role', 'technicien').order('name'),
+      supabase.from('users').select('id, name, color').eq('role', 'technicien').order('name'),
       supabase.from('users').select('id, name').order('name'),
     ]);
 
@@ -82,7 +82,7 @@ async function fetchLegacyData(userId: string) {
     taches,
     interventions,
     clients:     clientsRes.data     ?? [],
-    techniciens: (techniciensRes.data ?? []).map((u) => ({ id: u.id, name: u.name })),
+    techniciens: (techniciensRes.data ?? []).map((u) => ({ id: u.id, name: u.name, color: (u as unknown as { color?: string }).color ?? null })),
     allUsers:    (allUsersRes.data    ?? []).map((u) => ({ id: u.id, nom: u.name, prenom: '' })),
   };
 }
