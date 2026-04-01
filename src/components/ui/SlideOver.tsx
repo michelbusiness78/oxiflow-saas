@@ -7,7 +7,7 @@ interface SlideOverProps {
   onClose:  () => void;
   title:    string;
   children: React.ReactNode;
-  width?:   'md' | 'lg' | 'xl'; // conservé pour compatibilité API, ignoré (design plein écran)
+  width?:   'md' | 'lg' | 'xl'; // conservé pour compatibilité API
 }
 
 function CloseBtn({ onClick }: { onClick: () => void }) {
@@ -33,7 +33,7 @@ export function SlideOver({ open, onClose, title, children }: SlideOverProps) {
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  // Bloquer le scroll du body
+  // Bloquer le scroll du body (mobile uniquement — desktop scroll géré dans le panel)
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -42,10 +42,19 @@ export function SlideOver({ open, onClose, title, children }: SlideOverProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40" aria-modal="true" role="dialog">
+    /*
+     * Mobile  : couvre tout l'écran (inset-0, z-50)
+     * Desktop : démarre après la sidebar (left-[230px]) et après la topbar (top-14)
+     *           → sidebar + topbar restent visibles et utilisables
+     */
+    <div
+      className="fixed inset-0 z-50 md:left-[230px] md:top-14 md:z-40"
+      aria-modal="true"
+      role="dialog"
+    >
 
       {/* ── Mobile : overlay sombre + bottom-sheet ──────────────────────────── */}
-      <div className="md:hidden">
+      <div className="md:hidden h-full">
         {/* Overlay */}
         <div
           className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -62,8 +71,8 @@ export function SlideOver({ open, onClose, title, children }: SlideOverProps) {
         </div>
       </div>
 
-      {/* ── Desktop : plein écran, fond gris, contenu centré ────────────────── */}
-      <div className="hidden md:flex absolute inset-0 flex-col bg-[#f0f3f9] overflow-y-auto animate-in fade-in duration-200">
+      {/* ── Desktop : remplace la zone de contenu, sidebar + topbar intactes ── */}
+      <div className="hidden md:flex h-full flex-col bg-[#f0f3f9] overflow-y-auto animate-in fade-in duration-200">
         {/* Header sticky */}
         <div className="sticky top-0 z-10 shrink-0 bg-[#f0f3f9] border-b border-slate-200/80">
           <div className="max-w-[900px] mx-auto flex h-16 items-center justify-between px-6">
