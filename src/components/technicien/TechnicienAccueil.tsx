@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { markInterventionRead } from '@/app/actions/technicien';
 import type { PlanningIntervention } from '@/app/actions/technicien';
 
@@ -183,6 +183,8 @@ function NewInterventionsBanner({
 
 // ── Composant principal ───────────────────────────────────────────────────────
 
+type KpiFilter = 'today' | 'planifiee' | 'terminee';
+
 export function TechnicienAccueil({
   currentUser,
   kpis,
@@ -191,13 +193,40 @@ export function TechnicienAccueil({
   onSelect,
   onMarkRead,
 }: Props) {
-  const firstName  = currentUser.name.split(' ')[0];
-  const todayItems = interventions.filter((i) => isToday(i.date_start));
+  const firstName            = currentUser.name.split(' ')[0];
+  const [filter, setFilter]  = useState<KpiFilter>('today');
+  const listRef              = useRef<HTMLDivElement>(null);
+
+  const todayItems    = interventions.filter((i) => isToday(i.date_start));
+  const plannedItems  = interventions.filter((i) => i.status === 'planifiee');
+  const doneItems     = interventions.filter((i) => i.status === 'terminee');
+
+  const displayedItems =
+    filter === 'planifiee' ? plannedItems
+    : filter === 'terminee' ? doneItems
+    : todayItems;
+
+  const listLabel =
+    filter === 'planifiee' ? `Interventions planifiées · ${plannedItems.length}`
+    : filter === 'terminee' ? `Terminées ce mois · ${doneItems.length}`
+    : `Interventions du jour · ${todayItems.length}`;
+
+  const emptyMsg =
+    filter === 'planifiee' ? 'Aucune intervention planifiée'
+    : filter === 'terminee' ? 'Aucune intervention terminée ce mois'
+    : "Aucune intervention aujourd'hui";
 
   function handleView(item: PlanningIntervention) {
     onMarkRead(item.id);
     onSelect(item);
   }
+
+  function handleKpiClick(f: KpiFilter) {
+    setFilter(f);
+    setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+
+  const kpiBase = 'rounded-xl border bg-white p-4 shadow-sm text-center cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5';
 
   return (
     <div className="space-y-5 p-4">
@@ -212,36 +241,48 @@ export function TechnicienAccueil({
         </p>
       </div>
 
-      {/* 3 KPI cards */}
+      {/* 3 KPI cards cliquables */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-[#dde3f0] bg-white p-4 shadow-sm text-center">
+        <button
+          type="button"
+          onClick={() => handleKpiClick('today')}
+          className={`${kpiBase} ${filter === 'today' ? 'border-[#2563eb] ring-2 ring-blue-100' : 'border-[#dde3f0]'}`}
+        >
           <p className="text-2xl font-bold text-[#2563eb]">{kpis.todayCount}</p>
           <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[#5a6382]">Aujourd'hui</p>
-        </div>
-        <div className="rounded-xl border border-[#dde3f0] bg-white p-4 shadow-sm text-center">
+        </button>
+        <button
+          type="button"
+          onClick={() => handleKpiClick('planifiee')}
+          className={`${kpiBase} ${filter === 'planifiee' ? 'border-[#16a34a] ring-2 ring-green-100' : 'border-[#dde3f0]'}`}
+        >
           <p className="text-2xl font-bold text-[#16a34a]">{kpis.plannedCount}</p>
           <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[#5a6382]">Planifiées</p>
-        </div>
-        <div className="rounded-xl border border-[#dde3f0] bg-white p-4 shadow-sm text-center">
+        </button>
+        <button
+          type="button"
+          onClick={() => handleKpiClick('terminee')}
+          className={`${kpiBase} ${filter === 'terminee' ? 'border-[#d97706] ring-2 ring-amber-100' : 'border-[#dde3f0]'}`}
+        >
           <p className="text-2xl font-bold text-[#d97706]">{kpis.monthDone}</p>
           <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[#5a6382]">Terminées</p>
-        </div>
+        </button>
       </div>
 
-      {/* Interventions du jour */}
-      <div className="space-y-3">
+      {/* Liste filtrée */}
+      <div ref={listRef} className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Interventions du jour · {todayItems.length}
+          {listLabel}
         </p>
 
-        {todayItems.length === 0 ? (
+        {displayedItems.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#dde3f0] py-12 text-center">
             <p className="text-3xl mb-2">📋</p>
-            <p className="text-sm text-slate-400">Aucune intervention aujourd'hui</p>
+            <p className="text-sm text-slate-400">{emptyMsg}</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {todayItems.map((i) => (
+            {displayedItems.map((i) => (
               <InterventionCard key={i.id} item={i} onSelect={onSelect} />
             ))}
           </div>

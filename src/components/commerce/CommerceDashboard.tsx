@@ -17,18 +17,16 @@ function plural(n: number, word: string, wordP?: string) {
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({
-  label, value, color, sub,
+  label, value, color, sub, href,
 }: {
   label: string;
   value: string;
   color: string;
   sub:   string;
+  href?: string;
 }) {
-  return (
-    <div
-      className="rounded-[14px] border border-[var(--border)] bg-white p-4"
-      style={{ boxShadow: 'var(--shadow)' }}
-    >
+  const inner = (
+    <>
       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
         {label}
       </p>
@@ -39,6 +37,20 @@ function KpiCard({
         {value}
       </p>
       <p className="mt-1 text-[11px] text-[var(--text3)]">{sub}</p>
+    </>
+  );
+
+  const cls = 'rounded-[14px] border border-[var(--border)] bg-white p-4 transition-all hover:shadow-md hover:-translate-y-0.5';
+  if (href) {
+    return (
+      <a href={href} className={`block ${cls} cursor-pointer`} style={{ boxShadow: 'var(--shadow)' }}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <div className={cls} style={{ boxShadow: 'var(--shadow)' }}>
+      {inner}
     </div>
   );
 }
@@ -83,24 +95,28 @@ export function CommerceDashboard({ data, userName }: Props) {
           value={fmtEur(kpis.caDevisTotal)}
           color="var(--green)"
           sub={`${kpis.totalDevis} ${plural(kpis.totalDevis, 'devis')} dont ${kpis.devisAcceptes} accepté${kpis.devisAcceptes !== 1 ? 's' : ''}`}
+          href="/commerce?tab=devis"
         />
         <KpiCard
           label="CA Encaissé"
           value={fmtEur(kpis.caEncaisse)}
           color="var(--blue)"
           sub={`${kpis.facturesSoldees} ${plural(kpis.facturesSoldees, 'facture')} soldée${kpis.facturesSoldees !== 1 ? 's' : ''}`}
+          href="/commerce?tab=factures&filter=soldees"
         />
         <KpiCard
           label="À Encaisser"
           value={fmtEur(kpis.aEncaisser)}
           color="var(--amber)"
           sub={`${kpis.facturesOuvertes} ${plural(kpis.facturesOuvertes, 'facture')} ouverte${kpis.facturesOuvertes !== 1 ? 's' : ''}`}
+          href="/commerce?tab=factures&filter=ouvertes"
         />
         <KpiCard
           label="Factures en retard"
           value={String(kpis.facturesEnRetard)}
           color="var(--red)"
           sub={`${kpis.devisEnAttente} ${plural(kpis.devisEnAttente, 'devis')} en attente réponse`}
+          href="/commerce?tab=factures&filter=retard"
         />
       </div>
 

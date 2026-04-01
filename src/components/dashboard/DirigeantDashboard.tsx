@@ -24,7 +24,7 @@ function fmtVariation(pct: number | null): string {
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({
-  label, value, sub, color, badge, badgeColor,
+  label, value, sub, color, badge, badgeColor, href,
 }: {
   label:        string;
   value:        string;
@@ -32,12 +32,10 @@ function KpiCard({
   color:        string;
   badge?:       string;
   badgeColor?:  string;
+  href?:        string;
 }) {
-  return (
-    <div
-      className="rounded-[14px] border border-[var(--border)] bg-white p-4 relative"
-      style={{ boxShadow: 'var(--shadow)' }}
-    >
+  const inner = (
+    <>
       {badge && (
         <span
           className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold ${badgeColor ?? 'bg-slate-100 text-slate-600'}`}
@@ -55,6 +53,20 @@ function KpiCard({
         {value}
       </p>
       <p className="mt-1 text-[11px] text-[var(--text3)]">{sub}</p>
+    </>
+  );
+
+  const cls = 'rounded-[14px] border border-[var(--border)] bg-white p-4 relative transition-all hover:shadow-md hover:-translate-y-0.5';
+  if (href) {
+    return (
+      <a href={href} className={`block ${cls} cursor-pointer`} style={{ boxShadow: 'var(--shadow)' }}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <div className={cls} style={{ boxShadow: 'var(--shadow)' }}>
+      {inner}
     </div>
   );
 }
@@ -161,18 +173,21 @@ export function DirigeantDashboard({ data }: Props) {
             : kpis.variationMois >= 0   ? 'bg-green-100 text-green-700'
             : 'bg-red-100 text-red-700'
           }
+          href="/commerce?tab=factures"
         />
         <KpiCard
           label="CA Net annuel"
           value={fmtEur(kpis.caAnnuel)}
           color="var(--blue)"
           sub={`Depuis le 1er janvier`}
+          href="/commerce?tab=factures"
         />
         <KpiCard
           label="Marge devis"
           value={kpis.margeDevisPct !== null ? `${kpis.margeDevisPct} %` : '—'}
           color="var(--purple)"
           sub={kpis.margeDevisPct !== null ? 'Sur devis acceptés' : 'Données insuffisantes'}
+          href="/commerce?tab=devis&filter=acceptes"
         />
         <KpiCard
           label="En retard"
@@ -181,6 +196,7 @@ export function DirigeantDashboard({ data }: Props) {
           sub={`${kpis.enRetardFactures} facture${kpis.enRetardFactures !== 1 ? 's' : ''} · ${kpis.enRetardTaches} tâche${kpis.enRetardTaches !== 1 ? 's' : ''}`}
           badge={kpis.enRetardFactures + kpis.enRetardTaches > 0 ? '⚠' : undefined}
           badgeColor="bg-red-100 text-red-600"
+          href="/commerce?tab=factures&filter=retard"
         />
       </div>
 

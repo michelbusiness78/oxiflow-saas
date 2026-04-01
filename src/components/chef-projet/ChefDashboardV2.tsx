@@ -45,6 +45,10 @@ export function ChefDashboardV2({ data }: Props) {
     });
   }
 
+  function scrollTo(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   const kpis = [
     {
       label:    'Projets en cours',
@@ -52,7 +56,7 @@ export function ChefDashboardV2({ data }: Props) {
       colorVal: 'text-blue-600',
       colorBg:  'bg-blue-50',
       icon:     '🏗️',
-      onClick:  undefined as (() => void) | undefined,
+      onClick:  data.chantiersEnCours.length > 0 ? () => scrollTo('chantiers-en-cours') : undefined,
     },
     {
       label:    "Interventions aujourd'hui",
@@ -60,7 +64,7 @@ export function ChefDashboardV2({ data }: Props) {
       colorVal: 'text-orange-600',
       colorBg:  'bg-orange-50',
       icon:     '🔧',
-      onClick:  undefined as (() => void) | undefined,
+      onClick:  data.equipeAujourdhui.length > 0 ? () => scrollTo('equipe-today') : undefined,
     },
     {
       label:    'Tâches en retard',
@@ -76,7 +80,7 @@ export function ChefDashboardV2({ data }: Props) {
       colorVal: 'text-purple-600',
       colorBg:  'bg-purple-50',
       icon:     '👷',
-      onClick:  undefined as (() => void) | undefined,
+      onClick:  data.equipeAujourdhui.length > 0 ? () => scrollTo('equipe-today') : undefined,
     },
   ];
 
@@ -92,7 +96,9 @@ export function ChefDashboardV2({ data }: Props) {
             onClick={k.onClick}
             className={[
               'rounded-xl border border-slate-200 bg-white shadow-sm p-5 transition-all',
-              k.onClick && k.value > 0 ? 'cursor-pointer hover:border-red-300 hover:shadow-md' : '',
+              k.onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : '',
+              k.onClick && k.label === 'Tâches en retard' && k.value > 0 ? 'hover:border-red-300' : '',
+              k.onClick && k.label !== 'Tâches en retard' ? 'hover:border-blue-200' : '',
               showOverdue && k.label === 'Tâches en retard' ? 'border-red-300 ring-2 ring-red-200' : '',
             ].join(' ')}
           >
@@ -156,7 +162,7 @@ export function ChefDashboardV2({ data }: Props) {
 
       {/* Équipe aujourd'hui */}
       {data.equipeAujourdhui.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div id="equipe-today" className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-200">
             <h3 className="text-sm font-semibold text-slate-800">
               Équipe aujourd'hui
@@ -188,7 +194,7 @@ export function ChefDashboardV2({ data }: Props) {
 
       {/* Chantiers en cours */}
       {data.chantiersEnCours.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div id="chantiers-en-cours" className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-200">
             <h3 className="text-sm font-semibold text-slate-800">
               Chantiers en cours
