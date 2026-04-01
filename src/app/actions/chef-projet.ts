@@ -206,45 +206,64 @@ export async function createIntervention(
 ): Promise<{ id?: string; error?: string }> {
   const { admin, tenant_id } = await getAuthContext();
 
+  // Dénormalisation client
+  let clientName:    string | null = null;
+  let clientAddress: string | null = null;
+  let clientCity:    string | null = null;
+  let clientPhone:   string | null = null;
+  if (data.client_id) {
+    const { data: cl } = await admin
+      .from('clients')
+      .select('nom, adresse, ville, tel')
+      .eq('id', data.client_id)
+      .single();
+    clientName    = cl?.nom    ?? null;
+    clientAddress = cl?.adresse ?? null;
+    clientCity    = cl?.ville  ?? null;
+    clientPhone   = cl?.tel    ?? null;
+  }
+
+  // Dénormalisation projet
+  let affairNumber: string | null = null;
+  if (data.project_id) {
+    const { data: proj } = await admin
+      .from('projects')
+      .select('affair_number')
+      .eq('id', data.project_id)
+      .single();
+    affairNumber = proj?.affair_number ?? null;
+  }
+
   const { data: row, error } = await admin
     .from('interventions')
     .insert({
       tenant_id,
-      title:         data.title,
-      date_start:    data.date_start,
-      date_end:      data.date_end      ?? null,
-      client_id:     data.client_id     ?? null,
-      project_id:    data.project_id    ?? null,
-      tech_user_id:  data.tech_user_id  ?? null,
-      tech_name:     data.tech_name     ?? null,
-      status:        data.status        ?? 'planifiee',
-      notes:         data.notes         ?? null,
-      type:          data.type          ?? null,
+      title:          data.title,
+      date_start:     data.date_start,
+      date_end:       data.date_end      ?? null,
+      client_id:      data.client_id     ?? null,
+      project_id:     data.project_id    ?? null,
+      tech_user_id:   data.tech_user_id  ?? null,
+      tech_name:      data.tech_name     ?? null,
+      status:         data.status        ?? 'planifiee',
+      notes:          data.notes         ?? null,
+      type:           data.type          ?? null,
       // backfill old columns for Technicien module compat
-      statut:        data.status        ?? 'planifiee',
-      technicien_id: data.tech_user_id  ?? null,
+      statut:         data.status        ?? 'planifiee',
+      technicien_id:  data.tech_user_id  ?? null,
+      // is_new flag pour bandeau technicien
+      is_new:         data.tech_user_id ? true : false,
+      // champs dénormalisés
+      client_name:    clientName,
+      client_address: clientAddress,
+      client_city:    clientCity,
+      client_phone:   clientPhone,
+      affair_number:  affairNumber,
     })
     .select('id')
     .single();
 
   if (error) return { error: error.message };
-
-  // Notifier le technicien si un tech_user_id est renseigné
-  if (data.tech_user_id && row?.id) {
-    const dateStr = new Intl.DateTimeFormat('fr-FR', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    }).format(new Date(data.date_start));
-
-    await admin.from('intervention_notifications').insert({
-      tenant_id:       tenant_id,
-      intervention_id: row.id,
-      user_id:         data.tech_user_id,
-      type:            'assignment',
-      title:           'Nouvelle intervention assignée',
-      message:         `${data.title} — ${dateStr}`,
-    });
-  }
 
   revalidatePath(PATH);
   return { id: row?.id };
