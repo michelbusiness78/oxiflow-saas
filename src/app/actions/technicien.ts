@@ -1,8 +1,9 @@
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/server';
-import { getAuthContext } from '@/lib/auth-context';
-import { revalidatePath } from 'next/cache';
+import { getAuthContext }    from '@/lib/auth-context';
+import { revalidatePath }    from 'next/cache';
+import { sendEmail }         from '@/lib/email';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -13,12 +14,19 @@ export interface ChecklistItem {
 }
 
 export interface MaterialItem {
-  id:       string;
-  type:     string;
-  marque:   string;
-  modele:   string;
-  serial:   string;
-  location: string;
+  id:           string;
+  // Champs communs
+  designation?: string;
+  reference?:   string;
+  quantite?:    number;
+  marque?:      string;
+  modele?:      string;
+  serial?:      string;
+  location?:    string;
+  // Matériel pré-rempli depuis le devis
+  from_devis?:  boolean;
+  // Compat avec anciennes données (type = catégorie libre)
+  type?:        string;
 }
 
 export interface PlanningIntervention {
@@ -34,6 +42,7 @@ export interface PlanningIntervention {
   is_new:              boolean;
   client_id:           string | null;
   tech_user_id:        string | null;
+  tech_name:           string | null;
   project_id:          string | null;
   // Dénormalisés (remplis à la création)
   client_name:         string | null;
@@ -42,7 +51,7 @@ export interface PlanningIntervention {
   client_phone:        string | null;
   affair_number:       string | null;
   type_intervention:   string | null;
-  // Pointage
+  // Pointage (horodatage automatique)
   hour_start:          string | null;
   hour_end:            string | null;
   timer_elapsed:       number | null;
@@ -50,6 +59,10 @@ export interface PlanningIntervention {
   observations:        string | null;
   checklist:           ChecklistItem[];
   materials_installed: MaterialItem[];
+  // Rapport
+  report_sent:         boolean;
+  report_sent_at:      string | null;
+  report_sent_to:      string | null;
   // Joints (fallback si dénorm absent)
   clients:  { nom: string; adresse: string | null; cp: string | null; ville: string | null; tel: string | null } | null;
   projects: { name: string; affair_number: string | null } | null;
@@ -67,11 +80,12 @@ export async function getMyInterventions(
     .from('interventions')
     .select(`
       id, title, date_start, date_end, status, type, nature, notes,
-      hours_planned, is_new, client_id, tech_user_id, project_id,
+      hours_planned, is_new, client_id, tech_user_id, tech_name, project_id,
       client_name, client_address, client_city, client_phone,
       affair_number, type_intervention,
       hour_start, hour_end, timer_elapsed,
       observations, checklist, materials_installed,
+      report_sent, report_sent_at, report_sent_to,
       clients ( nom, adresse, cp, ville, tel ),
       projects ( name, affair_number )
     `)
@@ -82,6 +96,7 @@ export async function getMyInterventions(
   return (data ?? []).map((i) => ({
     ...i,
     is_new:              (i.is_new              as boolean | null) ?? false,
+    report_sent:         (i.report_sent         as boolean | null) ?? false,
     checklist:           (i.checklist           as ChecklistItem[] | null) ?? [],
     materials_installed: (i.materials_installed as MaterialItem[]  | null) ?? [],
   })) as unknown as PlanningIntervention[];
@@ -104,21 +119,30 @@ export async function markInterventionRead(
   return {};
 }
 
-// ── Changer le statut ─────────────────────────────────────────────────────────
+// ── Changer le statut + horodatage automatique ────────────────────────────────
 
 export async function updateInterventionStatus(
   interventionId: string,
   newStatus:       'planifiee' | 'en_cours' | 'terminee',
+  timestamp?:      string,         // ISO passé depuis le client (Date.now())
 ): Promise<{ error?: string }> {
   const { admin, tenant_id } = await getAuthContext();
 
+  const ts = timestamp ?? new Date().toISOString();
+
+  const patch: Record<string, unknown> = {
+    status:     newStatus,
+    statut:     newStatus,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Horodatage automatique
+  if (newStatus === 'en_cours') patch.hour_start = ts;
+  if (newStatus === 'terminee') patch.hour_end   = ts;
+
   const { error } = await admin
     .from('interventions')
-    .update({
-      status:     newStatus,
-      statut:     newStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq('id', interventionId)
     .eq('tenant_id', tenant_id);
 
@@ -127,7 +151,7 @@ export async function updateInterventionStatus(
   return {};
 }
 
-// ── Sauvegarder la progression (pointage, checklist, matériel, observations) ─
+// ── Sauvegarder la progression (checklist, matériel, observations) ────────────
 
 export async function saveInterventionProgress(
   interventionId: string,
@@ -159,4 +183,145 @@ export async function saveInterventionProgress(
   if (error) return { error: error.message };
   revalidatePath('/technicien');
   return {};
+}
+
+// ── Envoyer le rapport par email ──────────────────────────────────────────────
+
+export async function sendInterventionReport(
+  interventionId: string,
+): Promise<{ error?: string; recipientEmail?: string }> {
+  const { admin, tenant_id } = await getAuthContext();
+
+  // Récupérer l'intervention complète
+  const { data: iv, error: ivErr } = await admin
+    .from('interventions')
+    .select('*')
+    .eq('id', interventionId)
+    .eq('tenant_id', tenant_id)
+    .single();
+
+  if (ivErr || !iv) return { error: 'Intervention introuvable' };
+
+  // Trouver l'assistante ou le dirigeant
+  const { data: candidates } = await admin
+    .from('users')
+    .select('email, name, role')
+    .eq('tenant_id', tenant_id)
+    .in('role', ['assistante', 'dirigeant'])
+    .eq('active', true);
+
+  const recipient =
+    (candidates ?? []).find((u) => u.role === 'assistante') ??
+    (candidates ?? []).find((u) => u.role === 'dirigeant');
+
+  if (!recipient?.email) return { error: 'Aucun destinataire configuré' };
+
+  // ── Formatage ────────────────────────────────────────────────────────────────
+
+  const fmtTime = (iso: string | null) =>
+    iso
+      ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+      : 'N/A';
+
+  const fmtDate = (iso: string) =>
+    new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso));
+
+  let durationStr = 'N/A';
+  if (iv.hour_start && iv.hour_end) {
+    const mins = Math.floor(
+      (new Date(iv.hour_end).getTime() - new Date(iv.hour_start).getTime()) / 60000,
+    );
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    durationStr = h > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${m}min`;
+  }
+
+  // ── Corps email ───────────────────────────────────────────────────────────────
+
+  const materials = (iv.materials_installed as MaterialItem[] | null) ?? [];
+  const materialsRows = materials.length > 0
+    ? materials.map((m) => {
+        const label    = m.designation || [m.marque, m.modele].filter(Boolean).join(' ') || m.type || 'Matériel';
+        const details  = [
+          m.reference && `Réf: ${m.reference}`,
+          m.quantite   && `Qté: ${m.quantite}`,
+          m.marque    && `Marque: ${m.marque}`,
+          m.modele    && `Modèle: ${m.modele}`,
+          m.serial    && `N° série: ${m.serial}`,
+          m.location  && `Local.: ${m.location}`,
+        ].filter(Boolean).join(' · ');
+        return `<tr><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;">${label}</td><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;color:#64748b;">${details}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="2" style="padding:8px;color:#94a3b8;font-style:italic;">Aucun matériel renseigné</td></tr>';
+
+  const checklist  = (iv.checklist as ChecklistItem[] | null) ?? [];
+  const checkDone  = checklist.filter((c) => c.done).length;
+  const checkRows  = checklist.length > 0
+    ? checklist.map((c) => `<li style="margin:2px 0;">${c.done ? '✅' : '☐'} ${c.label}</li>`).join('')
+    : '<li style="color:#94a3b8;font-style:italic;">Aucune checklist</li>';
+
+  const subject = `[OxiFlow] Rapport d'intervention — ${iv.title} — ${fmtDate(iv.date_start)}`;
+
+  const html = `
+<!DOCTYPE html>
+<html><body style="font-family:sans-serif;color:#1e293b;max-width:600px;margin:0 auto;padding:20px;">
+  <div style="border-bottom:3px solid #2563eb;padding-bottom:12px;margin-bottom:20px;">
+    <h2 style="margin:0;color:#1e3a5f;">Rapport d'intervention</h2>
+    <p style="margin:4px 0 0;color:#64748b;font-size:14px;">${fmtDate(iv.date_start)}</p>
+  </div>
+
+  <h3 style="color:#2563eb;font-size:14px;text-transform:uppercase;letter-spacing:.05em;">📋 Intervention</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
+    <tr><td style="padding:4px 8px;color:#64748b;width:140px;">Titre</td><td style="padding:4px 8px;font-weight:600;">${iv.title}</td></tr>
+    <tr><td style="padding:4px 8px;color:#64748b;">Client</td><td style="padding:4px 8px;">${[iv.client_name, iv.client_city].filter(Boolean).join(' — ') || 'N/A'}</td></tr>
+    <tr><td style="padding:4px 8px;color:#64748b;">N° Affaire</td><td style="padding:4px 8px;">${iv.affair_number || 'N/A'}</td></tr>
+    <tr><td style="padding:4px 8px;color:#64748b;">Nature</td><td style="padding:4px 8px;">${iv.nature === 'sav' ? 'SAV' : 'Projet'}</td></tr>
+    <tr><td style="padding:4px 8px;color:#64748b;">Technicien</td><td style="padding:4px 8px;">${iv.tech_name || 'N/A'}</td></tr>
+  </table>
+
+  <h3 style="color:#2563eb;font-size:14px;text-transform:uppercase;letter-spacing:.05em;">⏱ Horaires</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
+    <tr><td style="padding:4px 8px;color:#64748b;width:140px;">Début</td><td style="padding:4px 8px;">${fmtTime(iv.hour_start)}</td></tr>
+    <tr><td style="padding:4px 8px;color:#64748b;">Fin</td><td style="padding:4px 8px;">${fmtTime(iv.hour_end)}</td></tr>
+    <tr><td style="padding:4px 8px;color:#64748b;">Durée réelle</td><td style="padding:4px 8px;font-weight:600;">${durationStr}</td></tr>
+    <tr><td style="padding:4px 8px;color:#64748b;">Heures prévues</td><td style="padding:4px 8px;">${iv.hours_planned != null ? `${iv.hours_planned}h` : 'N/A'}</td></tr>
+  </table>
+
+  <h3 style="color:#2563eb;font-size:14px;text-transform:uppercase;letter-spacing:.05em;">🔧 Matériel installé</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">${materialsRows}</table>
+
+  <h3 style="color:#2563eb;font-size:14px;text-transform:uppercase;letter-spacing:.05em;">✅ Checklist (${checkDone}/${checklist.length})</h3>
+  <ul style="font-size:14px;line-height:1.8;margin:0 0 20px;padding-left:16px;">${checkRows}</ul>
+
+  ${iv.observations ? `
+  <h3 style="color:#2563eb;font-size:14px;text-transform:uppercase;letter-spacing:.05em;">📝 Observations</h3>
+  <p style="font-size:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;white-space:pre-wrap;margin-bottom:20px;">${iv.observations}</p>
+  ` : ''}
+
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+  <p style="font-size:12px;color:#94a3b8;">Rapport généré automatiquement par <strong>OxiFlow</strong> · oxiflow.fr</p>
+</body></html>`;
+
+  // ── Envoi ─────────────────────────────────────────────────────────────────────
+
+  try {
+    await sendEmail(recipient.email, subject, html);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Erreur lors de l\'envoi' };
+  }
+
+  // Marquer comme envoyé
+  await admin
+    .from('interventions')
+    .update({
+      report_sent:    true,
+      report_sent_at: new Date().toISOString(),
+      report_sent_to: recipient.email,
+      updated_at:     new Date().toISOString(),
+    })
+    .eq('id', interventionId)
+    .eq('tenant_id', tenant_id);
+
+  revalidatePath('/technicien');
+  return { recipientEmail: recipient.email };
 }

@@ -223,42 +223,75 @@ export async function createIntervention(
     clientPhone   = cl?.tel    ?? null;
   }
 
-  // Dénormalisation projet
-  let affairNumber: string | null = null;
+  // Dénormalisation projet + matériel depuis devis
+  let affairNumber:      string | null = null;
+  let materialsFromDevis: Record<string, unknown>[] = [];
+
   if (data.project_id) {
     const { data: proj } = await admin
       .from('projects')
-      .select('affair_number')
+      .select('affair_number, quote_id')
       .eq('id', data.project_id)
       .single();
+
     affairNumber = proj?.affair_number ?? null;
+
+    // Injecter les lignes du devis comme matériel pré-rempli
+    if (proj?.quote_id) {
+      const { data: quote } = await admin
+        .from('quotes')
+        .select('lignes')
+        .eq('id', proj.quote_id)
+        .single();
+
+      const lignes = (quote?.lignes as Array<{
+        id?: string;
+        reference?: string;
+        designation?: string;
+        quantite?: number;
+      }> | null) ?? [];
+
+      materialsFromDevis = lignes.map((l) => ({
+        id:          crypto.randomUUID(),
+        designation: l.designation ?? '',
+        reference:   l.reference   ?? '',
+        quantite:    l.quantite    ?? 1,
+        marque:      '',
+        modele:      '',
+        serial:      '',
+        location:    '',
+        from_devis:  true,
+      }));
+    }
   }
 
   const { data: row, error } = await admin
     .from('interventions')
     .insert({
       tenant_id,
-      title:          data.title,
-      date_start:     data.date_start,
-      date_end:       data.date_end      ?? null,
-      client_id:      data.client_id     ?? null,
-      project_id:     data.project_id    ?? null,
-      tech_user_id:   data.tech_user_id  ?? null,
-      tech_name:      data.tech_name     ?? null,
-      status:         data.status        ?? 'planifiee',
-      notes:          data.notes         ?? null,
-      type:           data.type          ?? null,
+      title:               data.title,
+      date_start:          data.date_start,
+      date_end:            data.date_end      ?? null,
+      client_id:           data.client_id     ?? null,
+      project_id:          data.project_id    ?? null,
+      tech_user_id:        data.tech_user_id  ?? null,
+      tech_name:           data.tech_name     ?? null,
+      status:              data.status        ?? 'planifiee',
+      notes:               data.notes         ?? null,
+      type:                data.type          ?? null,
       // backfill old columns for Technicien module compat
-      statut:         data.status        ?? 'planifiee',
-      technicien_id:  data.tech_user_id  ?? null,
+      statut:              data.status        ?? 'planifiee',
+      technicien_id:       data.tech_user_id  ?? null,
       // is_new flag pour bandeau technicien
-      is_new:         data.tech_user_id ? true : false,
+      is_new:              data.tech_user_id ? true : false,
       // champs dénormalisés
-      client_name:    clientName,
-      client_address: clientAddress,
-      client_city:    clientCity,
-      client_phone:   clientPhone,
-      affair_number:  affairNumber,
+      client_name:         clientName,
+      client_address:      clientAddress,
+      client_city:         clientCity,
+      client_phone:        clientPhone,
+      affair_number:       affairNumber,
+      // matériel pré-rempli depuis le devis
+      materials_installed: materialsFromDevis,
     })
     .select('id')
     .single();
