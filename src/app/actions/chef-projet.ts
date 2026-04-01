@@ -8,17 +8,19 @@ const PATH = '/chef-projet';
 // ── Types publics ──────────────────────────────────────────────────────────────
 
 export interface CalendarEventData {
-  id:         string;
-  title:      string;
-  startISO:   string;
-  endISO:     string;
-  type:       'intervention' | 'project';
-  status?:    string;
-  color:      string;
-  clientNom?: string;
-  techNom?:   string;
-  projectId?: string;
-  notes?:     string;
+  id:           string;
+  title:        string;
+  startISO:     string;
+  endISO:       string;
+  type:         'intervention' | 'project';
+  status?:      string;
+  color:        string;
+  client_id?:   string;
+  tech_user_id?: string;
+  clientNom?:   string;
+  techNom?:     string;
+  projectId?:   string;
+  notes?:       string;
 }
 
 export interface DashboardData {
@@ -144,7 +146,7 @@ export async function getCalendarEvents(
   const [intRes, projRes] = await Promise.all([
     admin
       .from('interventions')
-      .select('id, title, date_start, date_end, status, tech_name, project_id, notes, clients(nom)')
+      .select('id, title, date_start, date_end, status, client_id, tech_user_id, tech_name, project_id, notes, clients(nom)')
       .eq('tenant_id', tenant_id)
       .gte('date_start', startDate)
       .lte('date_start', endDate)
@@ -164,17 +166,19 @@ export async function getCalendarEvents(
   for (const i of (intRes.data ?? [])) {
     if (!i.date_start) continue;
     events.push({
-      id:        i.id,
-      title:     i.title ?? 'Intervention',
-      startISO:  i.date_start,
-      endISO:    i.date_end ?? i.date_start,
-      type:      'intervention',
-      status:    i.status ?? 'planifiee',
-      color:     INTERVENTION_COLORS[i.status ?? 'planifiee'] ?? '#93c5fd',
-      clientNom: (i.clients as unknown as { nom: string } | null)?.nom,
-      techNom:   i.tech_name ?? undefined,
-      projectId: i.project_id ?? undefined,
-      notes:     i.notes     ?? undefined,
+      id:           i.id,
+      title:        i.title ?? 'Intervention',
+      startISO:     i.date_start,
+      endISO:       i.date_end ?? i.date_start,
+      type:         'intervention',
+      status:       i.status ?? 'planifiee',
+      color:        INTERVENTION_COLORS[i.status ?? 'planifiee'] ?? '#93c5fd',
+      client_id:    i.client_id    ?? undefined,
+      tech_user_id: i.tech_user_id ?? undefined,
+      clientNom:    (i.clients as unknown as { nom: string } | null)?.nom,
+      techNom:      i.tech_name ?? undefined,
+      projectId:    i.project_id ?? undefined,
+      notes:        i.notes     ?? undefined,
     });
   }
 

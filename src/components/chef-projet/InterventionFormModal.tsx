@@ -82,10 +82,10 @@ export function InterventionFormModal({
         title:        editing.title,
         date_start:   toLocalDateTime(editing.startISO),
         date_end:     toLocalDateTime(editing.endISO),
-        client_id:    '',
-        tech_user_id: '',
+        client_id:    editing.client_id    ?? '',
+        tech_user_id: editing.tech_user_id ?? '',
         status:       editing.status ?? 'planifiee',
-        type:         'intervention',
+        type:         editing.type ?? 'intervention',
         notes:        editing.notes ?? '',
       });
     } else {
