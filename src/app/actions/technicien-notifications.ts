@@ -31,8 +31,14 @@ export interface PlanningIntervention {
   client_id:    string | null;
   tech_user_id: string | null;
   project_id:   string | null;
-  clients:      { nom: string; ville: string | null } | null;
-  projects:     { name: string } | null;
+  clients:      {
+    nom:     string;
+    adresse: string | null;
+    cp:      string | null;
+    ville:   string | null;
+    tel:     string | null;
+  } | null;
+  projects:     { name: string; affair_number: string | null } | null;
 }
 
 export interface TechnicienKpiData {
@@ -99,8 +105,8 @@ export async function getMyInterventions(
     .select(`
       id, title, date_start, date_end, status, type, notes,
       client_id, tech_user_id, project_id,
-      clients ( nom, ville ),
-      projects ( name )
+      clients ( nom, adresse, cp, ville, tel ),
+      projects ( name, affair_number )
     `)
     .eq('tenant_id', tenantId)
     .eq('tech_user_id', userId)
@@ -170,4 +176,30 @@ export async function getTechnicienKpis(
     monthDone,
     monthTotal,
   };
+}
+
+// ── Changer le statut d'une intervention ──────────────────────────────────────
+
+export async function updateInterventionStatus(
+  interventionId: string,
+  newStatus:       'planifiee' | 'en_cours' | 'terminee',
+): Promise<{ error?: string }> {
+  const { admin, tenant_id } = await import('@/lib/auth-context').then((m) =>
+    m.getAuthContext(),
+  );
+
+  const { error } = await admin
+    .from('interventions')
+    .update({
+      status:     newStatus,
+      statut:     newStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', interventionId)
+    .eq('tenant_id', tenant_id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/technicien');
+  return {};
 }

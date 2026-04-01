@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { InterventionList }               from '@/components/technicien/InterventionList';
-import { InterventionNotificationBanner } from '@/components/technicien/InterventionNotificationBanner';
-import { TechnicienPlanning }             from '@/components/technicien/TechnicienPlanning';
-import { TechnicienKpis }                 from '@/components/technicien/TechnicienKpis';
+import { InterventionList }   from '@/components/technicien/InterventionList';
+import { TechnicienContent }  from '@/components/technicien/TechnicienContent';
+import { TechnicienKpis }     from '@/components/technicien/TechnicienKpis';
 import {
   getInterventionNotifications,
   getMyInterventions,
@@ -98,9 +97,6 @@ export default async function TechnicienPage() {
   return (
     <div className="space-y-6">
 
-      {/* A) Bandeau notifications — conditionnel */}
-      <InterventionNotificationBanner initialNotifications={notifications} />
-
       {/* En-tête */}
       <div>
         <h1 className="text-xl font-semibold text-slate-800">Mon espace</h1>
@@ -110,12 +106,13 @@ export default async function TechnicienPage() {
       {/* B) KPIs — toujours visibles */}
       <TechnicienKpis kpis={kpis} />
 
-      {/* C) Planning terrain (interventions chef-projet) */}
+      {/* A) Bandeau + C) Planning + panel détail — état géré côté client */}
       <section className="space-y-4">
         <h2 className="text-base font-semibold text-slate-700">Planning terrain</h2>
-        <div id="planning-list">
-          <TechnicienPlanning interventions={planning} />
-        </div>
+        <TechnicienContent
+          initialNotifications={notifications}
+          initialPlanning={planning}
+        />
       </section>
 
       <hr className="border-[#dde3f0]" />

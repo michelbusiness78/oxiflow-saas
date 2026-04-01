@@ -4,6 +4,7 @@ import type { PlanningIntervention } from '@/app/actions/technicien-notification
 
 interface Props {
   interventions: PlanningIntervention[];
+  onSelect:      (intervention: PlanningIntervention) => void;
 }
 
 // ── Groupement par jour ────────────────────────────────────────────────────────
@@ -68,7 +69,13 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── Carte intervention ─────────────────────────────────────────────────────────
 
-function InterventionCard({ item }: { item: PlanningIntervention }) {
+function InterventionCard({
+  item,
+  onSelect,
+}: {
+  item:     PlanningIntervention;
+  onSelect: (i: PlanningIntervention) => void;
+}) {
   const timeRange = item.date_end
     ? `${fmtTime(item.date_start)} - ${fmtTime(item.date_end)}`
     : fmtTime(item.date_start);
@@ -79,7 +86,13 @@ function InterventionCard({ item }: { item: PlanningIntervention }) {
   ].filter(Boolean).join(' · ');
 
   return (
-    <div className="flex items-start gap-4 rounded-xl border border-[#dde3f0] bg-white p-4 shadow-sm">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(item)}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect(item)}
+      className="flex items-start gap-4 rounded-xl border border-[#dde3f0] bg-white p-4 shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
+    >
       {/* Barre couleur gauche selon statut */}
       <div
         className="mt-0.5 h-full w-1 shrink-0 rounded-full"
@@ -130,16 +143,18 @@ function InterventionCard({ item }: { item: PlanningIntervention }) {
 function GroupSection({
   label,
   items,
+  onSelect,
 }: {
-  label: string;
-  items: PlanningIntervention[];
+  label:    string;
+  items:    PlanningIntervention[];
+  onSelect: (i: PlanningIntervention) => void;
 }) {
   if (items.length === 0) return null;
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
       {items.map((i) => (
-        <InterventionCard key={i.id} item={i} />
+        <InterventionCard key={i.id} item={i} onSelect={onSelect} />
       ))}
     </div>
   );
@@ -147,7 +162,7 @@ function GroupSection({
 
 // ── Composant principal ───────────────────────────────────────────────────────
 
-export function TechnicienPlanning({ interventions }: Props) {
+export function TechnicienPlanning({ interventions, onSelect }: Props) {
   if (interventions.length === 0) {
     return (
       <div className="rounded-xl border border-[#dde3f0] bg-white px-6 py-10 text-center shadow-sm">
@@ -160,10 +175,10 @@ export function TechnicienPlanning({ interventions }: Props) {
 
   return (
     <div className="space-y-6">
-      <GroupSection label="Aujourd'hui"   items={g.today}    />
-      <GroupSection label="Demain"        items={g.tomorrow} />
-      <GroupSection label="Cette semaine" items={g.week}     />
-      <GroupSection label="Plus tard"     items={g.later}    />
+      <GroupSection label="Aujourd'hui"   items={g.today}    onSelect={onSelect} />
+      <GroupSection label="Demain"        items={g.tomorrow} onSelect={onSelect} />
+      <GroupSection label="Cette semaine" items={g.week}     onSelect={onSelect} />
+      <GroupSection label="Plus tard"     items={g.later}    onSelect={onSelect} />
     </div>
   );
 }

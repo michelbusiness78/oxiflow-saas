@@ -9,6 +9,7 @@ import {
 
 interface Props {
   initialNotifications: InterventionNotifData[];
+  onOpenDetail:         (interventionId: string) => void;
 }
 
 function fmtDate(iso: string) {
@@ -17,23 +18,20 @@ function fmtDate(iso: string) {
   );
 }
 
-export function InterventionNotificationBanner({ initialNotifications }: Props) {
+export function InterventionNotificationBanner({ initialNotifications, onOpenDetail }: Props) {
   const router                     = useRouter();
   const [notifications, setNotifs] = useState(initialNotifications);
   const [loading, setLoading]      = useState<string | null>(null);
 
   if (notifications.length === 0) return null;
 
-  async function handleVoir(notifId: string) {
+  async function handleVoir(notifId: string, interventionId: string) {
     setLoading(notifId);
     await markInterventionNotificationRead(notifId);
     setLoading(null);
     setNotifs((prev) => prev.filter((n) => n.id !== notifId));
     router.refresh();
-    // Scroll vers la liste planning
-    setTimeout(() => {
-      document.getElementById('planning-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    onOpenDetail(interventionId);
   }
 
   return (
@@ -70,7 +68,7 @@ export function InterventionNotificationBanner({ initialNotifications }: Props) 
               <button
                 type="button"
                 disabled={loading === n.id}
-                onClick={() => handleVoir(n.id)}
+                onClick={() => handleVoir(n.id, n.intervention_id)}
                 className="shrink-0 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50 transition-colors"
               >
                 {loading === n.id ? '…' : '👁 Voir'}
