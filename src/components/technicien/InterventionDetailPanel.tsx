@@ -1,13 +1,17 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
-import { SlideOver } from '@/components/ui/SlideOver';
+import { useState, useEffect, useRef, useTransition } from 'react';
+import { SlideOver }        from '@/components/ui/SlideOver';
+import { SignatureCanvas }  from './SignatureCanvas';
+import type { SignatureCanvasHandle } from './SignatureCanvas';
 import {
   updateInterventionStatus,
   saveInterventionProgress,
+  saveInterventionSignature,
   sendInterventionReport,
 } from '@/app/actions/technicien';
 import type { PlanningIntervention, ChecklistItem, MaterialItem } from '@/app/actions/technicien';
+import type { InterventionWithSignature } from '@/lib/intervention-pdf';
 
 // ── Types & helpers ───────────────────────────────────────────────────────────
 
@@ -51,6 +55,13 @@ function fmtDuration(startIso: string, endIso: string) {
   const m = totalMins % 60;
   if (h === 0) return `${m}min`;
   return m === 0 ? `${h}h` : `${h}h${m.toString().padStart(2, '0')}`;
+}
+
+function fmtLongDateTime(iso: string) {
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }).format(new Date(iso));
 }
 
 // ── Accordéon ─────────────────────────────────────────────────────────────────
@@ -105,10 +116,19 @@ export function InterventionDetailPanel({
   const [isPendingStatus, startStatusTransition] = useTransition();
   const [isSaving,        setIsSaving]           = useState(false);
   const [isSendingReport, setIsSendingReport]    = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf]  = useState(false);
   const [error,           setError]              = useState('');
   const [reportSent,      setReportSent]         = useState(false);
   const [reportSuccess,   setReportSuccess]      = useState('');
   const [elapsed,         setElapsed]            = useState(0);
+
+  // Signature
+  const canvasRef                               = useRef<SignatureCanvasHandle>(null);
+  const [signerName,         setSignerName]     = useState('');
+  const [signatureValidated, setSignatureValidated] = useState(false);
+  const [signatureData,      setSignatureData]  = useState<string | null>(null);
+  const [signatureDate,      setSignatureDate]  = useState<string | null>(null);
+  const [isSigningSaving,    setIsSigningSaving] = useState(false);
 
   // État local des sections accordéon
   const [open, setOpen] = useState({
@@ -126,27 +146,35 @@ export function InterventionDetailPanel({
   // Reset quand l'intervention change
   useEffect(() => {
     if (!intervention) return;
-    setLocalChecklist(intervention.checklist          ?? []);
-    setLocalMaterials(intervention.materials_installed ?? []);
-    setLocalObservations(intervention.observations    ?? '');
-    setReportSent(intervention.report_sent            ?? false);
+    const iv = intervention as InterventionWithSignature;
+    setLocalChecklist(iv.checklist          ?? []);
+    setLocalMaterials(iv.materials_installed ?? []);
+    setLocalObservations(iv.observations    ?? '');
+    setReportSent(iv.report_sent            ?? false);
     setReportSuccess('');
     setError('');
     setShowMatForm(false);
     setOpen({ infos: true, pointage: false, checklist: false, materiaux: false, photos: false, rapport: false });
 
-    // Initialiser le chronomètre depuis hour_start
-    if (intervention.status === 'en_cours' && intervention.hour_start) {
-      setElapsed(Math.floor((Date.now() - new Date(intervention.hour_start).getTime()) / 1000));
+    // Signature existante
+    const hasSig = !!(iv.signature_data);
+    setSignerName(iv.signature_name ?? '');
+    setSignatureData(iv.signature_data ?? null);
+    setSignatureDate(iv.signature_date ?? null);
+    setSignatureValidated(hasSig);
+
+    // Chrono
+    if (iv.status === 'en_cours' && iv.hour_start) {
+      setElapsed(Math.floor((Date.now() - new Date(iv.hour_start).getTime()) / 1000));
     } else {
       setElapsed(0);
     }
   }, [intervention?.id]);
 
-  // Chronomètre live (tourne quand statut = en_cours)
+  // Chronomètre live
   useEffect(() => {
     if (intervention?.status !== 'en_cours' || !intervention?.hour_start) return;
-    const startMs = new Date(intervention.hour_start).getTime();
+    const startMs  = new Date(intervention.hour_start).getTime();
     const interval = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startMs) / 1000));
     }, 1000);
@@ -154,7 +182,7 @@ export function InterventionDetailPanel({
   }, [intervention?.status, intervention?.hour_start]);
 
   if (!intervention) return null;
-  const iv = intervention; // local const — narrows type for closures
+  const iv = intervention as InterventionWithSignature;
 
   const cfg        = STATUS_CFG[iv.status] ?? { label: iv.status, cls: 'bg-slate-100 text-slate-500' };
   const clientNom  = iv.client_name    ?? iv.clients?.nom    ?? null;
@@ -163,7 +191,6 @@ export function InterventionDetailPanel({
   const clientTel  = iv.client_phone   ?? iv.clients?.tel    ?? null;
   const fullAddr   = [clientAddr, clientCity].filter(Boolean).join(', ');
 
-  // Calculs durée / dépassement
   const actualMinutes = (iv.hour_start && iv.hour_end)
     ? Math.floor((new Date(iv.hour_end).getTime() - new Date(iv.hour_start).getTime()) / 60000)
     : null;
@@ -171,11 +198,10 @@ export function InterventionDetailPanel({
     ? Math.round(actualMinutes - iv.hours_planned * 60)
     : null;
 
-  // Matériaux du devis (non supprimables) vs ajoutés manuellement
   const devisMaterials  = localMaterials.filter((m) => m.from_devis);
   const manualMaterials = localMaterials.filter((m) => !m.from_devis);
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────────
 
   function toggleSection(key: keyof typeof open) {
     setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -226,10 +252,7 @@ export function InterventionDetailPanel({
   async function handleSave() {
     setIsSaving(true);
     setError('');
-    const updates = {
-      observations:        localObservations || null,
-      materials_installed: localMaterials,
-    };
+    const updates = { observations: localObservations || null, materials_installed: localMaterials };
     const res = await saveInterventionProgress(iv.id, updates);
     setIsSaving(false);
     if (res.error) { setError(res.error); return; }
@@ -243,16 +266,78 @@ export function InterventionDetailPanel({
       const res = await updateInterventionStatus(iv.id, newStatus, now);
       if (res.error) { setError(res.error); return; }
       onStatusChange(iv.id, newStatus);
-      // Propager l'horodatage au state parent pour que le chrono se mette à jour
       if (newStatus === 'en_cours') onSaveProgress(iv.id, { hour_start: now, status: newStatus });
       if (newStatus === 'terminee') onSaveProgress(iv.id, { hour_end:   now, status: newStatus });
     });
   }
 
+  async function handleValidateSignature() {
+    const data = canvasRef.current?.getDataURL();
+    if (!data) { setError('Veuillez signer dans le cadre avant de valider.'); return; }
+    if (!signerName.trim()) { setError('Veuillez saisir le nom du signataire.'); return; }
+    setIsSigningSaving(true);
+    setError('');
+    const res = await saveInterventionSignature(iv.id, data, signerName.trim());
+    setIsSigningSaving(false);
+    if (res.error) { setError(res.error); return; }
+    const now = new Date().toISOString();
+    setSignatureData(data);
+    setSignatureDate(now);
+    setSignatureValidated(true);
+    onSaveProgress(iv.id, {
+      signature_data: data,
+      signature_name: signerName,
+      signature_date: now,
+    } as Partial<PlanningIntervention>);
+  }
+
+  async function handleDownloadPdf() {
+    setIsDownloadingPdf(true);
+    try {
+      const { generateInterventionPDF } = await import('@/lib/intervention-pdf');
+      const ivWithSig: InterventionWithSignature = {
+        ...iv,
+        signature_data: signatureData,
+        signature_name: signerName,
+        signature_date: signatureDate,
+      };
+      const blob    = await generateInterventionPDF(ivWithSig);
+      const url     = URL.createObjectURL(blob);
+      const anchor  = document.createElement('a');
+      anchor.href   = url;
+      anchor.download = `rapport-intervention-${iv.id.substring(0, 8)}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur génération PDF');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }
+
   async function handleSendReport() {
     setIsSendingReport(true);
     setError('');
-    const res = await sendInterventionReport(iv.id);
+
+    // Générer le PDF côté client, encoder en base64
+    let pdfBase64: string | undefined;
+    try {
+      const { generateInterventionPDF } = await import('@/lib/intervention-pdf');
+      const ivWithSig: InterventionWithSignature = {
+        ...iv,
+        signature_data: signatureData,
+        signature_name: signerName,
+        signature_date: signatureDate,
+      };
+      const blob   = await generateInterventionPDF(ivWithSig);
+      const ab     = await blob.arrayBuffer();
+      const uint8  = new Uint8Array(ab);
+      pdfBase64    = btoa(uint8.reduce((acc, byte) => acc + String.fromCharCode(byte), ''));
+    } catch {
+      // Fallback : envoyer sans PDF joint
+    }
+
+    const res = await sendInterventionReport(iv.id, pdfBase64);
     setIsSendingReport(false);
     if (res.error) { setError(res.error); return; }
     setReportSent(true);
@@ -303,7 +388,6 @@ export function InterventionDetailPanel({
           onToggle={() => toggleSection('infos')}
         >
           <div className="space-y-3">
-            {/* Nature + contrat */}
             <div className="flex flex-wrap gap-2">
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                 iv.nature === 'sav' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
@@ -317,7 +401,6 @@ export function InterventionDetailPanel({
               )}
             </div>
 
-            {/* Description du problème (SAV uniquement, pré-remplie par le chef de projet) */}
             {iv.nature === 'sav' && iv.observations && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 mb-1">Description du problème</p>
@@ -328,17 +411,13 @@ export function InterventionDetailPanel({
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Date</p>
               <p className="text-sm text-slate-800">{fmtDateTime(iv.date_start)}</p>
-              {iv.date_end && (
-                <p className="text-xs text-slate-400 mt-0.5">→ {fmtDateTime(iv.date_end)}</p>
-              )}
+              {iv.date_end && <p className="text-xs text-slate-400 mt-0.5">→ {fmtDateTime(iv.date_end)}</p>}
             </div>
 
             {iv.type_intervention && (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Type</p>
-                <p className="text-sm text-slate-800">
-                  {TYPE_INT_LABELS[iv.type_intervention] ?? iv.type_intervention}
-                </p>
+                <p className="text-sm text-slate-800">{TYPE_INT_LABELS[iv.type_intervention] ?? iv.type_intervention}</p>
               </div>
             )}
 
@@ -362,8 +441,7 @@ export function InterventionDetailPanel({
               {fullAddr && (
                 <a
                   href={`https://maps.google.com/?q=${encodeURIComponent(fullAddr)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
                 >
                   📍 GPS
@@ -388,7 +466,7 @@ export function InterventionDetailPanel({
           </div>
         </AccordionSection>
 
-        {/* ── Section 2 : Pointage heures (readonly + chrono) ─────────────── */}
+        {/* ── Section 2 : Pointage heures ─────────────────────────────────── */}
         <AccordionSection
           title="Pointage heures"
           badge={
@@ -402,29 +480,20 @@ export function InterventionDetailPanel({
           onToggle={() => toggleSection('pointage')}
         >
           <div className="space-y-4">
-            {/* Chronomètre (affiché seulement si en cours) */}
             {iv.status === 'en_cours' && (
               <div className="rounded-xl bg-slate-900 px-5 py-4 text-center">
                 <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">Temps écoulé</p>
-                <p className="font-mono text-3xl font-bold text-white tracking-widest">
-                  {fmtElapsed(elapsed)}
-                </p>
+                <p className="font-mono text-3xl font-bold text-white tracking-widest">{fmtElapsed(elapsed)}</p>
               </div>
             )}
-
-            {/* Résumé horaires */}
             <div className="space-y-2 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Début</span>
-                <span className="font-medium text-slate-800">
-                  {iv.hour_start ? fmtHour(iv.hour_start) : <span className="text-slate-300">—</span>}
-                </span>
+                <span className="font-medium text-slate-800">{iv.hour_start ? fmtHour(iv.hour_start) : <span className="text-slate-300">—</span>}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Fin</span>
-                <span className="font-medium text-slate-800">
-                  {iv.hour_end ? fmtHour(iv.hour_end) : <span className="text-slate-300">—</span>}
-                </span>
+                <span className="font-medium text-slate-800">{iv.hour_end ? fmtHour(iv.hour_end) : <span className="text-slate-300">—</span>}</span>
               </div>
               {iv.hour_start && iv.hour_end && (
                 <div className="flex justify-between items-center border-t border-slate-100 pt-2">
@@ -491,8 +560,7 @@ export function InterventionDetailPanel({
                 className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
               <button
-                type="button"
-                onClick={handleAddTask}
+                type="button" onClick={handleAddTask}
                 className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-200 transition-colors"
               >
                 + Ajouter
@@ -519,43 +587,26 @@ export function InterventionDetailPanel({
               <p className="text-xs text-slate-400">Aucun matériel renseigné.</p>
             )}
 
-            {/* Matériaux du devis (non supprimables, à compléter) */}
             {devisMaterials.map((m) => (
-              <div
-                key={m.id}
-                className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2"
-              >
-                {/* Infos du devis (readonly) */}
+              <div key={m.id} className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">
-                      {m.designation || 'Matériel sans désignation'}
-                    </p>
+                    <p className="text-sm font-semibold text-slate-800 truncate">{m.designation || 'Matériel sans désignation'}</p>
                     <div className="flex flex-wrap gap-x-3 text-xs text-slate-500 mt-0.5">
                       {m.reference && <span>Réf: {m.reference}</span>}
-                      {m.quantite   && <span>Qté: {m.quantite}</span>}
+                      {m.quantite  && <span>Qté: {m.quantite}</span>}
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                    📋 Devis
-                  </span>
+                  <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">📋 Devis</span>
                 </div>
-                {/* Champs à compléter par le technicien */}
                 <div className="grid grid-cols-2 gap-2">
-                  {(
-                    [
-                      { field: 'marque',   label: 'Marque'       },
-                      { field: 'modele',   label: 'Modèle'       },
-                      { field: 'serial',   label: 'N° série'     },
-                      { field: 'location', label: 'Localisation' },
-                    ] as const
-                  ).map(({ field, label }) => (
+                  {(['marque', 'modele', 'serial', 'location'] as const).map((field) => (
                     <input
                       key={field}
                       type="text"
                       value={(m[field] as string | undefined) ?? ''}
                       onChange={(e) => updateMaterialField(m.id, field, e.target.value)}
-                      placeholder={label}
+                      placeholder={field === 'marque' ? 'Marque' : field === 'modele' ? 'Modèle' : field === 'serial' ? 'N° série' : 'Localisation'}
                       className="rounded-lg border border-blue-300 bg-white px-2 py-1.5 text-xs placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
                     />
                   ))}
@@ -563,73 +614,38 @@ export function InterventionDetailPanel({
               </div>
             ))}
 
-            {/* Matériaux ajoutés manuellement (supprimables) */}
             {manualMaterials.map((m) => (
               <div key={m.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-0.5">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-slate-700">
-                      {m.designation || [m.marque, m.modele].filter(Boolean).join(' ') || 'Matériel'}
-                    </p>
+                    <p className="font-semibold text-slate-700">{m.designation || [m.marque, m.modele].filter(Boolean).join(' ') || 'Matériel'}</p>
                     {m.serial   && <p className="text-slate-500">N° série : {m.serial}</p>}
                     {m.location && <p className="text-slate-500">Local. : {m.location}</p>}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveManualMaterial(m.id)}
-                    className="text-slate-400 hover:text-red-500 transition-colors"
-                    aria-label="Supprimer"
-                  >
-                    ✕
-                  </button>
+                  <button type="button" onClick={() => handleRemoveManualMaterial(m.id)} className="text-slate-400 hover:text-red-500 transition-colors" aria-label="Supprimer">✕</button>
                 </div>
               </div>
             ))}
 
-            {/* Formulaire ajout manuel */}
             {showMatForm ? (
               <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
-                {(
-                  [
-                    { field: 'designation', placeholder: 'Désignation (ex: Switch PoE 24 ports)' },
-                    { field: 'marque',      placeholder: 'Marque' },
-                    { field: 'modele',      placeholder: 'Modèle' },
-                    { field: 'serial',      placeholder: 'N° série' },
-                    { field: 'location',    placeholder: 'Localisation' },
-                  ] as const
-                ).map(({ field, placeholder }) => (
+                {(['designation', 'marque', 'modele', 'serial', 'location'] as const).map((field) => (
                   <input
                     key={field}
                     type="text"
                     value={newMat[field]}
                     onChange={(e) => setNewMat((prev) => ({ ...prev, [field]: e.target.value }))}
-                    placeholder={placeholder}
+                    placeholder={field === 'designation' ? 'Désignation (ex: Switch PoE 24 ports)' : field === 'marque' ? 'Marque' : field === 'modele' ? 'Modèle' : field === 'serial' ? 'N° série' : 'Localisation'}
                     className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                   />
                 ))}
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAddMaterial}
-                    className="flex-1 rounded-lg bg-blue-600 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
-                  >
-                    Ajouter
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowMatForm(false)}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
-                  >
-                    Annuler
-                  </button>
+                  <button type="button" onClick={handleAddMaterial} className="flex-1 rounded-lg bg-blue-600 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">Ajouter</button>
+                  <button type="button" onClick={() => setShowMatForm(false)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors">Annuler</button>
                 </div>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setShowMatForm(true)}
-                className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-              >
+              <button type="button" onClick={() => setShowMatForm(true)} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors">
                 + Ajouter du matériel
               </button>
             )}
@@ -649,27 +665,88 @@ export function InterventionDetailPanel({
           </div>
         </AccordionSection>
 
-        {/* ── Section 6 : Rapport & Signature ────────────────────────────── */}
+        {/* ── Section 6 : Rapport & Signature client ──────────────────────── */}
         <AccordionSection
-          title="Rapport & Signature"
+          title="Rapport & Signature client"
+          badge={
+            signatureValidated ? (
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">✅ Signé</span>
+            ) : undefined
+          }
           isOpen={open.rapport}
           onToggle={() => toggleSection('rapport')}
         >
-          <div className="space-y-4">
+          <div className="space-y-5">
+
+            {/* A) Observations du technicien */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500">Observations</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Observations du technicien
+              </label>
               <textarea
                 value={localObservations}
                 onChange={(e) => setLocalObservations(e.target.value)}
                 rows={4}
-                placeholder="Travaux effectués, remarques, problèmes rencontrés…"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm resize-none focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Observations, remarques, travaux effectués..."
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm resize-y focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
-              <p className="text-sm font-semibold text-slate-500">Signature client</p>
-              <p className="text-xs text-slate-400 mt-0.5">Bientôt disponible</p>
+
+            {/* B) Nom du signataire */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Nom du signataire
+              </label>
+              <input
+                type="text"
+                value={signerName}
+                onChange={(e) => setSignerName(e.target.value)}
+                disabled={signatureValidated}
+                placeholder="Nom et prénom du client"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400"
+              />
             </div>
+
+            {/* C) Canvas de signature */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Signature client
+              </label>
+
+              <SignatureCanvas
+                ref={canvasRef}
+                readonly={signatureValidated}
+                existingData={signatureData}
+              />
+
+              {!signatureValidated ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => canvasRef.current?.clear()}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+                  >
+                    🗑 Effacer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleValidateSignature}
+                    disabled={!signerName.trim() || isSigningSaving}
+                    className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isSigningSaving ? '…' : '✅ Valider la signature'}
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5">
+                  <p className="text-xs font-semibold text-green-700">
+                    ✅ Signé par {signerName}
+                    {signatureDate && ` le ${fmtLongDateTime(signatureDate)}`}
+                  </p>
+                </div>
+              )}
+            </div>
+
           </div>
         </AccordionSection>
       </div>
@@ -677,57 +754,46 @@ export function InterventionDetailPanel({
       {/* ── Footer fixe ───────────────────────────────────────────────────── */}
       <div className="fixed bottom-0 right-0 w-full max-w-lg border-t border-slate-200 bg-white px-5 py-4 flex gap-2 justify-end flex-wrap">
         <button
-          type="button"
-          onClick={onClose}
+          type="button" onClick={onClose}
           className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
         >
           Fermer
         </button>
         <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving}
+          type="button" onClick={handleSave} disabled={isSaving}
           className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
         >
           {isSaving ? '…' : '💾 Sauvegarder'}
         </button>
 
-        {/* Démarrer */}
         {iv.status === 'planifiee' && (
-          <button
-            type="button"
-            onClick={() => handleStatus('en_cours')}
-            disabled={isPendingStatus}
-            className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
-          >
+          <button type="button" onClick={() => handleStatus('en_cours')} disabled={isPendingStatus}
+            className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50 transition-colors">
             {isPendingStatus ? '…' : '🚀 Démarrer'}
           </button>
         )}
 
-        {/* Terminer */}
         {iv.status === 'en_cours' && (
-          <button
-            type="button"
-            onClick={() => handleStatus('terminee')}
-            disabled={isPendingStatus}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-          >
+          <button type="button" onClick={() => handleStatus('terminee')} disabled={isPendingStatus}
+            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors">
             {isPendingStatus ? '…' : '✅ Terminer'}
           </button>
         )}
 
-        {/* Envoyer rapport (uniquement quand terminée) */}
         {iv.status === 'terminee' && (
-          <button
-            type="button"
-            onClick={handleSendReport}
-            disabled={isSendingReport || reportSent}
+          <button type="button" onClick={handleDownloadPdf} disabled={isDownloadingPdf}
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors">
+            {isDownloadingPdf ? '…' : '📄 Télécharger PDF'}
+          </button>
+        )}
+
+        {iv.status === 'terminee' && (
+          <button type="button" onClick={handleSendReport} disabled={isSendingReport || reportSent}
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
               reportSent
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
-            }`}
-          >
+            }`}>
             {isSendingReport ? '…' : reportSent ? '✅ Rapport envoyé' : '📧 Envoyer le rapport'}
           </button>
         )}

@@ -1,140 +1,138 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 
-interface SignatureCanvasProps {
-  onSave:   (blob: Blob) => void;
-  onCancel: () => void;
-  saving?:  boolean;
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface SignatureCanvasHandle {
+  clear:      () => void;
+  getDataURL: () => string | null;
+  isEmpty:    () => boolean;
 }
 
-export function SignatureCanvas({ onSave, onCancel, saving }: SignatureCanvasProps) {
-  const canvasRef  = useRef<HTMLCanvasElement>(null);
-  const drawing    = useRef(false);
-  const lastPos    = useRef<{ x: number; y: number } | null>(null);
-  const [isEmpty,  setIsEmpty]  = useState(true);
-
-  // Initialiser le canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth   = 2.5;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-  }, []);
-
-  function getPos(e: React.MouseEvent | React.TouchEvent): { x: number; y: number } {
-    const canvas = canvasRef.current!;
-    const rect   = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / rect.width;
-    const scaleY = canvas.height / rect.height;
-    if ('touches' in e) {
-      const t = e.touches[0];
-      return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY };
-    }
-    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
-  }
-
-  function startDraw(e: React.MouseEvent | React.TouchEvent) {
-    e.preventDefault();
-    drawing.current = true;
-    lastPos.current = getPos(e);
-  }
-
-  function draw(e: React.MouseEvent | React.TouchEvent) {
-    e.preventDefault();
-    if (!drawing.current || !lastPos.current) return;
-    const canvas = canvasRef.current!;
-    const ctx    = canvas.getContext('2d')!;
-    const pos    = getPos(e);
-
-    ctx.beginPath();
-    ctx.moveTo(lastPos.current.x, lastPos.current.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    lastPos.current = pos;
-    setIsEmpty(false);
-  }
-
-  function stopDraw() {
-    drawing.current = false;
-    lastPos.current = null;
-  }
-
-  const clearCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setIsEmpty(true);
-  }, []);
-
-  function handleSave() {
-    const canvas = canvasRef.current;
-    if (!canvas || isEmpty) return;
-    canvas.toBlob((blob) => {
-      if (blob) onSave(blob);
-    }, 'image/png');
-  }
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      {/* En-tête */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white">
-        <p className="text-sm font-semibold text-slate-800">Signature client</p>
-        <p className="text-xs text-slate-400">Signez dans le cadre ci-dessous</p>
-      </div>
-
-      {/* Canvas */}
-      <div className="relative bg-white mx-4 my-3 rounded-xl border-2 border-dashed border-slate-200 overflow-hidden">
-        <canvas
-          ref={canvasRef}
-          width={600}
-          height={200}
-          className="w-full touch-none cursor-crosshair"
-          onMouseDown={startDraw}
-          onMouseMove={draw}
-          onMouseUp={stopDraw}
-          onMouseLeave={stopDraw}
-          onTouchStart={startDraw}
-          onTouchMove={draw}
-          onTouchEnd={stopDraw}
-        />
-        {isEmpty && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <p className="text-slate-400 text-sm">Signez ici…</p>
-          </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-3 px-4 pb-4">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-500 hover:bg-white transition-colors"
-        >
-          Annuler
-        </button>
-        <button
-          type="button"
-          onClick={clearCanvas}
-          disabled={isEmpty}
-          className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-500 hover:bg-white transition-colors disabled:opacity-40"
-        >
-          Effacer
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isEmpty || saving}
-          className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
-        >
-          {saving ? 'Sauvegarde…' : 'Valider'}
-        </button>
-      </div>
-    </div>
-  );
+interface Props {
+  readonly?:     boolean;
+  existingData?: string | null;
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getCanvasPos(canvas: HTMLCanvasElement, clientX: number, clientY: number) {
+  const rect   = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+}
+
+// ── Composant ─────────────────────────────────────────────────────────────────
+
+export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
+  function SignatureCanvas({ readonly = false, existingData }, ref) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const isDrawing = useRef(false);
+    const hasDrawn  = useRef(false);
+
+    // Charger une signature existante
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas || !existingData) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const img  = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        hasDrawn.current = true;
+      };
+      img.src = existingData;
+    }, [existingData]);
+
+    const startDraw = useCallback((x: number, y: number) => {
+      if (readonly) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      isDrawing.current = true;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    }, [readonly]);
+
+    const draw = useCallback((x: number, y: number) => {
+      if (!isDrawing.current || readonly) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth   = 2;
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      hasDrawn.current = true;
+    }, [readonly]);
+
+    const endDraw = useCallback(() => { isDrawing.current = false; }, []);
+
+    // Attacher les listeners de façon impérative (touch passive:false obligatoire)
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const onMouseDown = (e: MouseEvent) => { const p = getCanvasPos(canvas, e.clientX, e.clientY); startDraw(p.x, p.y); };
+      const onMouseMove = (e: MouseEvent) => { const p = getCanvasPos(canvas, e.clientX, e.clientY); draw(p.x, p.y); };
+      const onMouseUp   = () => endDraw();
+
+      const onTouchStart = (e: TouchEvent) => { e.preventDefault(); const t = e.touches[0]; const p = getCanvasPos(canvas, t.clientX, t.clientY); startDraw(p.x, p.y); };
+      const onTouchMove  = (e: TouchEvent) => { e.preventDefault(); const t = e.touches[0]; const p = getCanvasPos(canvas, t.clientX, t.clientY); draw(p.x, p.y); };
+      const onTouchEnd   = (e: TouchEvent) => { e.preventDefault(); endDraw(); };
+
+      canvas.addEventListener('mousedown',  onMouseDown);
+      canvas.addEventListener('mousemove',  onMouseMove);
+      canvas.addEventListener('mouseup',    onMouseUp);
+      canvas.addEventListener('mouseleave', onMouseUp);
+      canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+      canvas.addEventListener('touchmove',  onTouchMove,  { passive: false });
+      canvas.addEventListener('touchend',   onTouchEnd,   { passive: false });
+
+      return () => {
+        canvas.removeEventListener('mousedown',  onMouseDown);
+        canvas.removeEventListener('mousemove',  onMouseMove);
+        canvas.removeEventListener('mouseup',    onMouseUp);
+        canvas.removeEventListener('mouseleave', onMouseUp);
+        canvas.removeEventListener('touchstart', onTouchStart);
+        canvas.removeEventListener('touchmove',  onTouchMove);
+        canvas.removeEventListener('touchend',   onTouchEnd);
+      };
+    }, [startDraw, draw, endDraw]);
+
+    useImperativeHandle(ref, () => ({
+      clear: () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+        hasDrawn.current = false;
+      },
+      getDataURL: () => {
+        if (!hasDrawn.current) return null;
+        return canvasRef.current?.toDataURL('image/png') ?? null;
+      },
+      isEmpty: () => !hasDrawn.current,
+    }));
+
+    return (
+      <canvas
+        ref={canvasRef}
+        width={600}
+        height={160}
+        className={`w-full rounded-[10px] border-2 ${
+          readonly
+            ? 'border-green-500 cursor-default'
+            : 'border-dashed border-[#c2cbe0] cursor-crosshair'
+        }`}
+        style={{ background: '#f5f7fc', touchAction: 'none', height: '160px' }}
+      />
+    );
+  },
+);

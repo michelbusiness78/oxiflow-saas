@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { PhotoUpload, type PhotoEntry } from './PhotoUpload';
 import { SignatureCanvas } from './SignatureCanvas';
+import type { SignatureCanvasHandle } from './SignatureCanvas';
 import { RapportPDF } from './RapportPDF';
 import {
   createInterventionAction,
@@ -135,9 +136,10 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
   );
 
   // ── Signature ──────────────────────────────────────────────────────────────
-  const [showSig,    setShowSig]    = useState(false);
+  const [showSig,      setShowSig]      = useState(false);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(editing?.signature_url ?? null);
-  const [savingSig,  setSavingSig]  = useState(false);
+  const [savingSig,    setSavingSig]    = useState(false);
+  const canvasSigRef                   = useRef<SignatureCanvasHandle>(null);
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   const timer = useTimer((editing?.duree_minutes ?? 0) * 60);
@@ -208,8 +210,13 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
 
   // ── Signature ─────────────────────────────────────────────────────────────
 
-  async function handleSignatureSave(blob: Blob) {
+  async function handleSignatureSave() {
+    const dataUrl = canvasSigRef.current?.getDataURL();
+    if (!dataUrl) return;
     setSavingSig(true);
+    // Convertir dataURL en Blob
+    const res2 = await fetch(dataUrl);
+    const blob  = await res2.blob();
     const fd = new FormData();
     fd.append('file', blob, 'signature.png');
     const res = await uploadInterventionFileAction(fd, 'signatures');
@@ -520,7 +527,14 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
             </div>
           ) : !isTerminee ? (
             showSig ? (
-              <SignatureCanvas onSave={handleSignatureSave} onCancel={() => setShowSig(false)} saving={savingSig} />
+              <div className="space-y-2">
+                <SignatureCanvas ref={canvasSigRef} />
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setShowSig(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors">Annuler</button>
+                  <button type="button" onClick={() => canvasSigRef.current?.clear()} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors">Effacer</button>
+                  <button type="button" onClick={handleSignatureSave} disabled={savingSig} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">{savingSig ? 'Sauvegarde…' : 'Valider'}</button>
+                </div>
+              </div>
             ) : (
               <button
                 type="button"

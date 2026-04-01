@@ -3,7 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthContext }    from '@/lib/auth-context';
 import { revalidatePath }    from 'next/cache';
-import { sendEmail }         from '@/lib/email';
+import { sendEmail, sendEmailWithAttachment } from '@/lib/email';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -65,6 +65,10 @@ export interface PlanningIntervention {
   report_sent:         boolean;
   report_sent_at:      string | null;
   report_sent_to:      string | null;
+  // Signature client
+  signature_data:      string | null;
+  signature_name:      string | null;
+  signature_date:      string | null;
   // Joints (fallback si dénorm absent)
   clients:  { nom: string; adresse: string | null; cp: string | null; ville: string | null; tel: string | null } | null;
   projects: { name: string; affair_number: string | null } | null;
@@ -88,6 +92,7 @@ export async function getMyInterventions(
       hour_start, hour_end, timer_elapsed,
       observations, checklist, materials_installed,
       report_sent, report_sent_at, report_sent_to,
+      signature_data, signature_name, signature_date,
       clients ( nom, adresse, cp, ville, tel ),
       projects ( name, affair_number )
     `)
@@ -102,6 +107,9 @@ export async function getMyInterventions(
     report_sent:         (i.report_sent         as boolean | null) ?? false,
     checklist:           (i.checklist           as ChecklistItem[] | null) ?? [],
     materials_installed: (i.materials_installed as MaterialItem[]  | null) ?? [],
+    signature_data:      (i.signature_data      as string  | null) ?? null,
+    signature_name:      (i.signature_name      as string  | null) ?? null,
+    signature_date:      (i.signature_date      as string  | null) ?? null,
   })) as unknown as PlanningIntervention[];
 }
 
@@ -188,10 +196,36 @@ export async function saveInterventionProgress(
   return {};
 }
 
+// ── Sauvegarder la signature client ──────────────────────────────────────────
+
+export async function saveInterventionSignature(
+  interventionId: string,
+  signatureData:  string,   // base64 PNG (data URI)
+  signatureName:  string,
+): Promise<{ error?: string }> {
+  const { admin, tenant_id } = await getAuthContext();
+
+  const { error } = await admin
+    .from('interventions')
+    .update({
+      signature_data: signatureData,
+      signature_name: signatureName,
+      signature_date: new Date().toISOString(),
+      updated_at:     new Date().toISOString(),
+    })
+    .eq('id', interventionId)
+    .eq('tenant_id', tenant_id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/technicien');
+  return {};
+}
+
 // ── Envoyer le rapport par email ──────────────────────────────────────────────
 
 export async function sendInterventionReport(
   interventionId: string,
+  pdfBase64?:     string,   // PDF généré côté client, encodé en base64
 ): Promise<{ error?: string; recipientEmail?: string }> {
   const { admin, tenant_id } = await getAuthContext();
 
@@ -322,7 +356,23 @@ export async function sendInterventionReport(
   // ── Envoi ─────────────────────────────────────────────────────────────────────
 
   try {
-    await sendEmail(recipient.email, subject, html);
+    if (pdfBase64) {
+      const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+      const dateLabel = new Intl.DateTimeFormat('fr-FR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+      }).format(new Date(iv.date_start)).replace(/\//g, '-');
+      await sendEmailWithAttachment(
+        recipient.email,
+        subject,
+        `<p style="font-family:sans-serif;font-size:14px;color:#475569;">
+          Veuillez trouver ci-joint le rapport d'intervention en PDF.<br><br>
+          <em style="color:#94a3b8;">Rapport généré automatiquement par OxiFlow</em>
+        </p>`,
+        { filename: `rapport-intervention-${dateLabel}.pdf`, content: pdfBuffer },
+      );
+    } else {
+      await sendEmail(recipient.email, subject, html);
+    }
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur lors de l\'envoi' };
   }

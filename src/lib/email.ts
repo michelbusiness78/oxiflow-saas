@@ -28,3 +28,20 @@ export async function sendEmail(
   const { error } = await resend.emails.send({ from: FROM, to, subject, html });
   if (error) throw new Error(error.message);
 }
+
+export async function sendEmailWithAttachment(
+  to:         string,
+  subject:    string,
+  html:       string,
+  attachment: { filename: string; content: Buffer },
+): Promise<void> {
+  const resend = getResend();
+  const { error } = await resend.emails.send({
+    from:        FROM,
+    to,
+    subject,
+    html,
+    attachments: [attachment],
+  });
+  if (error) throw new Error(error.message);
+}
