@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
         const stripeSubId = session.subscription as string;
         const customerId  = session.customer     as string;
-        const plan        = (session.metadata?.plan ?? 'solo') as string;
+        const plan        = (session.metadata?.plan ?? 'starter') as string;
 
         // Récupère le tenant depuis stripe_customers
         const { data: sc } = await admin

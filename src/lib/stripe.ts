@@ -31,15 +31,21 @@ export function getStripe() {
 
 export function getPlanPriceIds(): Record<string, string> {
   return {
-    solo: process.env.STRIPE_PRICE_SOLO ?? '',
-    team: process.env.STRIPE_PRICE_TEAM ?? '',
-    pro:  process.env.STRIPE_PRICE_PRO  ?? '',
+    starter_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTHLY ?? '',
+    starter_yearly:  process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEARLY  ?? '',
+    team_monthly:    process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY    ?? '',
+    team_yearly:     process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY     ?? '',
+    pro_monthly:     process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY     ?? '',
+    pro_yearly:      process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEARLY      ?? '',
   };
 }
 
 export function getPlanFromPriceId(priceId: string): string {
-  const entries = Object.entries(getPlanPriceIds());
-  return entries.find(([, id]) => id === priceId)?.[0] ?? 'solo';
+  const ids = getPlanPriceIds();
+  if (priceId === ids.starter_monthly || priceId === ids.starter_yearly) return 'starter';
+  if (priceId === ids.team_monthly    || priceId === ids.team_yearly)    return 'team';
+  if (priceId === ids.pro_monthly     || priceId === ids.pro_yearly)     return 'pro';
+  return 'starter';
 }
 
 // ─── Helper : récupère ou crée un Stripe Customer pour un tenant ──────────────
