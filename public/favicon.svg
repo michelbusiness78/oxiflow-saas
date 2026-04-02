@@ -1,4 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#2563EB"/>
-  <text x="32" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="900" fill="#FFFFFF" letter-spacing="-1">OF</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fond bleu coins arrondis -->
+  <rect width="512" height="512" rx="96" fill="#1a56db"/>
+
+  <!-- O : anneau -->
+  <circle cx="152" cy="256" r="98" fill="#ffffff"/>
+  <circle cx="152" cy="256" r="58" fill="#1a56db"/>
+
+  <!-- F : rectangle vertical gauche (montant) -->
+  <rect x="274" y="156" width="34" height="200" rx="4" fill="#ffffff"/>
+  <!-- F : barre haute -->
+  <rect x="308" y="156" width="58" height="34" rx="4" fill="#ffffff"/>
+  <!-- F : barre milieu -->
+  <rect x="308" y="239" width="40.599999999999994" height="30" rx="4" fill="#ffffff"/>
 </svg>
