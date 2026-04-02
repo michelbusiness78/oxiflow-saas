@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
   // ── 5. Appel ElevenLabs ────────────────────────────────────────────────────
   const elRes = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?optimize_streaming_latency=2`,
     {
       method:  'POST',
       headers: {
@@ -75,12 +75,13 @@ export async function POST(req: NextRequest) {
         'Accept':       'audio/mpeg',
       },
       body: JSON.stringify({
-        text:           safeText,
-        model_id:       'eleven_multilingual_v2',
+        text:     safeText,
+        model_id: 'eleven_flash_v2_5',
         voice_settings: {
-          stability:        0.5,
-          similarity_boost: 0.75,
-          style:            0.5,
+          stability:        0.65,
+          similarity_boost: 0.85,
+          style:            0.3,
+          use_speaker_boost: true,
         },
       }),
     },
