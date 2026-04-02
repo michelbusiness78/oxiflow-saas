@@ -70,8 +70,9 @@ export function VoiceAgent({ userName, userRole }: Props) {
 
     // TTS queue
     ttsRef.current = new TTSQueue({
-      onStart: () => setStatus('speaking'),
-      onEnd:   () => {
+      onGenerating: () => safeSetStatus('thinking'),   // keep "thinking" while ElevenLabs generates
+      onStart:      () => safeSetStatus('speaking'),
+      onEnd:        () => {
         // After speaking, loop back to listening in agent mode
         if (isAgentMode.current && agentOpenRef.current) {
           startListening();
@@ -201,7 +202,7 @@ export function VoiceAgent({ userName, userRole }: Props) {
       addMessage('agent', reply);
       resetInactivity();
 
-      safeSetStatus('speaking');
+      // Status transitions: thinking → (onGenerating keeps thinking) → speaking (onStart) → idle/listening (onEnd)
       ttsRef.current?.stop();
       ttsRef.current?.enqueue(reply);
 
