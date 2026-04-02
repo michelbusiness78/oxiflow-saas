@@ -1,5 +1,6 @@
 // Browser-only — never import at the top level of a server module.
 // ElevenLabs TTS (via /api/tts) with Web Speech API fallback.
+// Sentence-level streaming: each sentence prefetches while the previous plays.
 
 export function isTTSSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -18,6 +19,24 @@ function cleanForSpeech(text: string): string {
     .replace(/\n{2,}/g, '. ')
     .replace(/\n/g, ' ')
     .trim();
+}
+
+// ── Split text into sentences ─────────────────────────────────────────────────
+
+function splitSentences(text: string): string[] {
+  // Split on sentence-ending punctuation followed by whitespace
+  const raw = text.split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
+  // Merge very short fragments (< 8 chars) with the next sentence to avoid
+  // overly small ElevenLabs requests
+  const merged: string[] = [];
+  for (const s of raw) {
+    if (merged.length > 0 && merged[merged.length - 1].length < 8) {
+      merged[merged.length - 1] += ' ' + s;
+    } else {
+      merged.push(s);
+    }
+  }
+  return merged.length > 0 ? merged : [text];
 }
 
 // ── Web Speech API fallback ───────────────────────────────────────────────────
@@ -63,10 +82,10 @@ function speakWebSpeech(
 // ── TTSOptions ────────────────────────────────────────────────────────────────
 
 export interface TTSOptions {
-  volume?:   number;   // 0–1, default 0.9
-  rate?:     number;   // 0.1–10, default 1 (fallback Web Speech only)
-  onStart?:  () => void;
-  onEnd?:    () => void;
+  volume?:      number;   // 0–1, default 0.9
+  rate?:        number;   // 0.1–10, default 1 (fallback Web Speech only)
+  onStart?:     () => void;
+  onEnd?:       () => void;
   onGenerating?: () => void;  // called while ElevenLabs request is in-flight
 }
 
@@ -81,81 +100,102 @@ export class TTSQueue {
   private onEnd?:        () => void;
   private onGenerating?: () => void;
 
-  // Audio element kept in a ref so we can stop mid-play
-  private audioEl: HTMLAudioElement | null = null;
+  private audioEl:  HTMLAudioElement | null = null;
   private audioUrl: string | null = null;
 
+  // Prefetch cache: text → Promise<Blob | null>
+  // Filled eagerly as sentences are enqueued so fetch overlaps with playback.
+  private prefetch = new Map<string, Promise<Blob | null>>();
+
   constructor(opts: TTSOptions = {}) {
-    this.volume      = opts.volume      ?? 0.9;
-    this.rate        = opts.rate        ?? 1.0;
-    this.onStart     = opts.onStart;
-    this.onEnd       = opts.onEnd;
+    this.volume       = opts.volume       ?? 0.9;
+    this.rate         = opts.rate         ?? 1.0;
+    this.onStart      = opts.onStart;
+    this.onEnd        = opts.onEnd;
     this.onGenerating = opts.onGenerating;
   }
+
+  // ── enqueue ─────────────────────────────────────────────────────────────────
 
   enqueue(text: string) {
     const clean = cleanForSpeech(text);
     if (!clean) return;
-    this.queue.push(clean);
+
+    // Split into sentences and prefetch all of them in parallel immediately.
+    // By the time the first sentence finishes playing, later ones are ready.
+    const sentences = splitSentences(clean);
+    for (const s of sentences) {
+      if (!this.prefetch.has(s)) {
+        this.prefetch.set(s, this.fetchAudio(s));
+      }
+      this.queue.push(s);
+    }
+
     if (!this.running) this.flush();
   }
 
-  private async flush() {
-    if (!this.queue.length) { this.running = false; return; }
-    this.running = true;
+  // ── fetchAudio ──────────────────────────────────────────────────────────────
 
-    const text = this.queue.shift()!;
-
-    // Signal "generating" to UI while waiting for ElevenLabs
-    this.onGenerating?.();
-
-    // ── Try ElevenLabs via /api/tts ───────────────────────────────────────
-    let usedElevenLabs = false;
+  private async fetchAudio(text: string): Promise<Blob | null> {
     try {
       const res = await fetch('/api/tts', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ text }),
       });
-
-      if (res.ok) {
-        usedElevenLabs = true;
-        const blob = await res.blob();
-        const url  = URL.createObjectURL(blob);
-
-        const audio    = new Audio(url);
-        audio.volume   = this.volume;
-        this.audioEl   = audio;
-        this.audioUrl  = url;
-
-        audio.onplay = () => {
-          if (this.queue.length === 0) this.onStart?.();
-        };
-
-        await new Promise<void>((resolve) => {
-          audio.onended = () => { this.revoke(); resolve(); };
-          audio.onerror = () => { this.revoke(); resolve(); };
-          audio.play().catch(() => { this.revoke(); resolve(); });
-        });
-      }
+      if (!res.ok) return null;
+      return await res.blob();
     } catch {
-      // Network / fetch error — fall through to Web Speech
+      return null;
     }
+  }
 
-    // ── Fallback: Web Speech API ──────────────────────────────────────────
-    if (!usedElevenLabs && typeof window !== 'undefined') {
+  // ── flush ───────────────────────────────────────────────────────────────────
+
+  private async flush() {
+    if (!this.queue.length) { this.running = false; return; }
+    this.running = true;
+
+    const text = this.queue.shift()!;
+    const isFirst = !this.audioEl && this.queue.length === 0;
+    void isFirst; // used only conceptually
+
+    // Signal "generating" while waiting (only relevant if cache miss)
+    this.onGenerating?.();
+
+    // Await the pre-fetched blob (already in-flight since enqueue)
+    const blob = await (this.prefetch.get(text) ?? this.fetchAudio(text));
+    this.prefetch.delete(text);
+
+    if (blob) {
+      // ── ElevenLabs path ──────────────────────────────────────────────────
+      const url   = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.volume  = this.volume;
+      this.audioEl  = audio;
+      this.audioUrl = url;
+
+      audio.onplay = () => { this.onStart?.(); };
+
+      await new Promise<void>((resolve) => {
+        audio.onended = () => { this.revoke(); resolve(); };
+        audio.onerror = () => { this.revoke(); resolve(); };
+        audio.play().catch(() => { this.revoke(); resolve(); });
+      });
+    } else {
+      // ── Web Speech API fallback ───────────────────────────────────────────
       await new Promise<void>((resolve) => {
         speakWebSpeech(
           text,
           this.volume,
           this.rate,
-          () => { if (this.queue.length === 0) this.onStart?.(); },
+          () => this.onStart?.(),
           () => resolve(),
         );
       });
     }
 
-    // ── After current segment ─────────────────────────────────────────────
+    // ── Next segment ──────────────────────────────────────────────────────
     if (this.queue.length > 0) {
       this.flush();
     } else {
@@ -164,23 +204,26 @@ export class TTSQueue {
     }
   }
 
+  // ── revoke ──────────────────────────────────────────────────────────────────
+
   private revoke() {
     if (this.audioUrl) { URL.revokeObjectURL(this.audioUrl); this.audioUrl = null; }
     this.audioEl = null;
   }
 
+  // ── stop ────────────────────────────────────────────────────────────────────
+
   stop() {
     this.queue   = [];
     this.running = false;
+    this.prefetch.clear();
 
-    // Stop ElevenLabs audio
     if (this.audioEl) {
       this.audioEl.pause();
       this.audioEl.src = '';
       this.revoke();
     }
 
-    // Stop Web Speech API fallback
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       speechSynthesis.cancel();
     }

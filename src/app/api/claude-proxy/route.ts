@@ -4,6 +4,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL     = 'claude-sonnet-4-6';
+const VOICE_MODEL       = 'claude-haiku-4-5-20251001';
 const ANTHROPIC_VERSION = '2023-06-01';
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -52,10 +53,11 @@ export async function POST(request: NextRequest) {
 
   // ── 4. Parse et valide le body entrant ────────────────────────────────────
   let body: {
-    messages: unknown[];
-    system?: string;
-    tools?: unknown[];
+    messages:   unknown[];
+    system?:    string;
+    tools?:     unknown[];
     max_tokens?: number;
+    mode?:      string;   // 'voice' → Haiku + short answers
   };
 
   try {
@@ -82,9 +84,12 @@ export async function POST(request: NextRequest) {
   }
 
   // ── 6. Forward vers l'API Anthropic ───────────────────────────────────────
+  const isVoice = body.mode === 'voice';
+  const model   = isVoice ? VOICE_MODEL : DEFAULT_MODEL;
+
   const anthropicPayload: Record<string, unknown> = {
-    model:      DEFAULT_MODEL,
-    max_tokens: body.max_tokens ?? 1024,
+    model,
+    max_tokens: body.max_tokens ?? (isVoice ? 256 : 1024),
     messages:   body.messages,
   };
   if (body.system)  anthropicPayload.system = body.system;
@@ -149,7 +154,7 @@ export async function POST(request: NextRequest) {
       user_id:    user.id,
       tokens_in:  tokensIn,
       tokens_out: tokensOut,
-      model:      DEFAULT_MODEL,
+      model,
     })
     .then(({ error }: { error: { message: string } | null }) => {
       if (error) console.error('[claude-proxy] log usage error:', error.message);
