@@ -24,19 +24,6 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
   },
-  icons: {
-    icon:             [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-    ],
-    shortcut:         '/icons/icon-192.png',
-    apple:            [
-      { url: '/icons/icon-192.png', sizes: '192x192' },
-      { url: '/icons/icon-512.png', sizes: '512x512' },
-    ],
-  },
-  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -47,7 +34,22 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${inter.variable} h-full`}>
       <head>
-        <meta name="theme-color" content="#1B2A4A" />
+        {/* PWA manifest */}
+        <link rel="manifest" href="/manifest.json" />
+
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+        {/* Apple / iOS */}
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="OxiFlow" />
+
+        {/* Android / Chrome */}
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#1a56db" />
       </head>
       <body className="h-full">{children}</body>
     </html>
