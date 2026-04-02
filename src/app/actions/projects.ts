@@ -33,6 +33,7 @@ export interface Project {
 export interface ProjectNotifData {
   id:             string;
   project_id:     string;
+  type:           string;   // 'new_project' | 'facturation'
   title:          string;
   message:        string | null;
   project_name:   string;
@@ -163,7 +164,7 @@ export async function getProjectNotifications(userId: string): Promise<ProjectNo
 
   const { data: notifs } = await admin
     .from('project_notifications')
-    .select('id, project_id, title, message, created_at')
+    .select('id, project_id, type, title, message, created_at')
     .eq('user_id', userId)
     .eq('read', false)
     .order('created_at', { ascending: false });
@@ -199,6 +200,7 @@ export async function getProjectNotifications(userId: string): Promise<ProjectNo
     return {
       id:              n.id,
       project_id:      n.project_id,
+      type:            (n.type as string) ?? 'new_project',
       title:           n.title,
       message:         n.message ?? null,
       project_name:    proj?.name ?? '',
@@ -276,4 +278,21 @@ export async function getMyProjects(tenantId: string, userId: string): Promise<P
     chef_nom:            '—',
     commercial_nom:      '—',
   }));
+}
+
+// ─── dismissProjectNotification ───────────────────────────────────────────────
+
+export async function dismissProjectNotification(
+  notificationId: string,
+): Promise<{ success?: true; error?: string }> {
+  const { admin } = await getAuthContext();
+
+  const { error } = await admin
+    .from('project_notifications')
+    .update({ read: true })
+    .eq('id', notificationId);
+
+  if (error) return { error: error.message };
+  revalidatePath('/chef-projet');
+  return { success: true };
 }

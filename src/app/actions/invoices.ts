@@ -74,19 +74,27 @@ function calcTotals(lines: Omit<InvoiceLine, 'total_ht'>[]) {
   return { totalHT, totalTVA: totalTV, totalTTC: +(totalHT + totalTV).toFixed(2) };
 }
 
-async function nextInvoiceNumber(admin: AdminClient, tenant_id: string, name: string): Promise<string> {
-  const year = new Date().getFullYear();
-  const raw  = (name ?? '').toUpperCase().replace(/[^A-Z]/g, '');
-  const code = raw.slice(0, 4) || 'OXI';
-  const prefix = `FAC-${code}-${year}-`;
+async function nextInvoiceNumber(admin: AdminClient, tenant_id: string): Promise<string> {
+  const year   = new Date().getFullYear();
+  const prefix = `FAC-${year}-`;
 
-  const { count } = await admin
+  // Trouve le numéro de séquence le plus élevé pour ce tenant/année
+  const { data } = await admin
     .from('invoices')
-    .select('*', { count: 'exact', head: true })
+    .select('number')
     .eq('tenant_id', tenant_id)
-    .like('number', `${prefix}%`);
+    .like('number', `${prefix}%`)
+    .order('number', { ascending: false })
+    .limit(1);
 
-  return `${prefix}${String((count ?? 0) + 1).padStart(3, '0')}`;
+  let seq = 0;
+  if (data && data.length > 0) {
+    const parts = ((data[0].number as string) ?? '').split('-');
+    const last  = parts[parts.length - 1];
+    seq = parseInt(last, 10) || 0;
+  }
+
+  return `${prefix}${String(seq + 1).padStart(3, '0')}`;
 }
 
 // ─── createInvoiceFromQuote ───────────────────────────────────────────────────
@@ -97,7 +105,7 @@ export async function createInvoiceFromQuote(quoteId: string): Promise<{
   existed?: boolean;
   error?: string;
 }> {
-  const { admin, tenant_id, name } = await getAuthContext();
+  const { admin, tenant_id } = await getAuthContext();
 
   const { data: quote, error: qErr } = await admin
     .from('quotes')
@@ -156,7 +164,7 @@ export async function createInvoiceFromQuote(quoteId: string): Promise<{
 
   const today    = new Date().toISOString().split('T')[0];
   const echeance = new Date(Date.now() + 30 * 86_400_000).toISOString().split('T')[0];
-  const number   = await nextInvoiceNumber(admin, tenant_id, name);
+  const number   = await nextInvoiceNumber(admin, tenant_id);
 
   const { data: inv, error: invErr } = await admin
     .from('invoices')
@@ -205,7 +213,7 @@ export async function saveInvoiceAction(
   input: InvoiceInput,
   id?: string,
 ): Promise<{ success?: true; id?: string; error?: string }> {
-  const { admin, tenant_id, name } = await getAuthContext();
+  const { admin, tenant_id } = await getAuthContext();
 
   const { totalHT, totalTVA, totalTTC } = calcTotals(input.lines);
 
@@ -239,7 +247,7 @@ export async function saveInvoiceAction(
     return { success: true, id };
   }
 
-  const number = await nextInvoiceNumber(admin, tenant_id, name);
+  const number = await nextInvoiceNumber(admin, tenant_id);
   const { data, error } = await admin
     .from('invoices')
     .insert({ tenant_id, number, type: 'facture', ...common })

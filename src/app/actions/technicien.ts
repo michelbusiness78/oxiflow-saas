@@ -159,6 +159,36 @@ export async function updateInterventionStatus(
 
   if (error) return { error: error.message };
   revalidatePath('/technicien');
+
+  // Notification chef de projet quand une intervention liée à un projet est terminée
+  if (newStatus === 'terminee') {
+    const { data: iv } = await admin
+      .from('interventions')
+      .select('title, client_name, project_id')
+      .eq('id', interventionId)
+      .single();
+
+    if (iv?.project_id) {
+      const { data: proj } = await admin
+        .from('projects')
+        .select('chef_projet_user_id, tenant_id')
+        .eq('id', iv.project_id as string)
+        .single();
+
+      if (proj?.chef_projet_user_id) {
+        await admin.from('project_notifications').insert({
+          tenant_id:  (proj.tenant_id as string) ?? tenant_id,
+          project_id: iv.project_id as string,
+          user_id:    proj.chef_projet_user_id as string,
+          type:       'facturation',
+          title:      'Intervention terminée — À facturer',
+          message:    `${(iv.title as string) ?? 'Intervention'} chez ${(iv.client_name as string) ?? 'client'} est terminée. Créer la facture pour ce projet.`,
+        });
+        revalidatePath('/chef-projet');
+      }
+    }
+  }
+
   return {};
 }
 

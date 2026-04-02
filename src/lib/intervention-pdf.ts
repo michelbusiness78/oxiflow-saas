@@ -33,10 +33,11 @@ const fmtDateTime = (iso: string) =>
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }).format(new Date(iso));
 
-// ── Couleurs ──────────────────────────────────────────────────────────────────
+// ── Couleurs ── même charte que devis/factures ─────────────────────────────────
 
 const C = {
-  blue:      [37,  99,  235] as [number, number, number],
+  navy:      [30,  58,  138] as [number, number, number],   // en-têtes tableaux
+  blue:      [37,  99,  235] as [number, number, number],   // titres sections
   dark:      [15,  23,  42]  as [number, number, number],
   gray:      [100, 116, 139] as [number, number, number],
   lightGray: [148, 163, 184] as [number, number, number],
@@ -44,6 +45,7 @@ const C = {
   border:    [226, 232, 240] as [number, number, number],
   green:     [22,  163, 74]  as [number, number, number],
   blueLight: [239, 246, 255] as [number, number, number],
+  white:     [255, 255, 255] as [number, number, number],
 };
 
 // ── generateInterventionPDF ───────────────────────────────────────────────────
@@ -58,10 +60,10 @@ export async function generateInterventionPDF(
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  const ML = 14;            // margin left
-  const MR = 14;            // margin right
-  const CW = 210 - ML - MR; // content width = 182
-  let y  = 14;
+  const ML = 20;            // margin left  — même que devis/factures
+  const MR = 20;            // margin right
+  const CW = 210 - ML - MR; // content width = 170
+  let y  = 15;
 
   // Accès à la propriété lastAutoTable injectée par autotable
   const lastY = () =>
@@ -71,47 +73,42 @@ export async function generateInterventionPDF(
     if (y + needed > 270) { doc.addPage(); y = 14; }
   };
 
-  // ── EN-TÊTE ──────────────────────────────────────────────────────────────────
+  // ── EN-TÊTE ── même charte que devis/factures ────────────────────────────────
 
   const tenantName = companyInfo?.name || '';
   const logoUrl    = companyInfo?.logoUrl ?? null;
 
+  let logoH = 0;
   if (logoUrl) {
     try {
-      // Le logo est déjà en base64 data URL (converti côté client avant appel)
-      doc.addImage(logoUrl, 'PNG', ML, y, 0, 12); // hauteur 12mm, largeur auto
+      doc.addImage(logoUrl, 'PNG', ML, y, 0, 15); // hauteur 15mm, largeur auto
+      logoH = 15;
     } catch {
-      // image non chargeable — fallback texte
+      // fallback texte
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
       doc.setTextColor(...C.dark);
-      doc.text(tenantName, ML, y + 8);
+      doc.text(tenantName, ML, y + 10);
+      logoH = 12;
     }
   } else if (tenantName) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(...C.dark);
-    doc.text(tenantName, ML, y + 8);
+    doc.text(tenantName, ML, y + 10);
+    logoH = 12;
   }
 
-  y += 12;
-
-  // Titre
+  // Titre RAPPORT D'INTERVENTION aligné à droite sur la même ligne que le logo
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...C.dark);
-  doc.text("RAPPORT D'INTERVENTION", ML, y);
+  doc.setFontSize(18);
+  doc.setTextColor(...C.navy);
+  doc.text("RAPPORT D'INTERVENTION", 210 - MR, y + (logoH > 0 ? logoH / 2 + 3 : 8), { align: 'right' });
 
-  // Date (droite)
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...C.gray);
-  doc.text(fmtDate(iv.date_start), 210 - MR, y, { align: 'right' });
+  y += logoH + 10;
 
-  y += 6;
-
-  // Ligne bleue
-  doc.setDrawColor(...C.blue);
+  // Ligne séparatrice navy
+  doc.setDrawColor(...C.navy);
   doc.setLineWidth(0.8);
   doc.line(ML, y, 210 - MR, y);
   y += 7;
@@ -257,7 +254,7 @@ export async function generateInterventionPDF(
         m.serial    || '—',
       ]),
       styles:             { fontSize: 8, cellPadding: 2 },
-      headStyles:         { fillColor: C.blueLight, textColor: C.blue, fontStyle: 'bold', fontSize: 8 },
+      headStyles:         { fillColor: C.navy, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
       alternateRowStyles: { fillColor: C.bgLight },
       theme: 'striped',
     });
@@ -361,15 +358,18 @@ export async function generateInterventionPDF(
 
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    const footY = 285;
-    doc.setDrawColor(...C.border);
-    doc.setLineWidth(0.3);
+    const footY = 283;
+    doc.setDrawColor(...C.navy);
+    doc.setLineWidth(0.5);
     doc.line(ML, footY - 4, 210 - MR, footY - 4);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(...C.lightGray);
-    doc.text(`Rapport généré automatiquement par OxiFlow — ${genDateStr}`, ML, footY);
-    doc.text("Ce document constitue un justificatif d'intervention", ML, footY + 3.5);
+    doc.setFontSize(8);
+    doc.setTextColor(...C.gray);
+    doc.text(`Rapport généré le ${genDateStr} · OxiFlow`, ML, footY);
+    doc.text("Ce document constitue un justificatif d'intervention", ML, footY + 4);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...C.navy);
     doc.text(`Page ${i}/${pageCount}`, 210 - MR, footY, { align: 'right' });
   }
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   acceptProjectNotification,
+  dismissProjectNotification,
   type ProjectNotifData,
 } from '@/app/actions/projects';
 import { fmtEur } from '@/lib/format';
@@ -15,15 +16,18 @@ interface ProjectNotificationBannerProps {
 export function ProjectNotificationBanner({ initialNotifications }: ProjectNotificationBannerProps) {
   const router = useRouter();
   const [notifications, setNotifications] = useState(initialNotifications);
-  const [accepting,     setAccepting]     = useState<string | null>(null);
-  const [toast,         setToast]         = useState('');
+  const [pending,       setPending]        = useState<string | null>(null);
+  const [toast,         setToast]          = useState('');
 
   if (notifications.length === 0) return null;
 
+  const newProjects   = notifications.filter((n) => n.type !== 'facturation');
+  const facturations  = notifications.filter((n) => n.type === 'facturation');
+
   async function handleAccept(id: string) {
-    setAccepting(id);
+    setPending(id);
     const res = await acceptProjectNotification(id);
-    setAccepting(null);
+    setPending(null);
     if (res.error) {
       setToast(`Erreur : ${res.error}`);
       setTimeout(() => setToast(''), 4000);
@@ -35,69 +39,127 @@ export function ProjectNotificationBanner({ initialNotifications }: ProjectNotif
     router.refresh();
   }
 
+  async function handleDismiss(id: string) {
+    setPending(id);
+    await dismissProjectNotification(id);
+    setPending(null);
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    router.refresh();
+  }
+
   return (
-    <div className="mb-6 rounded-xl border-l-4 border-green-600 bg-green-50 p-4">
+    <div className="mb-6 space-y-3 w-full">
       {/* Toast */}
       {toast && (
-        <div className="mb-3 inline-flex items-center gap-2 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white">
+        <div className="inline-flex items-center gap-2 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white">
           {toast}
         </div>
       )}
 
-      {/* Titre */}
-      <p className="mb-3 text-sm font-bold text-green-800 uppercase tracking-wide">
-        📋 Nouveau projet affecté ({notifications.length})
-      </p>
+      {/* ── Bandeau VERT — Nouveaux projets ─────────────────────────────────── */}
+      {newProjects.length > 0 && (
+        <div className="w-full rounded-xl border-l-4 border-green-600 bg-green-50 p-[14px_16px]">
+          <p className="mb-3 text-sm font-bold text-green-800 uppercase tracking-wide">
+            📋 Nouveau projet affecté ({newProjects.length})
+          </p>
 
-      {/* Cards notifications */}
-      <div className="space-y-2">
-        {notifications.map((n) => (
-          <div
-            key={n.id}
-            className="flex flex-wrap items-start gap-3 rounded-lg border border-green-200 bg-white px-4 py-3 shadow-sm"
-          >
-            {/* Info */}
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-800">{n.project_name}</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {n.affair_number && (
-                  <span className="mr-2 font-mono text-slate-600">{n.affair_number}</span>
-                )}
-                {n.client_nom}
-                {n.commercial_name !== '—' && (
-                  <span className="ml-2 text-slate-400">· Commercial : {n.commercial_name}</span>
-                )}
-              </p>
-              {n.message && (
-                <p className="mt-1 text-xs text-slate-400">{n.message}</p>
-              )}
-            </div>
-
-            {/* Montant */}
-            <span className="shrink-0 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-              {fmtEur(n.amount_ttc)}
-            </span>
-
-            {/* Actions */}
-            <div className="shrink-0 flex items-center gap-2">
-              <a
-                href="/projets"
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+          <div className="space-y-[10px]">
+            {newProjects.map((n) => (
+              <div
+                key={n.id}
+                className="w-full rounded-xl border border-green-200 bg-white px-4 py-3 shadow-sm overflow-hidden"
               >
-                Voir →
-              </a>
-              <button
-                type="button"
-                disabled={accepting === n.id}
-                onClick={() => handleAccept(n.id)}
-                className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-              >
-                {accepting === n.id ? '…' : '✓ Accepter'}
-              </button>
-            </div>
+                {/* Info */}
+                <div className="min-w-0">
+                  <p className="text-[14px] font-bold text-slate-800 leading-snug">{n.project_name}</p>
+                  <p className="mt-0.5 text-[12px] text-slate-500">
+                    {n.affair_number && (
+                      <span className="mr-2 font-mono text-slate-600">{n.affair_number}</span>
+                    )}
+                    {n.client_nom}
+                  </p>
+                  {n.commercial_name !== '—' && (
+                    <p className="mt-0.5 text-[11px] text-slate-400">Commercial : {n.commercial_name}</p>
+                  )}
+                </div>
+
+                {/* Montant */}
+                <span className="mt-2 inline-flex rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                  {fmtEur(n.amount_ttc)}
+                </span>
+
+                {/* Actions — pleine largeur sur mobile */}
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                  <a
+                    href="/projets"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors sm:w-auto sm:py-1.5"
+                  >
+                    Voir →
+                  </a>
+                  <button
+                    type="button"
+                    disabled={pending === n.id}
+                    onClick={() => handleAccept(n.id)}
+                    className="w-full rounded-lg bg-green-600 px-3 py-2 text-center text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors sm:w-auto sm:py-1.5"
+                  >
+                    {pending === n.id ? '…' : '✓ Accepter'}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+
+      {/* ── Bandeau ORANGE — Interventions à facturer ───────────────────────── */}
+      {facturations.length > 0 && (
+        <div className="w-full rounded-xl border-l-4 border-orange-500 bg-orange-50 p-[14px_16px]">
+          <p className="mb-3 text-sm font-bold text-orange-800 uppercase tracking-wide">
+            🧾 Intervention terminée — À facturer ({facturations.length})
+          </p>
+
+          <div className="space-y-[10px]">
+            {facturations.map((n) => (
+              <div
+                key={n.id}
+                className="w-full rounded-xl border border-orange-200 bg-white px-4 py-3 shadow-sm overflow-hidden"
+              >
+                {/* Info */}
+                <div className="min-w-0">
+                  <p className="text-[14px] font-bold text-slate-800 leading-snug">{n.title}</p>
+                  <p className="mt-0.5 text-[12px] text-slate-500">
+                    {n.affair_number && (
+                      <span className="mr-2 font-mono text-slate-600">{n.affair_number}</span>
+                    )}
+                    {n.client_nom}
+                  </p>
+                  {n.message && (
+                    <p className="mt-1 text-[11px] text-slate-400">{n.message}</p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                  <a
+                    href={`/chef-projet?project=${n.project_id}`}
+                    className="w-full rounded-lg bg-orange-500 px-3 py-2 text-center text-xs font-semibold text-white hover:bg-orange-600 transition-colors sm:w-auto sm:py-1.5"
+                  >
+                    Facturer →
+                  </a>
+                  <button
+                    type="button"
+                    disabled={pending === n.id}
+                    onClick={() => handleDismiss(n.id)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50 transition-colors sm:w-auto sm:py-1.5"
+                  >
+                    {pending === n.id ? '…' : 'Ignorer'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

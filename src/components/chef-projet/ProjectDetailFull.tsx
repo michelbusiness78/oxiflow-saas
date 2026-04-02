@@ -342,6 +342,17 @@ export function ProjectDetailFull({ project, tasks, tenantId }: Props) {
         <div className="space-y-3">
           {/* Tags */}
           <div className="flex flex-wrap gap-2">
+            {/* Matériel issu du devis — non supprimable */}
+            {project.quote_materials.map((m) => (
+              <span
+                key={`devis-${m}`}
+                className="flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600"
+                title="Matériel issu du devis"
+              >
+                📋 {m}
+              </span>
+            ))}
+            {/* Matériel manuel — supprimable */}
             {materials.map((m) => (
               <span
                 key={m}
@@ -358,7 +369,7 @@ export function ProjectDetailFull({ project, tasks, tenantId }: Props) {
                 </button>
               </span>
             ))}
-            {materials.length === 0 && (
+            {project.quote_materials.length === 0 && materials.length === 0 && (
               <p className="text-xs text-slate-400 italic">Aucun matériel ajouté</p>
             )}
           </div>

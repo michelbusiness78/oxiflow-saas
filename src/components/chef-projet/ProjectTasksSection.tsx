@@ -303,30 +303,34 @@ export function ProjectTasksSection({ initialTasks, projectId, tenantId }: Props
         ))}
       </div>
 
-      {/* Ajout */}
-      <div className="flex gap-2 pt-1">
+      {/* Ajout — 2 lignes sur mobile, 1 ligne sur desktop */}
+      <div className="flex flex-wrap gap-2 pt-1">
+        {/* Ligne 1 : input texte pleine largeur */}
         <input
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           placeholder="Nouvelle tâche..."
-          className="flex-1 rounded-lg border border-[#dde3f0] bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+          className="w-full rounded-lg border border-[#dde3f0] bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 sm:w-auto sm:flex-1"
         />
-        <input
-          type="date"
-          value={newDue}
-          onChange={(e) => setNewDue(e.target.value)}
-          className="rounded-lg border border-[#dde3f0] bg-white px-2 py-2 text-sm text-slate-600 focus:border-blue-500 focus:outline-none"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!newName.trim() || isAdding}
-          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {isAdding ? '…' : '+'}
-        </button>
+        {/* Ligne 2 : date + bouton "+" */}
+        <div className="flex w-full gap-2 sm:w-auto sm:contents">
+          <input
+            type="date"
+            value={newDue}
+            onChange={(e) => setNewDue(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-[#dde3f0] bg-white px-2 py-2 text-sm text-slate-600 focus:border-blue-500 focus:outline-none sm:flex-none"
+          />
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!newName.trim() || isAdding}
+            className="h-11 w-11 shrink-0 rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors sm:h-auto sm:w-auto sm:px-3 sm:py-2"
+          >
+            {isAdding ? '…' : '+'}
+          </button>
+        </div>
       </div>
     </div>
   );

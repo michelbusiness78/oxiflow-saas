@@ -85,6 +85,7 @@ export interface ProjectDetailData {
   installer_contact: string | null;
   supplier_name:     string | null;
   materials:         string[];
+  quote_materials:   string[];   // matériel auto depuis le devis (non supprimable)
   reminder_time:     string | null;
   reminder_email:    string | null;
   reminder_active:   boolean;
@@ -255,8 +256,9 @@ export async function getCalendarEvents(
       .from('interventions')
       .select('id, title, date_start, date_end, status, client_id, tech_user_id, tech_name, project_id, notes, nature, urgency, clients(nom)')
       .eq('tenant_id', tenant_id)
-      .gte('date_start', startDate)
+      // Toutes interventions qui chevauchent la plage [startDate, endDate]
       .lte('date_start', endDate)
+      .or(`date_end.gte.${startDate},and(date_end.is.null,date_start.gte.${startDate})`)
       .order('date_start'),
 
     admin
@@ -606,6 +608,24 @@ export async function getProjectFull(
 
     const rawMaterials = (projData.materials as string[] | null) ?? [];
 
+    // Récupère les lignes matériel du devis lié
+    let quoteMaterials: string[] = [];
+    const quoteId = projData.quote_id as string | null;
+    if (quoteId) {
+      const { data: quoteData } = await admin
+        .from('quotes')
+        .select('lignes')
+        .eq('id', quoteId)
+        .single();
+      if (quoteData?.lignes) {
+        const lignes = quoteData.lignes as Array<{ designation?: string; type?: string }>;
+        quoteMaterials = lignes
+          .filter((l) => !l.type || l.type === 'materiel' || l.type === 'forfait')
+          .map((l) => l.designation ?? '')
+          .filter(Boolean);
+      }
+    }
+
     return {
       id:                projData.id as string,
       name:              projData.name as string,
@@ -626,6 +646,7 @@ export async function getProjectFull(
       installer_contact: (projData.installer_contact as string | null) ?? null,
       supplier_name:     (projData.supplier_name as string | null) ?? null,
       materials:         rawMaterials,
+      quote_materials:   quoteMaterials,
       reminder_time:     (projData.reminder_time as string | null) ?? null,
       reminder_email:    (projData.reminder_email as string | null) ?? null,
       reminder_active:   (projData.reminder_active as boolean) ?? false,
@@ -690,6 +711,7 @@ export async function getProjectFull(
       installer_contact: null,
       supplier_name:     null,
       materials:         [],
+      quote_materials:   [],
       reminder_time:     null,
       reminder_email:    null,
       reminder_active:   false,
