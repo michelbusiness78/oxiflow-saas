@@ -137,6 +137,7 @@ export class TTSQueue {
   // ── fetchAudio ──────────────────────────────────────────────────────────────
 
   private async fetchAudio(text: string): Promise<Blob | null> {
+    const t0 = Date.now();
     try {
       const res = await fetch('/api/tts', {
         method:  'POST',
@@ -144,7 +145,7 @@ export class TTSQueue {
         body:    JSON.stringify({ text }),
       });
 
-      console.log(`[TTS] fetchAudio status=${res.status} content-type=${res.headers.get('content-type')}`);
+      console.log(`[TTS] status=${res.status} ct=${res.headers.get('content-type')} (${Date.now() - t0}ms TTFB)`);
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -154,15 +155,15 @@ export class TTSQueue {
 
       const ct = res.headers.get('content-type') ?? '';
       if (!ct.includes('audio')) {
-        console.error('[TTS] content-type inattendu (pas audio):', ct);
+        console.error('[TTS] content-type inattendu:', ct);
         return null;
       }
 
       const blob = await res.blob();
-      console.log(`[TTS] blob reçu: ${blob.size} bytes type=${blob.type}`);
+      console.log(`[TTS] blob ${blob.size}B ready in ${Date.now() - t0}ms`);
 
       if (blob.size < 100) {
-        console.error('[TTS] blob trop petit, probablement vide:', blob.size);
+        console.error('[TTS] blob trop petit:', blob.size);
         return null;
       }
 

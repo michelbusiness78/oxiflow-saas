@@ -60,14 +60,15 @@ export async function POST(req: NextRequest) {
   }
 
   const safeText = text.slice(0, 500);
+  const t0 = Date.now();
 
-  // ── 5. Appel ElevenLabs ────────────────────────────────────────────────────
-  console.log(`[/api/tts] Appel ElevenLabs — voice=${VOICE_ID} len=${safeText.length}`);
+  console.log(`[/api/tts] voice=${VOICE_ID} len=${safeText.length}`);
 
+  // ── 5. Appel ElevenLabs (endpoint /stream pour latence minimale) ───────────
   let elRes: Response;
   try {
     elRes = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/stream`,
       {
         method:  'POST',
         headers: {
@@ -77,12 +78,13 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           text: safeText,
-          model_id: 'eleven_multilingual_v2',
+          // eleven_turbo_v2_5 : conçu pour le conversationnel, ~3× plus rapide
+          // que eleven_multilingual_v2. Supporte le français.
+          // Ne pas inclure "style" (non supporté par les modèles turbo).
+          model_id: 'eleven_turbo_v2_5',
           voice_settings: {
             stability:        0.5,
-            similarity_boost: 1,
-            style:            0.0,
-            use_speaker_boost: true,
+            similarity_boost: 1.0,
           },
         }),
       },
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erreur réseau ElevenLabs.' }, { status: 502 });
   }
 
-  console.log(`[/api/tts] ElevenLabs réponse: status=${elRes.status} content-type=${elRes.headers.get('content-type')}`);
+  console.log(`[/api/tts] ElevenLabs répondu en ${Date.now() - t0}ms status=${elRes.status}`);
 
   if (!elRes.ok) {
     const errText = await elRes.text().catch(() => '');
@@ -103,8 +105,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── 6. Passer le stream audio directement au client (TTFB minimal) ─────────
+  if (elRes.body) {
+    return new NextResponse(elRes.body, {
+      status: 200,
+      headers: {
+        'Content-Type':      'audio/mpeg',
+        'Transfer-Encoding': 'chunked',
+        'Cache-Control':     'no-store',
+      },
+    });
+  }
+
+  // Fallback (pas de stream)
   const audioBuffer = await elRes.arrayBuffer();
-  console.log(`[/api/tts] Audio reçu: ${audioBuffer.byteLength} bytes`);
+  console.log(`[/api/tts] Audio (buffered) ${audioBuffer.byteLength} bytes en ${Date.now() - t0}ms`);
 
   if (audioBuffer.byteLength < 100) {
     console.error('[/api/tts] Buffer audio trop petit:', audioBuffer.byteLength);

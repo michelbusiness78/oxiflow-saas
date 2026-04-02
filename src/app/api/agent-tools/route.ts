@@ -734,5 +734,109 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ result: `Tâche "${titre}" créée${who}${when}.` });
   }
 
+  // ── lister_taches ─────────────────────────────────────────────────────────
+  if (tool === 'lister_taches') {
+    const { data } = await admin
+      .from('project_tasks')
+      .select('name, done, due, priority, projects(name)')
+      .eq('tenant_id', tenantId)
+      .eq('done', false)
+      .order('priority')
+      .order('due', { ascending: true, nullsFirst: false })
+      .limit(20);
+
+    if (!data || data.length === 0) {
+      return NextResponse.json({ result: 'Aucune tâche en cours.' });
+    }
+
+    const PRIO: Record<string, string> = { high: 'urgente', mid: 'normale', low: 'faible' };
+    const lines = data.map((t) => {
+      const proj  = (t.projects as unknown as { name: string } | null)?.name ?? '';
+      const prio  = PRIO[t.priority as string] ?? t.priority;
+      const echeance = t.due
+        ? ` (échéance ${new Date(t.due + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })})`
+        : '';
+      return `${t.name}${proj ? ` [${proj}]` : ''} — ${prio}${echeance}`;
+    });
+
+    const urgentes = data.filter((t) => t.priority === 'high').length;
+    const intro    = urgentes > 0
+      ? `${data.length} tâche(s) en cours dont ${urgentes} urgente(s).`
+      : `${data.length} tâche(s) en cours.`;
+
+    return NextResponse.json({ result: `${intro} ${lines.slice(0, 5).join(' | ')}.` });
+  }
+
+  // ── lister_interventions ──────────────────────────────────────────────────
+  if (tool === 'lister_interventions') {
+    const statutFilter = input.statut ? String(input.statut) : null;
+
+    let query = admin
+      .from('interventions')
+      .select('title, date_start, status, client_name, tech_name, nature, urgency')
+      .eq('tenant_id', tenantId)
+      .order('date_start', { ascending: false })
+      .limit(10);
+
+    if (statutFilter) {
+      query = query.eq('status', statutFilter);
+    } else {
+      // Par défaut : planifiées + en cours
+      query = query.in('status', ['planifiee', 'en_cours']);
+    }
+
+    const { data } = await query;
+
+    if (!data || data.length === 0) {
+      return NextResponse.json({ result: 'Aucune intervention trouvée.' });
+    }
+
+    const STATUS_FR: Record<string, string> = {
+      planifiee: 'planifiée',
+      en_cours:  'en cours',
+      terminee:  'terminée',
+      annulee:   'annulée',
+    };
+
+    const lines = data.map((i) => {
+      const date   = new Date(i.date_start as string).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+      const tech   = i.tech_name ? ` — ${i.tech_name}` : '';
+      const client = i.client_name ? ` chez ${i.client_name}` : '';
+      const statut = STATUS_FR[i.status as string] ?? (i.status as string);
+      return `${i.title}${client} le ${date}${tech} (${statut})`;
+    });
+
+    return NextResponse.json({ result: `${data.length} intervention(s) : ${lines.join(' | ')}.` });
+  }
+
+  // ── lister_projets ────────────────────────────────────────────────────────
+  if (tool === 'lister_projets') {
+    const { data } = await admin
+      .from('projects')
+      .select('name, status, deadline, amount_ttc, affair_number, clients(nom)')
+      .eq('tenant_id', tenantId)
+      .in('status', ['nouveau', 'en_cours'])
+      .order('deadline', { ascending: true, nullsFirst: false })
+      .limit(10);
+
+    if (!data || data.length === 0) {
+      return NextResponse.json({ result: 'Aucun projet actif.' });
+    }
+
+    const STATUS_FR: Record<string, string> = { nouveau: 'nouveau', en_cours: 'en cours' };
+
+    const lines = data.map((p) => {
+      const client   = (p.clients as unknown as { nom: string } | null)?.nom ?? '';
+      const statut   = STATUS_FR[p.status as string] ?? (p.status as string);
+      const deadline = p.deadline
+        ? ` — livraison ${new Date(p.deadline as string + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+        : '';
+      const montant  = p.amount_ttc ? ` ${fmtEur(p.amount_ttc as number)}` : '';
+      return `${p.name}${client ? ` (${client})` : ''}${montant}${deadline} [${statut}]`;
+    });
+
+    return NextResponse.json({ result: `${data.length} projet(s) actif(s) : ${lines.join(' | ')}.` });
+  }
+
   return NextResponse.json({ error: 'Outil inconnu.' }, { status: 400 });
 }

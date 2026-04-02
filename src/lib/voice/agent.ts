@@ -198,6 +198,27 @@ const TOOLS = [
       required: ['titre'],
     },
   },
+  // ── Lecture données ───────────────────────────────────────────────────────
+  {
+    name:        'lister_taches',
+    description: 'Liste les tâches projet en cours (non terminées), triées par priorité puis échéance. Répond à : "quelles sont mes tâches", "tâches urgentes", "todo".',
+    input_schema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name:        'lister_interventions',
+    description: 'Liste les interventions récentes ou planifiées avec leur statut et technicien. Répond à : "interventions en cours", "planning techniciens", "prochaines interventions".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        statut: { type: 'string', enum: ['planifiee', 'en_cours', 'terminee'], description: 'Filtrer par statut (optionnel)' },
+      },
+    },
+  },
+  {
+    name:        'lister_projets',
+    description: 'Liste les projets actifs (nouveau et en cours) avec leur montant et deadline. Répond à : "projets en cours", "état des chantiers", "mes projets".',
+    input_schema: { type: 'object' as const, properties: {} },
+  },
 ];
 
 // ── System prompt ─────────────────────────────────────────────────────────────
@@ -216,11 +237,18 @@ function buildSystemPrompt(ctx: AgentContext): string {
 
 Tu es l'assistant vocal d'OxiFlow, un logiciel de gestion pour PME.
 Tu parles français. Tu es efficace, direct et professionnel.
-Tu peux créer des clients, des devis, des factures, des projets, des interventions et des tâches directement par commande vocale.
-Quand l'utilisateur te demande de créer quelque chose, fais-le immédiatement avec les informations fournies. Demande les informations manquantes obligatoires si nécessaire.
-Formate les montants en euros.
-Module actif : ${ctx.module}.
-Utilisateur : ${ctx.userName} (rôle : ${ctx.role}).`;
+
+Actions disponibles :
+CRÉATION : créer clients, devis, factures, projets, interventions, tâches.
+MODIFICATION : changer statut devis/facture, ajouter au catalogue.
+CONSULTATION : consulter devis/factures/clients, résumé d'activité.
+LECTURE : lister_taches, lister_interventions, lister_projets.
+
+Quand tu reçois des données d'un outil de lecture, formule une réponse vocale naturelle et concise.
+Exemples : "Vous avez 5 tâches en cours. Les urgentes : commander le matériel Martin, relancer Durand."
+           "3 interventions planifiées cette semaine. Demain : installation réseau chez Dupont avec Marc."
+
+Formate les montants en euros. Module actif : ${ctx.module}. Utilisateur : ${ctx.userName} (rôle : ${ctx.role}).`;
 }
 
 // ── Tool callbacks ────────────────────────────────────────────────────────────
