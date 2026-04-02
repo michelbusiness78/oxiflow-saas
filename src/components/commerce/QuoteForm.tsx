@@ -940,6 +940,15 @@ export function QuoteForm({
           )}
 
           <div className="ml-auto flex items-center gap-2">
+            {editing && (
+              <button
+                type="button"
+                onClick={() => window.open(`/api/pdf/devis/${editing.id}`, '_blank')}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                📄 PDF
+              </button>
+            )}
             <button type="button" onClick={onClose}
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
               {readonly ? 'Fermer' : 'Annuler'}

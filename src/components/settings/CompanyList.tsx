@@ -2,8 +2,33 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import type { Company, CompanyInput, CompanyObjective } from '@/app/actions/companies';
-import { saveCompany, deleteCompany, saveCompanyObjectives } from '@/app/actions/companies';
+import { saveCompany, deleteCompany, saveCompanyObjectives, uploadCompanyLogoAction } from '@/app/actions/companies';
+
+// ─── Logo resize helper ───────────────────────────────────────────────────────
+
+const MAX_LOGO_H = 120;
+
+async function resizeLogo(file: File): Promise<File> {
+  if (file.type === 'image/svg+xml') return file;
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => {
+      if (img.height <= MAX_LOGO_H) { resolve(file); return; }
+      const ratio  = MAX_LOGO_H / img.height;
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width * ratio);
+      canvas.height = MAX_LOGO_H;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => resolve(blob ? new File([blob], file.name, { type: file.type }) : file),
+        file.type,
+      );
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,9 +69,11 @@ export function CompanyList({ companies, objectives }: Props) {
   const [open, setOpen]           = useState(false);
   const [editing, setEditing]     = useState<Company | null>(null);
   const [form, setForm]           = useState<CompanyInput>(EMPTY);
-  const [saving, setSaving]       = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [saving, setSaving]           = useState(false);
+  const [formError, setFormError]     = useState<string | null>(null);
+  const [confirmId, setConfirmId]     = useState<string | null>(null);
+  const [pendingLogo, setPendingLogo] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
   // ── objectives state ───────────────────────────────────────────────────────
@@ -103,7 +130,7 @@ export function CompanyList({ companies, objectives }: Props) {
   // ── company form handlers ──────────────────────────────────────────────────
   function openCreate()        { setEditing(null); setOpen(true); }
   function openEdit(c: Company) { setEditing(c);   setOpen(true); }
-  function closePanel()        { setOpen(false); setEditing(null); }
+  function closePanel()        { setOpen(false); setEditing(null); setPendingLogo(null); setLogoPreview(null); }
 
   function setField(key: keyof CompanyInput, val: string | boolean | null) {
     setForm((f) => ({ ...f, [key]: val }));
@@ -113,7 +140,22 @@ export function CompanyList({ companies, objectives }: Props) {
     e.preventDefault();
     if (!form.name.trim()) { setFormError('Le nom est obligatoire.'); return; }
     setSaving(true);
-    const res = await saveCompany(form, editing?.id);
+
+    // Upload logo if pending (only for existing companies)
+    if (pendingLogo && editing) {
+      const fd = new FormData();
+      fd.append('file', pendingLogo);
+      const uploadRes = await uploadCompanyLogoAction(fd, editing.id);
+      if (uploadRes.error) { setFormError(uploadRes.error); setSaving(false); return; }
+      if (uploadRes.logo_url) setForm((f) => ({ ...f, logo_url: uploadRes.logo_url! }));
+    }
+
+    const res = await saveCompany(
+      pendingLogo && editing
+        ? { ...form, logo_url: form.logo_url }
+        : form,
+      editing?.id,
+    );
     setSaving(false);
     if (res.error) { setFormError(res.error); return; }
     closePanel();
@@ -337,6 +379,55 @@ export function CompanyList({ companies, objectives }: Props) {
                 </Field>
               </Section>
 
+              {/* Logo — uniquement en mode édition */}
+              {editing && (
+                <Section title="Logo">
+                  <div className="space-y-3">
+                    {(logoPreview ?? form.logo_url) && (
+                      <div className="flex items-center gap-3">
+                        <Image
+                          src={logoPreview ?? form.logo_url!}
+                          alt="Logo société"
+                          width={160}
+                          height={48}
+                          className="max-h-12 w-auto rounded border border-slate-200 object-contain p-1"
+                          unoptimized
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingLogo(null);
+                            setLogoPreview(null);
+                            setForm((f) => ({ ...f, logo_url: null }));
+                          }}
+                          className="text-xs text-red-500 hover:text-red-700"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    )}
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors">
+                      <span>📷 {form.logo_url || logoPreview ? 'Changer le logo' : 'Ajouter un logo'}</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/svg+xml"
+                        className="sr-only"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          if (f.size > 2 * 1024 * 1024) { setFormError('Fichier trop volumineux (max 2 Mo)'); return; }
+                          const resized = await resizeLogo(f);
+                          setPendingLogo(resized);
+                          setLogoPreview(URL.createObjectURL(resized));
+                          setFormError(null);
+                        }}
+                      />
+                    </label>
+                    <p className="text-xs text-slate-400">PNG, JPG, SVG — max 2 Mo. Le logo apparaîtra sur vos PDF.</p>
+                  </div>
+                </Section>
+              )}
+
               <Section title="Coordonnées">
                 <Field label="Adresse">
                   <input value={form.address ?? ''}
@@ -463,11 +554,25 @@ function CompanyCard({
   return (
     <div className="rounded-xl border-2 bg-white shadow-sm flex flex-col gap-3 p-4" style={{ borderColor: color }}>
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold text-slate-800 leading-snug">{company.name}</span>
+        {company.logo_url ? (
+          <Image
+            src={company.logo_url}
+            alt={company.name}
+            width={120}
+            height={36}
+            className="max-h-9 w-auto object-contain"
+            unoptimized
+          />
+        ) : (
+          <span className="font-semibold text-slate-800 leading-snug">{company.name}</span>
+        )}
         {!company.active && (
           <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Inactive</span>
         )}
       </div>
+      {company.logo_url && (
+        <span className="text-sm font-semibold text-slate-700 leading-snug">{company.name}</span>
+      )}
       {(company.email || company.phone) && (
         <div className="space-y-0.5 text-sm text-slate-600">
           {company.email && <p>{company.email}</p>}

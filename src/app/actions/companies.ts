@@ -121,6 +121,43 @@ export async function getCompanyObjectives(
   return (data ?? []) as CompanyObjective[];
 }
 
+// ─── uploadCompanyLogoAction ──────────────────────────────────────────────────
+
+export async function uploadCompanyLogoAction(
+  formData: FormData,
+  companyId: string,
+): Promise<{ success?: true; logo_url?: string; error?: string }> {
+  try {
+    const { admin, tenant_id } = await getAuthContext();
+    const file = formData.get('file') as File | null;
+    if (!file) return { error: 'Fichier manquant' };
+
+    const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'png';
+    const path = `${tenant_id}/${companyId}.${ext}`;
+
+    const { error: uploadError } = await admin.storage
+      .from('logos')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (uploadError) return { error: uploadError.message };
+
+    const { data: { publicUrl } } = admin.storage
+      .from('logos')
+      .getPublicUrl(path);
+
+    const logo_url = `${publicUrl}?t=${Date.now()}`;
+    const { error: updateError } = await admin
+      .from('companies')
+      .update({ logo_url })
+      .eq('id', companyId);
+
+    if (updateError) return { error: updateError.message };
+    revalidatePath(PATH);
+    return { success: true, logo_url };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Erreur upload' };
+  }
+}
+
 // ─── saveCompanyObjectives ────────────────────────────────────────────────────
 
 export async function saveCompanyObjectives(
