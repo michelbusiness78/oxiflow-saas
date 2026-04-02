@@ -48,16 +48,17 @@ export function VoiceAgent({ userName, userRole }: Props) {
   const [speechSupported, setSpeechSupported] = useState(true);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
-  const statusRef      = useRef<AgentStatus>('idle');    // mirrors state — safe in callbacks
-  const agentOpenRef   = useRef(false);                  // mirrors agentOpen — safe in callbacks
-  const recognitionRef = useRef<SpeechRecognitionHandle | null>(null);
-  const ttsRef         = useRef<TTSQueue | null>(null);
-  const historyRef     = useRef<AgentMessage[]>([]);     // Claude message history
-  const clickTimer     = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const clickCount     = useRef(0);
-  const warnTimer      = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const closeTimer     = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const isAgentMode    = useRef(false);                  // single vs agent mode
+  const statusRef          = useRef<AgentStatus>('idle');
+  const agentOpenRef       = useRef(false);
+  const recognitionRef     = useRef<SpeechRecognitionHandle | null>(null);
+  const ttsRef             = useRef<TTSQueue | null>(null);
+  const historyRef         = useRef<AgentMessage[]>([]);
+  const clickTimer         = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clickCount         = useRef(0);
+  const warnTimer          = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const closeTimer         = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isAgentMode        = useRef(false);
+  const audioUnlockedRef   = useRef(false);
 
   // Keep refs in sync with state
   useEffect(() => { statusRef.current = status; }, [status]);
@@ -96,6 +97,21 @@ export function VoiceAgent({ userName, userRole }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Audio context unlock (mobile autoplay) ───────────────────────────────
+
+  function unlockAudioContext() {
+    if (audioUnlockedRef.current) return;
+    const audio = new Audio();
+    // 1-frame silent WAV — juste pour lever la restriction autoplay
+    audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+    audio.play().then(() => {
+      audioUnlockedRef.current = true;
+      console.log('[TTS] AudioContext débloqué (mobile)');
+    }).catch(() => {
+      // Pas un vrai problème — sera réessayé au prochain clic
+    });
+  }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -216,6 +232,9 @@ export function VoiceAgent({ userName, userRole }: Props) {
   // ── Click handler (single vs double) ────────────────────────────────────
 
   function handleButtonClick() {
+    // Débloquer l'autoplay au premier geste utilisateur (requis iOS/Android)
+    unlockAudioContext();
+
     if (statusRef.current === 'thinking') return;
 
     clickCount.current++;

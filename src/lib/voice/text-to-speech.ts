@@ -143,9 +143,32 @@ export class TTSQueue {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ text }),
       });
-      if (!res.ok) return null;
-      return await res.blob();
-    } catch {
+
+      console.log(`[TTS] fetchAudio status=${res.status} content-type=${res.headers.get('content-type')}`);
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('[TTS] /api/tts error:', res.status, errData);
+        return null;
+      }
+
+      const ct = res.headers.get('content-type') ?? '';
+      if (!ct.includes('audio')) {
+        console.error('[TTS] content-type inattendu (pas audio):', ct);
+        return null;
+      }
+
+      const blob = await res.blob();
+      console.log(`[TTS] blob reçu: ${blob.size} bytes type=${blob.type}`);
+
+      if (blob.size < 100) {
+        console.error('[TTS] blob trop petit, probablement vide:', blob.size);
+        return null;
+      }
+
+      return blob;
+    } catch (err) {
+      console.error('[TTS] fetchAudio exception:', err);
       return null;
     }
   }
@@ -169,6 +192,7 @@ export class TTSQueue {
 
     if (blob) {
       // ── ElevenLabs path ──────────────────────────────────────────────────
+      console.log('[TTS] ✅ Lecture ElevenLabs');
       const url   = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audio.volume  = this.volume;
@@ -179,11 +203,18 @@ export class TTSQueue {
 
       await new Promise<void>((resolve) => {
         audio.onended = () => { this.revoke(); resolve(); };
-        audio.onerror = () => { this.revoke(); resolve(); };
-        audio.play().catch(() => { this.revoke(); resolve(); });
+        audio.onerror = (e) => {
+          console.error('[TTS] Audio playback error:', e);
+          this.revoke(); resolve();
+        };
+        audio.play().catch((e) => {
+          console.error('[TTS] audio.play() rejeté (autoplay bloqué ?):', e);
+          this.revoke(); resolve();
+        });
       });
     } else {
       // ── Web Speech API fallback ───────────────────────────────────────────
+      console.warn('[TTS] ⚠️ Fallback Web Speech API');
       await new Promise<void>((resolve) => {
         speakWebSpeech(
           text,
