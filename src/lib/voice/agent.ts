@@ -300,7 +300,7 @@ export async function runAgentTurn(
         messages,
         system:     buildSystemPrompt(context),
         tools:      TOOLS,
-        max_tokens: 256,
+        max_tokens: 512,
         mode:       'voice',
       }),
     });

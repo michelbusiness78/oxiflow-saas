@@ -2,11 +2,45 @@
 // POST { text: string } → audio/mpeg
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID           = process.env.ELEVENLABS_VOICE_ID;
 
+// ── Rate limit : 30 req/min par userId (mémoire) ──────────────────────────────
+
+const TTS_WINDOW_MS  = 60_000;
+const TTS_MAX_REQ    = 30;
+const ttsRequests    = new Map<string, number[]>();
+
+function checkTtsRateLimit(userId: string): boolean {
+  const now  = Date.now();
+  const hits  = (ttsRequests.get(userId) ?? []).filter((t) => now - t < TTS_WINDOW_MS);
+  if (hits.length >= TTS_MAX_REQ) return false;
+  hits.push(now);
+  ttsRequests.set(userId, hits);
+  return true;
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
+
 export async function POST(req: NextRequest) {
+  // ── 1. Auth ────────────────────────────────────────────────────────────────
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) {
+    return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 });
+  }
+
+  // ── 2. Rate limit ──────────────────────────────────────────────────────────
+  if (!checkTtsRateLimit(user.id)) {
+    return NextResponse.json(
+      { error: 'Trop de requêtes TTS. Réessayez dans une minute.' },
+      { status: 429 },
+    );
+  }
+
+  // ── 3. Config ElevenLabs ───────────────────────────────────────────────────
   if (!ELEVENLABS_API_KEY || !VOICE_ID) {
     return NextResponse.json(
       { error: 'ElevenLabs non configuré.' },
@@ -14,6 +48,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── 4. Parse body ──────────────────────────────────────────────────────────
   let text: string;
   try {
     const body = await req.json();
@@ -29,6 +64,7 @@ export async function POST(req: NextRequest) {
   // Truncate to ElevenLabs limit (5 000 chars for free / 50 000 for paid)
   const safeText = text.slice(0, 4500);
 
+  // ── 5. Appel ElevenLabs ────────────────────────────────────────────────────
   const elRes = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
     {
@@ -42,9 +78,9 @@ export async function POST(req: NextRequest) {
         text:           safeText,
         model_id:       'eleven_multilingual_v2',
         voice_settings: {
-          stability:       0.5,
+          stability:        0.5,
           similarity_boost: 0.75,
-          style:           0.5,
+          style:            0.5,
         },
       }),
     },

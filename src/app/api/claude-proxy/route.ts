@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
   const anthropicPayload: Record<string, unknown> = {
     model,
-    max_tokens: body.max_tokens ?? (isVoice ? 256 : 1024),
+    max_tokens: body.max_tokens ?? (isVoice ? 512 : 1024),
     messages:   body.messages,
   };
   if (body.system)  anthropicPayload.system = body.system;
