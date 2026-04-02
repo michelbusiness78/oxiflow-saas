@@ -76,7 +76,7 @@ function AccordionSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-slate-100 last:border-b-0">
+    <div className="rounded-xl border border-[#dde3f0] bg-white shadow-sm mb-3 overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -367,7 +367,7 @@ export function InterventionDetailPanel({
         )}
 
         {/* Titre + badge */}
-        <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="rounded-xl border border-[#dde3f0] bg-white shadow-sm mb-3 flex flex-wrap items-center gap-3 px-5 py-4">
           <h3 className="text-base font-bold text-slate-800 flex-1">{iv.title}</h3>
           <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${cfg.cls}`}>
             {cfg.label}
@@ -387,7 +387,8 @@ export function InterventionDetailPanel({
           isOpen={open.infos}
           onToggle={() => toggleSection('infos')}
         >
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Badges nature / contrat */}
             <div className="flex flex-wrap gap-2">
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                 iv.nature === 'sav' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
@@ -408,41 +409,45 @@ export function InterventionDetailPanel({
               </div>
             )}
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Date</p>
-              <p className="text-sm text-slate-800">{fmtDateTime(iv.date_start)}</p>
-              {iv.date_end && <p className="text-xs text-slate-400 mt-0.5">→ {fmtDateTime(iv.date_end)}</p>}
+            {/* Grille 2 colonnes sur desktop */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Date</p>
+                <p className="text-sm text-slate-800">{fmtDateTime(iv.date_start)}</p>
+                {iv.date_end && <p className="text-xs text-slate-400 mt-0.5">→ {fmtDateTime(iv.date_end)}</p>}
+              </div>
+
+              {iv.type_intervention && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Type</p>
+                  <p className="text-sm text-slate-800">{TYPE_INT_LABELS[iv.type_intervention] ?? iv.type_intervention}</p>
+                </div>
+              )}
+
+              {iv.hours_planned != null && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Heures prévues</p>
+                  <p className="text-sm text-slate-800">{iv.hours_planned}h</p>
+                </div>
+              )}
+
+              {clientNom && (
+                <div className="sm:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Client</p>
+                  <p className="text-sm font-semibold text-slate-800">{clientNom}</p>
+                  {fullAddr && <p className="text-xs text-slate-500 mt-0.5">📍 {fullAddr}</p>}
+                  {clientTel && <p className="text-xs text-slate-500 mt-0.5">📞 {clientTel}</p>}
+                </div>
+              )}
             </div>
 
-            {iv.type_intervention && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Type</p>
-                <p className="text-sm text-slate-800">{TYPE_INT_LABELS[iv.type_intervention] ?? iv.type_intervention}</p>
-              </div>
-            )}
-
-            {iv.hours_planned != null && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Heures prévues</p>
-                <p className="text-sm text-slate-800">{iv.hours_planned}h</p>
-              </div>
-            )}
-
-            {clientNom && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Client</p>
-                <p className="text-sm font-semibold text-slate-800">{clientNom}</p>
-                {fullAddr && <p className="text-xs text-slate-500 mt-0.5">📍 {fullAddr}</p>}
-                {clientTel && <p className="text-xs text-slate-500 mt-0.5">📞 {clientTel}</p>}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2 pt-1">
+            {/* Boutons d'action en ligne */}
+            <div className="flex flex-wrap gap-2">
               {fullAddr && (
                 <a
                   href={`https://maps.google.com/?q=${encodeURIComponent(fullAddr)}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                 >
                   📍 GPS
                 </a>
@@ -450,7 +455,7 @@ export function InterventionDetailPanel({
               {clientTel && (
                 <a
                   href={`tel:${clientTel}`}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                 >
                   📞 Appeler
                 </a>
@@ -481,40 +486,39 @@ export function InterventionDetailPanel({
         >
           <div className="space-y-4">
             {iv.status === 'en_cours' && (
-              <div className="rounded-xl bg-slate-900 px-5 py-4 text-center">
-                <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">Temps écoulé</p>
-                <p className="font-mono text-3xl font-bold text-white tracking-widest">{fmtElapsed(elapsed)}</p>
+              <div className="rounded-xl bg-slate-900 px-5 py-6 text-center">
+                <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">Temps écoulé</p>
+                <p className="font-mono text-4xl font-bold text-white tracking-widest">{fmtElapsed(elapsed)}</p>
               </div>
             )}
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Début</span>
-                <span className="font-medium text-slate-800">{iv.hour_start ? fmtHour(iv.hour_start) : <span className="text-slate-300">—</span>}</span>
+            {/* Début / Fin / Durée sur 3 colonnes */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg bg-slate-50 border border-[#dde3f0] px-3 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Début</p>
+                <p className="text-sm font-medium text-slate-800">{iv.hour_start ? fmtHour(iv.hour_start) : <span className="text-slate-300">—</span>}</p>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Fin</span>
-                <span className="font-medium text-slate-800">{iv.hour_end ? fmtHour(iv.hour_end) : <span className="text-slate-300">—</span>}</span>
+              <div className="rounded-lg bg-slate-50 border border-[#dde3f0] px-3 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Fin</p>
+                <p className="text-sm font-medium text-slate-800">{iv.hour_end ? fmtHour(iv.hour_end) : <span className="text-slate-300">—</span>}</p>
               </div>
-              {iv.hour_start && iv.hour_end && (
-                <div className="flex justify-between items-center border-t border-slate-100 pt-2">
-                  <span className="text-slate-500">Durée réelle</span>
-                  <span className="font-bold text-slate-800">{fmtDuration(iv.hour_start, iv.hour_end)}</span>
-                </div>
-              )}
-              {iv.hours_planned != null && (
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Heures prévues</span>
-                  <span className="font-medium text-slate-800">{iv.hours_planned}h</span>
-                </div>
-              )}
-              {depassementMin != null && depassementMin > 0 && (
-                <p className="text-xs font-semibold text-red-500 pt-1">
-                  ⚠ Dépassement de {depassementMin >= 60
-                    ? `${Math.floor(depassementMin / 60)}h${(depassementMin % 60).toString().padStart(2, '0')}`
-                    : `${depassementMin}min`}
-                </p>
-              )}
+              <div className="rounded-lg bg-slate-50 border border-[#dde3f0] px-3 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Durée</p>
+                <p className="text-sm font-bold text-slate-800">{iv.hour_start && iv.hour_end ? fmtDuration(iv.hour_start, iv.hour_end) : <span className="text-slate-300">—</span>}</p>
+              </div>
             </div>
+            {iv.hours_planned != null && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-500">Heures prévues</span>
+                <span className="font-medium text-slate-800">{iv.hours_planned}h</span>
+              </div>
+            )}
+            {depassementMin != null && depassementMin > 0 && (
+              <p className="text-xs font-semibold text-red-500">
+                ⚠ Dépassement de {depassementMin >= 60
+                  ? `${Math.floor(depassementMin / 60)}h${(depassementMin % 60).toString().padStart(2, '0')}`
+                  : `${depassementMin}min`}
+              </p>
+            )}
           </div>
         </AccordionSection>
 
@@ -752,7 +756,8 @@ export function InterventionDetailPanel({
       </div>
 
       {/* ── Footer fixe ───────────────────────────────────────────────────── */}
-      <div className="fixed bottom-0 right-0 w-full max-w-lg border-t border-slate-200 bg-white px-5 py-4 flex gap-2 justify-end flex-wrap">
+      <div className="fixed bottom-0 left-0 right-0 md:left-[230px] z-10 border-t border-slate-200 bg-white px-5 py-4 md:px-6">
+        <div className="max-w-[900px] mx-auto flex gap-2 justify-end flex-wrap">
         <button
           type="button" onClick={onClose}
           className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
@@ -797,6 +802,7 @@ export function InterventionDetailPanel({
             {isSendingReport ? '…' : reportSent ? '✅ Rapport envoyé' : '📧 Envoyer le rapport'}
           </button>
         )}
+        </div>
       </div>
     </SlideOver>
   );
