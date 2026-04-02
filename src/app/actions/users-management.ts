@@ -28,6 +28,7 @@ export interface TenantUser {
 export type UserEditInput = {
   first_name:       string | null;
   last_name:        string | null;
+  email?:           string;
   role:             string;
   company_id:       string | null;
   commercial_code:  string | null;
@@ -89,6 +90,14 @@ export async function saveUser(
   const nameParts = [input.first_name, input.last_name].filter(Boolean);
   const name      = nameParts.length > 0 ? nameParts.join(' ') : undefined;
 
+  // Mise à jour email dans auth.users si fourni
+  if (input.email?.trim()) {
+    const { error: authErr } = await admin.auth.admin.updateUserById(userId, {
+      email: input.email.trim(),
+    });
+    if (authErr) return { error: authErr.message };
+  }
+
   const payload: Record<string, unknown> = {
     first_name:      input.first_name,
     last_name:       input.last_name,
@@ -99,12 +108,28 @@ export async function saveUser(
     active:          input.active,
     status:          input.active ? 'active' : 'inactive',
   };
-  if (name) payload.name = name;
+  if (name)              payload.name  = name;
+  if (input.email?.trim()) payload.email = input.email.trim();
 
   const { error } = await admin.from('users').update(payload).eq('id', userId);
   if (error) return { error: error.message };
   revalidatePath(PATH);
   return { success: true };
+}
+
+// ─── getTenantInfoForPdf ──────────────────────────────────────────────────────
+
+export async function getTenantInfoForPdf(): Promise<{ name: string; logoUrl: string | null }> {
+  const { admin, tenant_id } = await getAuthContext();
+  const { data } = await admin
+    .from('tenants')
+    .select('name, logo_url')
+    .eq('id', tenant_id)
+    .single();
+  return {
+    name:    (data?.name     as string | null) ?? '',
+    logoUrl: (data?.logo_url as string | null) ?? null,
+  };
 }
 
 // ─── toggleUserActive ─────────────────────────────────────────────────────────

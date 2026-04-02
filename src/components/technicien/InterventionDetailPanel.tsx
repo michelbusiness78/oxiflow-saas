@@ -12,6 +12,7 @@ import {
 } from '@/app/actions/technicien';
 import type { PlanningIntervention, ChecklistItem, MaterialItem } from '@/app/actions/technicien';
 import type { InterventionWithSignature } from '@/lib/intervention-pdf';
+import { getTenantInfoForPdf } from '@/app/actions/users-management';
 
 // ── Types & helpers ───────────────────────────────────────────────────────────
 
@@ -97,6 +98,24 @@ function AccordionSection({
       {isOpen && <div className="px-5 pb-5">{children}</div>}
     </div>
   );
+}
+
+// ── Helper : URL → base64 data URL pour jsPDF ────────────────────────────────
+
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise<string | null>((resolve) => {
+      const reader   = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror   = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -301,7 +320,12 @@ export function InterventionDetailPanel({
         signature_name: signerName,
         signature_date: signatureDate,
       };
-      const blob    = await generateInterventionPDF(ivWithSig);
+      const tenantInfo  = await getTenantInfoForPdf();
+      const logoBase64  = tenantInfo.logoUrl ? await fetchImageAsBase64(tenantInfo.logoUrl) : null;
+      const blob        = await generateInterventionPDF(ivWithSig, {
+        name:    tenantInfo.name,
+        logoUrl: logoBase64,
+      });
       const url     = URL.createObjectURL(blob);
       const anchor  = document.createElement('a');
       anchor.href   = url;
@@ -329,7 +353,12 @@ export function InterventionDetailPanel({
         signature_name: signerName,
         signature_date: signatureDate,
       };
-      const blob   = await generateInterventionPDF(ivWithSig);
+      const tenantInfo = await getTenantInfoForPdf();
+      const logoBase64 = tenantInfo.logoUrl ? await fetchImageAsBase64(tenantInfo.logoUrl) : null;
+      const blob       = await generateInterventionPDF(ivWithSig, {
+        name:    tenantInfo.name,
+        logoUrl: logoBase64,
+      });
       const ab     = await blob.arrayBuffer();
       const uint8  = new Uint8Array(ab);
       pdfBase64    = btoa(uint8.reduce((acc, byte) => acc + String.fromCharCode(byte), ''));

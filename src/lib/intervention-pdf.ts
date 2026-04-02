@@ -49,8 +49,8 @@ const C = {
 // ── generateInterventionPDF ───────────────────────────────────────────────────
 
 export async function generateInterventionPDF(
-  iv:          InterventionWithSignature,
-  companyName = 'OxiFlow',
+  iv:           InterventionWithSignature,
+  companyInfo?: { name?: string; logoUrl?: string | null },
 ): Promise<Blob> {
   // Import dynamique — browser seulement
   const { jsPDF }            = await import('jspdf');
@@ -73,17 +73,26 @@ export async function generateInterventionPDF(
 
   // ── EN-TÊTE ──────────────────────────────────────────────────────────────────
 
-  // Logo "OxiFlow"
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(...C.blue);
-  doc.text('OxiFlow', ML, y + 6);
+  const tenantName = companyInfo?.name || '';
+  const logoUrl    = companyInfo?.logoUrl ?? null;
 
-  // Nom société (droite)
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...C.gray);
-  doc.text(companyName, 210 - MR, y + 6, { align: 'right' });
+  if (logoUrl) {
+    try {
+      // Le logo est déjà en base64 data URL (converti côté client avant appel)
+      doc.addImage(logoUrl, 'PNG', ML, y, 0, 12); // hauteur 12mm, largeur auto
+    } catch {
+      // image non chargeable — fallback texte
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(...C.dark);
+      doc.text(tenantName, ML, y + 8);
+    }
+  } else if (tenantName) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(...C.dark);
+    doc.text(tenantName, ML, y + 8);
+  }
 
   y += 12;
 

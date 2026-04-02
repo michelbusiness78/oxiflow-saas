@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TenantUser, UserEditInput } from '@/app/actions/users-management';
 import { saveUser, toggleUserActive } from '@/app/actions/users-management';
-import { inviteUserAction } from '@/app/actions/settings';
+import { inviteUserAction, deleteUserAction } from '@/app/actions/settings';
 import type { Company } from '@/app/actions/companies';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -71,8 +71,13 @@ export function UserList({ users, companies, currentUserId, plan }: Props) {
   const [panelMode, setPanelMode]   = useState<PanelMode>('none');
   const [editTarget, setEditTarget] = useState<TenantUser | null>(null);
   const [editForm, setEditForm]     = useState<UserEditInput>(EMPTY_EDIT);
+  const [editEmail, setEditEmail]   = useState('');
   const [saveError, setSaveError]   = useState<string | null>(null);
   const [saving, setSaving]         = useState(false);
+
+  // Delete state
+  const [deleteId,      setDeleteId]      = useState<string | null>(null);
+  const [deleteError,   setDeleteError]   = useState('');
 
   // Invite state
   const [inviteEmail, setInviteEmail] = useState('');
@@ -97,6 +102,7 @@ export function UserList({ users, companies, currentUserId, plan }: Props) {
         color:           editTarget.color ?? '#2563eb',
         active:          editTarget.active,
       });
+      setEditEmail(editTarget.email ?? '');
       setSaveError(null);
     }
     if (panelMode !== 'none') setTimeout(() => firstInputRef.current?.focus(), 80);
@@ -121,11 +127,25 @@ export function UserList({ users, companies, currentUserId, plan }: Props) {
     e.preventDefault();
     if (!editTarget) return;
     setSaving(true);
-    const res = await saveUser(editForm, editTarget.id);
+    const res = await saveUser(
+      { ...editForm, email: editEmail.trim() || undefined },
+      editTarget.id,
+    );
     setSaving(false);
     if (res.error) { setSaveError(res.error); return; }
     closePanel();
     router.refresh();
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────────────
+  function handleDelete(userId: string) {
+    setDeleteError('');
+    startTransition(async () => {
+      const res = await deleteUserAction(userId);
+      if (res && 'error' in res) { setDeleteError(res.error ?? 'Erreur'); return; }
+      setDeleteId(null);
+      router.refresh();
+    });
   }
 
   // ── Toggle active ────────────────────────────────────────────────────────────
@@ -188,6 +208,7 @@ export function UserList({ users, companies, currentUserId, plan }: Props) {
               pending={pending}
               onEdit={() => { setEditTarget(u); setPanelMode('edit'); }}
               onToggle={() => handleToggle(u.id)}
+              onDelete={() => { setDeleteId(u.id); setDeleteError(''); }}
             />
           ))}
         </div>
@@ -226,8 +247,13 @@ export function UserList({ users, companies, currentUserId, plan }: Props) {
                     </Field>
                   </div>
                   <Field label="Email">
-                    <input value={editTarget?.email ?? ''} readOnly
-                      className={INPUT + ' bg-slate-50 text-slate-500 cursor-not-allowed'} />
+                    <input
+                      type="email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      className={INPUT}
+                      placeholder="email@exemple.fr"
+                    />
                   </Field>
                 </Section>
 
@@ -373,6 +399,41 @@ export function UserList({ users, companies, currentUserId, plan }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── Modal confirmation suppression ── */}
+      {deleteId && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setDeleteId(null)} aria-hidden />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-xl border border-slate-200 p-6 space-y-4">
+              <h3 className="text-base font-semibold text-slate-800">Supprimer cet utilisateur ?</h3>
+              <p className="text-sm text-slate-500">
+                Cette action est irréversible. L&apos;utilisateur perdra immédiatement tout accès à OxiFlow.
+              </p>
+              {deleteError && (
+                <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{deleteError}</p>
+              )}
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setDeleteId(null)}
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:bg-slate-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => handleDelete(deleteId)}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {pending ? 'Suppression…' : 'Supprimer définitivement'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -380,19 +441,19 @@ export function UserList({ users, companies, currentUserId, plan }: Props) {
 // ─── UserCard ─────────────────────────────────────────────────────────────────
 
 function UserCard({
-  user, isSelf, pending, onEdit, onToggle,
+  user, isSelf, pending, onEdit, onToggle, onDelete,
 }: {
   user:      TenantUser;
   isSelf:    boolean;
   pending:   boolean;
   onEdit:    () => void;
   onToggle:  () => void;
+  onDelete:  () => void;
 }) {
-  const roleColor  = ROLE_COLOR[user.role] ?? '#94a3b8';
-  const roleLabel  = ROLE_LABEL[user.role] ?? user.role;
-  const initials   = initials2(user.first_name, user.last_name, user.name);
-  const fullName   = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.name || '—';
-  const hasLoggedIn = !!user.last_sign_in_at;
+  const roleColor = ROLE_COLOR[user.role] ?? '#94a3b8';
+  const roleLabel = ROLE_LABEL[user.role] ?? user.role;
+  const initials  = initials2(user.first_name, user.last_name, user.name);
+  const fullName  = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.name || '—';
 
   return (
     <div
@@ -435,12 +496,6 @@ function UserCard({
         )}
       </div>
 
-      {/* Password status */}
-      <p className={`text-xs font-medium ${hasLoggedIn ? 'text-green-600' : 'text-amber-600'}`}>
-        {hasLoggedIn ? '🔑 Mdp défini' : '⚠ 1ère cnx'}
-        {isSelf && <span className="ml-1.5 text-slate-400">(vous)</span>}
-      </p>
-
       {/* Actions */}
       <div className="flex gap-2 pt-1 border-t border-slate-100">
         <button onClick={onEdit}
@@ -451,6 +506,12 @@ function UserCard({
           <button onClick={onToggle} disabled={pending}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors">
             {user.active ? 'Désactiver' : 'Réactiver'}
+          </button>
+        )}
+        {!isSelf && (
+          <button onClick={onDelete} disabled={pending}
+            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 transition-colors">
+            🗑
           </button>
         )}
       </div>

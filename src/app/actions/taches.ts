@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
 
-const PATH = '/projets';
+const PATH       = '/projets';
+const PATH_CHEF  = '/chef-projet';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ export async function createTacheAction(input: TacheInput) {
   const { error } = await admin.from('taches').insert({ tenant_id, ...input });
   if (error) return { error: error.message };
   revalidatePath(PATH);
+  revalidatePath(PATH_CHEF);
   return { success: true };
 }
 
@@ -35,6 +37,7 @@ export async function updateTacheAction(id: string, input: TacheInput) {
   const { error } = await admin.from('taches').update(input).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
+  revalidatePath(PATH_CHEF);
   return { success: true };
 }
 
@@ -44,6 +47,7 @@ export async function deleteTacheAction(id: string) {
   const { error } = await admin.from('taches').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
+  revalidatePath(PATH_CHEF);
   return { success: true };
 }
 
@@ -60,5 +64,6 @@ export async function changeTacheEtatAction(
     .eq('id', id);
   if (error) return { error: error.message };
   revalidatePath(PATH);
+  revalidatePath(PATH_CHEF);
   return { success: true };
 }

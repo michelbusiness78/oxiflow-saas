@@ -35,7 +35,7 @@ export class TTSQueue {
 
   constructor(opts: TTSOptions = {}) {
     this.volume  = opts.volume  ?? 0.9;
-    this.rate    = opts.rate    ?? 1.05;
+    this.rate    = opts.rate    ?? 1.0;
     this.onStart = opts.onStart;
     this.onEnd   = opts.onEnd;
   }
@@ -64,7 +64,7 @@ export class TTSQueue {
     const pickFrVoice = () => {
       const voices = speechSynthesis.getVoices();
       return (
-        voices.find((v) => v.lang === 'fr-FR' && v.localService) ??
+        voices.find((v) => v.lang === 'fr-FR' && !v.localService) ??
         voices.find((v) => v.lang === 'fr-FR') ??
         voices.find((v) => v.lang.startsWith('fr'))
       );
