@@ -234,8 +234,6 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
       {/* Contenu onglet Tableau de bord */}
       {activeTab === 'dashboard' && (
         <div className="space-y-8">
-          <ChefDashboardV2 data={dashData} />
-
           {projectsR4.length > 0 && (
             <div className="space-y-4">
               <h2 className="text-base font-semibold text-slate-800">
@@ -252,6 +250,8 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
               />
             </div>
           )}
+
+          <ChefDashboardV2 data={dashData} />
 
           {projets.length > 0 && (
             <div className="space-y-4">
