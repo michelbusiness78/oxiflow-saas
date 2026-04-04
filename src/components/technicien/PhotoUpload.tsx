@@ -3,16 +3,18 @@
 import { useRef } from 'react';
 
 export interface PhotoEntry {
-  id:         string;
-  previewUrl: string;   // object URL for preview
-  file?:      Blob;     // compressed blob (null if already uploaded)
-  uploadedUrl?: string; // URL after upload
+  id:           string;
+  previewUrl:   string;   // object URL for preview
+  file?:        Blob;     // compressed blob (null if already uploaded)
+  uploadedUrl?: string;   // URL after upload
+  storagePath?: string;   // Storage path for deletion
 }
 
 interface PhotoUploadProps {
-  photos:   PhotoEntry[];
-  onChange: (photos: PhotoEntry[]) => void;
-  disabled?: boolean;
+  photos:         PhotoEntry[];
+  onChange:       (photos: PhotoEntry[]) => void;
+  onPhotoClick?:  (url: string) => void;
+  disabled?:      boolean;
 }
 
 // ─── Compression ─────────────────────────────────────────────────────────────
@@ -22,7 +24,7 @@ function compressImage(file: File): Promise<Blob> {
     const img = new Image();
     const objUrl = URL.createObjectURL(file);
     img.onload = () => {
-      const MAX_WIDTH = 800;
+      const MAX_WIDTH = 1200;
       const scale     = Math.min(1, MAX_WIDTH / img.width);
       const canvas    = document.createElement('canvas');
       canvas.width    = Math.round(img.width  * scale);
@@ -37,7 +39,7 @@ function compressImage(file: File): Promise<Blob> {
           else reject(new Error('compression failed'));
         },
         'image/jpeg',
-        0.7,
+        0.8,
       );
     };
     img.onerror = () => reject(new Error('load'));
@@ -47,7 +49,7 @@ function compressImage(file: File): Promise<Blob> {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function PhotoUpload({ photos, onChange, disabled }: PhotoUploadProps) {
+export function PhotoUpload({ photos, onChange, onPhotoClick, disabled }: PhotoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -88,7 +90,8 @@ export function PhotoUpload({ photos, onChange, disabled }: PhotoUploadProps) {
               <img
                 src={p.previewUrl}
                 alt="Photo intervention"
-                className="h-full w-full object-cover"
+                className={`h-full w-full object-cover ${onPhotoClick ? 'cursor-zoom-in' : ''}`}
+                onClick={() => onPhotoClick?.(p.uploadedUrl ?? p.previewUrl)}
               />
               {!disabled && (
                 <button

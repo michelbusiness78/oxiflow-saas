@@ -3,11 +3,12 @@
 
 import type { PlanningIntervention } from '@/app/actions/technicien';
 
-// Type étendu avec les champs signature (ajoutés au runtime)
+// Type étendu avec les champs signature et photos (ajoutés au runtime)
 export type InterventionWithSignature = PlanningIntervention & {
   signature_data?: string | null;
   signature_name?: string | null;
   signature_date?: string | null;
+  photos_base64?:  string[];   // data URLs pré-fetchées côté client
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -316,6 +317,45 @@ export async function generateInterventionPDF(
   doc.setTextColor(obsText === 'Aucune observation' ? C.lightGray[0] : C.dark[0], C.dark[1], C.dark[2]);
   doc.text(obsLines, ML + 3, y + 5);
   y += obsH + 6;
+
+  // ── SECTION 6b — Photos ─────────────────────────────────────────────────
+
+  const photosBase64 = iv.photos_base64 ?? [];
+  if (photosBase64.length > 0) {
+    checkPage(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...C.blue);
+    doc.text(`PHOTOS (${photosBase64.length})`, ML, y);
+    y += 5;
+
+    const imgW = (CW - 5) / 2;  // 2 colonnes avec 5mm de gouttière
+    const imgH = 55;
+
+    const rowCount = Math.ceil(photosBase64.length / 2);
+    for (let row = 0; row < rowCount; row++) {
+      checkPage(imgH + 5);
+      for (let col = 0; col < 2; col++) {
+        const idx = row * 2 + col;
+        if (idx >= photosBase64.length) break;
+        const x = ML + col * (imgW + 5);
+        try {
+          doc.addImage(photosBase64[idx], 'JPEG', x, y, imgW, imgH);
+        } catch {
+          doc.setFillColor(...C.bgLight);
+          doc.setDrawColor(...C.border);
+          doc.setLineWidth(0.3);
+          doc.rect(x, y, imgW, imgH, 'FD');
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(8);
+          doc.setTextColor(...C.lightGray);
+          doc.text('Photo non disponible', x + imgW / 2, y + imgH / 2, { align: 'center' });
+        }
+      }
+      y += imgH + 3;
+    }
+    y += 5;
+  }
 
   // ── SECTION 7 — Signature client ─────────────────────────────────────────
 

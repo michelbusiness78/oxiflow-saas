@@ -61,6 +61,8 @@ export interface PlanningIntervention {
   observations:        string | null;
   checklist:           ChecklistItem[];
   materials_installed: MaterialItem[];
+  // Photos
+  photos:              { url: string; path: string }[] | null;
   // Rapport
   report_sent:         boolean;
   report_sent_at:      string | null;
@@ -90,7 +92,7 @@ export async function getMyInterventions(
       client_name, client_address, client_city, client_phone,
       affair_number, type_intervention, urgency, under_contract,
       hour_start, hour_end, timer_elapsed,
-      observations, checklist, materials_installed,
+      observations, checklist, materials_installed, photos,
       report_sent, report_sent_at, report_sent_to,
       signature_data, signature_name, signature_date,
       clients ( nom, adresse, cp, ville, tel ),
@@ -107,6 +109,7 @@ export async function getMyInterventions(
     report_sent:         (i.report_sent         as boolean | null) ?? false,
     checklist:           (i.checklist           as ChecklistItem[] | null) ?? [],
     materials_installed: (i.materials_installed as MaterialItem[]  | null) ?? [],
+    photos:              (i.photos              as { url: string; path: string }[] | null) ?? null,
     signature_data:      (i.signature_data      as string  | null) ?? null,
     signature_name:      (i.signature_name      as string  | null) ?? null,
     signature_date:      (i.signature_date      as string  | null) ?? null,
@@ -421,4 +424,79 @@ export async function sendInterventionReport(
 
   revalidatePath('/technicien');
   return { recipientEmail: recipient.email };
+}
+
+// ── Upload photo et sauvegarder l'URL dans interventions.photos ───────────────
+
+export async function uploadAndSaveInterventionPhoto(
+  interventionId: string,
+  formData:        FormData,
+): Promise<{ url?: string; path?: string; error?: string }> {
+  const { admin, tenant_id } = await getAuthContext();
+
+  const file = formData.get('file') as File | null;
+  if (!file) return { error: 'Aucun fichier' };
+
+  const random = Math.random().toString(36).substring(2, 8);
+  const path   = `${tenant_id}/photos/${interventionId}/${Date.now()}_${random}.jpg`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const { error: uploadErr } = await admin.storage
+    .from('interventions')
+    .upload(path, buffer, { contentType: 'image/jpeg', upsert: false });
+
+  if (uploadErr) return { error: uploadErr.message };
+
+  const { data: { publicUrl } } = admin.storage.from('interventions').getPublicUrl(path);
+
+  // Lire les photos existantes, ajouter la nouvelle, sauvegarder
+  const { data: iv } = await admin
+    .from('interventions')
+    .select('photos')
+    .eq('id', interventionId)
+    .eq('tenant_id', tenant_id)
+    .single();
+
+  const existing = (iv?.photos as { url: string; path: string }[] | null) ?? [];
+  const updated  = [...existing, { url: publicUrl, path }];
+
+  await admin
+    .from('interventions')
+    .update({ photos: updated, updated_at: new Date().toISOString() })
+    .eq('id', interventionId)
+    .eq('tenant_id', tenant_id);
+
+  revalidatePath('/technicien');
+  return { url: publicUrl, path };
+}
+
+// ── Supprimer une photo (storage + DB) ──────────────────────────────────────
+
+export async function deleteInterventionPhoto(
+  interventionId: string,
+  photoPath:       string,
+): Promise<{ error?: string }> {
+  const { admin, tenant_id } = await getAuthContext();
+
+  await admin.storage.from('interventions').remove([photoPath]);
+
+  const { data: iv } = await admin
+    .from('interventions')
+    .select('photos')
+    .eq('id', interventionId)
+    .eq('tenant_id', tenant_id)
+    .single();
+
+  const existing = (iv?.photos as { url: string; path: string }[] | null) ?? [];
+  const updated  = existing.filter((p) => p.path !== photoPath);
+
+  const { error } = await admin
+    .from('interventions')
+    .update({ photos: updated, updated_at: new Date().toISOString() })
+    .eq('id', interventionId)
+    .eq('tenant_id', tenant_id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/technicien');
+  return {};
 }

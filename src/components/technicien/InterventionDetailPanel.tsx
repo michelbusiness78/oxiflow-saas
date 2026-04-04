@@ -4,11 +4,15 @@ import { useState, useEffect, useRef, useTransition } from 'react';
 import { SlideOver }        from '@/components/ui/SlideOver';
 import { SignatureCanvas }  from './SignatureCanvas';
 import type { SignatureCanvasHandle } from './SignatureCanvas';
+import { PhotoUpload }      from './PhotoUpload';
+import type { PhotoEntry }  from './PhotoUpload';
 import {
   updateInterventionStatus,
   saveInterventionProgress,
   saveInterventionSignature,
   sendInterventionReport,
+  uploadAndSaveInterventionPhoto,
+  deleteInterventionPhoto,
 } from '@/app/actions/technicien';
 import type { PlanningIntervention, ChecklistItem, MaterialItem } from '@/app/actions/technicien';
 import type { InterventionWithSignature } from '@/lib/intervention-pdf';
@@ -149,6 +153,11 @@ export function InterventionDetailPanel({
   const [signatureDate,      setSignatureDate]  = useState<string | null>(null);
   const [isSigningSaving,    setIsSigningSaving] = useState(false);
 
+  // Photos
+  const [localPhotos,      setLocalPhotos]      = useState<PhotoEntry[]>([]);
+  const [fullscreenPhoto,  setFullscreenPhoto]  = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
   // État local des sections accordéon
   const [open, setOpen] = useState({
     infos: true, pointage: false, checklist: false, materiaux: false, photos: false, rapport: false,
@@ -174,6 +183,15 @@ export function InterventionDetailPanel({
     setError('');
     setShowMatForm(false);
     setOpen({ infos: true, pointage: false, checklist: false, materiaux: false, photos: false, rapport: false });
+
+    // Photos existantes
+    const existingPhotos = iv.photos ?? [];
+    setLocalPhotos(existingPhotos.map((p) => ({
+      id:          crypto.randomUUID(),
+      previewUrl:  p.url,
+      uploadedUrl: p.url,
+      storagePath: p.path,
+    })));
 
     // Signature existante
     const hasSig = !!(iv.signature_data);
@@ -278,6 +296,45 @@ export function InterventionDetailPanel({
     onSaveProgress(iv.id, updates);
   }
 
+  async function handlePhotosChange(newPhotos: PhotoEntry[]) {
+    // Supprimer les photos retirées du storage
+    const removed = localPhotos.filter(
+      (p) => p.storagePath && !newPhotos.find((np) => np.id === p.id),
+    );
+    setLocalPhotos(newPhotos);
+    for (const p of removed) {
+      await deleteInterventionPhoto(iv.id, p.storagePath!);
+    }
+
+    // Uploader les nouvelles (file présent, pas encore uploadé)
+    const toUpload = newPhotos.filter((p) => p.file && !p.uploadedUrl);
+    if (toUpload.length === 0) return;
+
+    setIsUploadingPhoto(true);
+    setError('');
+    const updated = [...newPhotos];
+
+    for (const entry of toUpload) {
+      const fd = new FormData();
+      fd.append('file', entry.file!, 'photo.jpg');
+      const res = await uploadAndSaveInterventionPhoto(iv.id, fd);
+      if (res.error) { setError(`Erreur upload: ${res.error}`); continue; }
+      const idx = updated.findIndex((p) => p.id === entry.id);
+      if (idx !== -1) {
+        updated[idx] = {
+          ...updated[idx],
+          uploadedUrl: res.url!,
+          storagePath: res.path!,
+          previewUrl:  res.url!,
+          file:        undefined,
+        };
+      }
+    }
+
+    setLocalPhotos(updated);
+    setIsUploadingPhoto(false);
+  }
+
   function handleStatus(newStatus: 'planifiee' | 'en_cours' | 'terminee') {
     setError('');
     const now = new Date().toISOString();
@@ -317,11 +374,14 @@ export function InterventionDetailPanel({
     setIsDownloadingPdf(true);
     try {
       const { generateInterventionPDF } = await import('@/lib/intervention-pdf');
+      const uploadedPhotos = localPhotos.filter((p) => p.uploadedUrl);
+      const photosBase64   = (await Promise.all(uploadedPhotos.map((p) => fetchImageAsBase64(p.uploadedUrl!)))).filter(Boolean) as string[];
       const ivWithSig: InterventionWithSignature = {
         ...iv,
         signature_data: signatureData,
         signature_name: signerName,
         signature_date: signatureDate,
+        photos_base64:  photosBase64,
       };
       const tenantInfo  = await getTenantInfoForPdf();
       const logoBase64  = tenantInfo.logoUrl ? await fetchImageAsBase64(tenantInfo.logoUrl) : null;
@@ -350,11 +410,14 @@ export function InterventionDetailPanel({
     let pdfBase64: string | undefined;
     try {
       const { generateInterventionPDF } = await import('@/lib/intervention-pdf');
+      const uploadedPhotos = localPhotos.filter((p) => p.uploadedUrl);
+      const photosBase64   = (await Promise.all(uploadedPhotos.map((p) => fetchImageAsBase64(p.uploadedUrl!)))).filter(Boolean) as string[];
       const ivWithSig: InterventionWithSignature = {
         ...iv,
         signature_data: signatureData,
         signature_name: signerName,
         signature_date: signatureDate,
+        photos_base64:  photosBase64,
       };
       const tenantInfo = await getTenantInfoForPdf();
       const logoBase64 = tenantInfo.logoUrl ? await fetchImageAsBase64(tenantInfo.logoUrl) : null;
@@ -691,14 +754,24 @@ export function InterventionDetailPanel({
         {/* ── Section 5 : Photos ─────────────────────────────────────────── */}
         <AccordionSection
           title="Photos"
+          badge={
+            localPhotos.length > 0 ? (
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                {localPhotos.length}
+              </span>
+            ) : undefined
+          }
           isOpen={open.photos}
           onToggle={() => toggleSection('photos')}
         >
-          <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
-            <p className="text-2xl mb-2">📷</p>
-            <p className="text-sm font-semibold text-slate-500">Upload photos</p>
-            <p className="text-xs text-slate-400 mt-0.5">Bientôt disponible</p>
-          </div>
+          {isUploadingPhoto && (
+            <p className="mb-2 text-xs text-blue-600 animate-pulse">Envoi en cours…</p>
+          )}
+          <PhotoUpload
+            photos={localPhotos}
+            onChange={handlePhotosChange}
+            onPhotoClick={setFullscreenPhoto}
+          />
         </AccordionSection>
 
         {/* ── Section 6 : Rapport & Signature client ──────────────────────── */}
@@ -793,6 +866,30 @@ export function InterventionDetailPanel({
           </div>
         </AccordionSection>
       </div>
+
+      {/* ── Visionneuse plein écran ──────────────────────────────────────── */}
+      {fullscreenPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+          onClick={() => setFullscreenPhoto(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={fullscreenPhoto}
+            alt="Photo intervention"
+            className="max-h-full max-w-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            type="button"
+            onClick={() => setFullscreenPhoto(null)}
+            className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white text-lg hover:bg-white/30 transition-colors"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ── Footer fixe ───────────────────────────────────────────────────── */}
       <div className="fixed bottom-0 left-0 right-0 md:left-[230px] z-10 border-t border-slate-200 bg-white px-5 py-4 md:px-6">
