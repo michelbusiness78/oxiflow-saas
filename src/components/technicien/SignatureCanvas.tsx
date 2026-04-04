@@ -54,8 +54,17 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       isDrawing.current = true;
+      // Dessine un point au démarrage pour les traits très courts (tap mobile)
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth   = 2;
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+      ctx.beginPath();
+      ctx.arc(x, y, 1, 0, Math.PI * 2);
+      ctx.fill();
       ctx.beginPath();
       ctx.moveTo(x, y);
+      hasDrawn.current = true;
     }, [readonly]);
 
     const draw = useCallback((x: number, y: number) => {

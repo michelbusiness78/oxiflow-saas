@@ -773,8 +773,8 @@ export function InterventionDetailPanel({
                     <button
                       type="button"
                       onClick={handleValidateSignature}
-                      disabled={!signerName.trim() || isSigningSaving}
-                      className="flex-1 min-h-[48px] rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      disabled={isSigningSaving}
+                      className="flex-1 min-h-[48px] rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 active:bg-green-800 disabled:opacity-50 transition-colors"
                     >
                       {isSigningSaving ? 'Enregistrement…' : '✅ Valider la signature'}
                     </button>
