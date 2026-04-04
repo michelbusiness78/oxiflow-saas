@@ -291,12 +291,15 @@ export function InterventionDetailPanel({
   }
 
   async function handleValidateSignature() {
+    console.log('[Signature] Validate clicked');
     const data = canvasRef.current?.getDataURL();
+    console.log('[Signature] Canvas data length:', data?.length ?? 0);
     if (!data) { setError('Veuillez signer dans le cadre avant de valider.'); return; }
     if (!signerName.trim()) { setError('Veuillez saisir le nom du signataire.'); return; }
     setIsSigningSaving(true);
     setError('');
     const res = await saveInterventionSignature(iv.id, data, signerName.trim());
+    console.log('[Signature] Supabase save result:', JSON.stringify(res));
     setIsSigningSaving(false);
     if (res.error) { setError(res.error); return; }
     const now = new Date().toISOString();
@@ -753,22 +756,29 @@ export function InterventionDetailPanel({
               />
 
               {!signatureValidated ? (
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => canvasRef.current?.clear()}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
-                  >
-                    🗑 Effacer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleValidateSignature}
-                    disabled={!signerName.trim() || isSigningSaving}
-                    className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    {isSigningSaving ? '…' : '✅ Valider la signature'}
-                  </button>
+                <div className="space-y-2 pt-1">
+                  {error && (
+                    <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                      {error}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => canvasRef.current?.clear()}
+                      className="min-h-[48px] rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+                    >
+                      🗑 Effacer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleValidateSignature}
+                      disabled={!signerName.trim() || isSigningSaving}
+                      className="flex-1 min-h-[48px] rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      {isSigningSaving ? 'Enregistrement…' : '✅ Valider la signature'}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5">

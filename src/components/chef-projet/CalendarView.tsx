@@ -27,7 +27,8 @@ const messages = {
   next:            '›',
   today:           "Aujourd'hui",
   month:           'Mois',
-  week:            'Semaine',
+  week:            'Semaine 7j',
+  work_week:       'Semaine',
   day:             'Jour',
   agenda:          'Agenda',
   date:            'Date',
@@ -426,8 +427,8 @@ export function CalendarView({
           events={allCalEvents}
           startAccessor="start"
           endAccessor="end"
-          defaultView={Views.WEEK}
-          views={[Views.MONTH, Views.WEEK, Views.DAY]}
+          defaultView={Views.WORK_WEEK}
+          views={[Views.MONTH, Views.WORK_WEEK, Views.DAY]}
           messages={messages}
           culture="fr"
           eventPropGetter={eventStyleGetter}
@@ -436,6 +437,8 @@ export function CalendarView({
           onSelectEvent={handleSelectEvent}
           onSelectSlot={handleSelectSlot}
           selectable
+          min={new Date(0, 0, 0, 7, 0)}
+          max={new Date(0, 0, 0, 19, 0)}
           style={{ height: '100%', padding: '8px' }}
         />
       </div>
