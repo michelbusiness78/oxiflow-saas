@@ -12,27 +12,24 @@ import type { Company } from '@/app/actions/companies';
 const ROLES = [
   { value: 'dirigeant',   label: 'Dirigeant'       },
   { value: 'commercial',  label: 'Commercial'       },
-  { value: 'chef',        label: 'Chef de projet'   },
+  { value: 'chef_projet', label: 'Chef de projet'   },
   { value: 'technicien',  label: 'Technicien'       },
-  { value: 'assistante',  label: 'Assistante'       },
+  { value: 'rh',          label: 'RH'               },
 ] as const;
 
 const ROLE_COLOR: Record<string, string> = {
   dirigeant:   '#16a34a',
   commercial:  '#ea580c',
-  chef:        '#2563eb',
   chef_projet: '#2563eb',
   technicien:  '#22c55e',
-  assistante:  '#7c3aed',
+  rh:          '#7c3aed',
 };
 
 const ROLE_LABEL: Record<string, string> = {
   dirigeant:   'Dirigeant',
   commercial:  'Commercial',
-  chef:        'Chef projet',
   chef_projet: 'Chef projet',
   technicien:  'Technicien',
-  assistante:  'Assistante',
   rh:          'RH',
 };
 

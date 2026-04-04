@@ -701,7 +701,7 @@ export function QuoteForm({
                 >
                   <option value="">— À affecter après validation —</option>
                   {users
-                    .filter((u) => !u.role || u.role === 'chef' || u.role === 'chef_projet' || u.role === 'dirigeant')
+                    .filter((u) => !u.role || u.role === 'chef_projet' || u.role === 'dirigeant')
                     .map((u) => (
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
