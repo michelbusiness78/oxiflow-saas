@@ -76,9 +76,11 @@ function toLocalDateTime(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function buildDateTimes(date: string, hoursPlanned: number) {
+function buildDateTimes(date: string, hoursPlanned: number, dateEnd?: string) {
   const start = new Date(`${date}T08:00:00`);
-  const end   = new Date(start.getTime() + hoursPlanned * 3600_000);
+  const end   = (dateEnd && dateEnd > date)
+    ? new Date(`${dateEnd}T18:00:00`)
+    : new Date(start.getTime() + hoursPlanned * 3600_000);
   return { date_start: start.toISOString(), date_end: end.toISOString() };
 }
 
@@ -88,6 +90,7 @@ interface ProjetFormState {
   project_id:   string;
   tech_user_id: string;
   date:         string;
+  date_end:     string;
   hours_planned: number;
   notes:        string;
 }
@@ -159,11 +162,11 @@ function ProjetForm({
         </select>
       </div>
 
-      {/* Date + Heures prévues */}
+      {/* Date début + Date fin */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <label className="block text-sm font-semibold text-slate-700">
-            Date <span className="text-red-500">*</span>
+            Date début <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
@@ -174,17 +177,33 @@ function ProjetForm({
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-semibold text-slate-700">Heures prévues</label>
+          <label className="block text-sm font-semibold text-slate-700">
+            Date fin <span className="text-slate-400 font-normal">(si multi-jours)</span>
+          </label>
           <input
-            type="number"
-            value={form.hours_planned}
-            onChange={(e) => set('hours_planned', parseFloat(e.target.value) || 8)}
-            step={0.5}
-            min={0.5}
-            max={24}
+            type="date"
+            value={form.date_end}
+            min={form.date}
+            onChange={(e) => set('date_end', e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
+      </div>
+
+      {/* Heures prévues */}
+      <div className="space-y-1.5">
+        <label className="block text-sm font-semibold text-slate-700">
+          Heures prévues{form.date_end && form.date_end > form.date ? ' (par jour)' : ''}
+        </label>
+        <input
+          type="number"
+          value={form.hours_planned}
+          onChange={(e) => set('hours_planned', parseFloat(e.target.value) || 8)}
+          step={0.5}
+          min={0.5}
+          max={24}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
       </div>
 
       {/* Notes */}
@@ -212,6 +231,7 @@ interface SavFormState {
   type_intervention: string;
   tech_user_id:      string;
   date:              string;
+  date_end:          string;
   hours_planned:     number;
   urgency:           string;
   description:       string;
@@ -322,11 +342,11 @@ function SavForm({
         </select>
       </div>
 
-      {/* Date + Heures prévues */}
+      {/* Date début + Date fin */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <label className="block text-sm font-semibold text-slate-700">
-            Date <span className="text-red-500">*</span>
+            Date début <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
@@ -337,17 +357,33 @@ function SavForm({
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-semibold text-slate-700">Heures prévues</label>
+          <label className="block text-sm font-semibold text-slate-700">
+            Date fin <span className="text-slate-400 font-normal">(si multi-jours)</span>
+          </label>
           <input
-            type="number"
-            value={form.hours_planned}
-            onChange={(e) => set('hours_planned', parseFloat(e.target.value) || 4)}
-            step={0.5}
-            min={0.5}
-            max={24}
+            type="date"
+            value={form.date_end}
+            min={form.date}
+            onChange={(e) => set('date_end', e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
+      </div>
+
+      {/* Heures prévues */}
+      <div className="space-y-1.5">
+        <label className="block text-sm font-semibold text-slate-700">
+          Heures prévues{form.date_end && form.date_end > form.date ? ' (par jour)' : ''}
+        </label>
+        <input
+          type="number"
+          value={form.hours_planned}
+          onChange={(e) => set('hours_planned', parseFloat(e.target.value) || 4)}
+          step={0.5}
+          min={0.5}
+          max={24}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
       </div>
 
       {/* Urgence */}
@@ -513,6 +549,7 @@ export function InterventionFormModal({
     project_id:   '',
     tech_user_id: '',
     date:         defaultDate,
+    date_end:     '',
     hours_planned: 8,
     notes:        '',
   });
@@ -525,6 +562,7 @@ export function InterventionFormModal({
     type_intervention: '',
     tech_user_id:      '',
     date:              defaultDate,
+    date_end:          '',
     hours_planned:     4,
     urgency:           'normal',
     description:       '',
@@ -582,6 +620,7 @@ export function InterventionFormModal({
         project_id:    '',
         tech_user_id:  '',
         date:          newDate,
+        date_end:      '',
         hours_planned: 8,
         notes:         '',
       });
@@ -591,6 +630,7 @@ export function InterventionFormModal({
         type_intervention: '',
         tech_user_id:      '',
         date:              newDate,
+        date_end:          '',
         hours_planned:     4,
         urgency:           'normal',
         description:       '',
@@ -636,7 +676,7 @@ export function InterventionFormModal({
         if (!projetForm.project_id) { setError('Veuillez sélectionner un projet.'); return; }
         if (!projetForm.date)       { setError('La date est obligatoire.'); return; }
         const techUser = techniciens.find((u) => u.id === projetForm.tech_user_id);
-        const { date_start, date_end } = buildDateTimes(projetForm.date, projetForm.hours_planned);
+        const { date_start, date_end } = buildDateTimes(projetForm.date, projetForm.hours_planned, projetForm.date_end || undefined);
         input = {
           title:         selectedProject?.name ?? 'Intervention',
           date_start,
@@ -660,7 +700,7 @@ export function InterventionFormModal({
         if (!savForm.date)         { setError('La date est obligatoire.'); return; }
         const techUser = techniciens.find((u) => u.id === savForm.tech_user_id);
         const underContract = savForm.client_id ? contractedClientIds.includes(savForm.client_id) : false;
-        const { date_start, date_end } = buildDateTimes(savForm.date, savForm.hours_planned);
+        const { date_start, date_end } = buildDateTimes(savForm.date, savForm.hours_planned, savForm.date_end || undefined);
         input = {
           title:             savForm.titre.trim(),
           date_start,

@@ -618,10 +618,15 @@ export async function getProjectFull(
         .eq('id', quoteId)
         .single();
       if (quoteData?.lignes) {
-        const lignes = quoteData.lignes as Array<{ designation?: string; type?: string }>;
+        const lignes = quoteData.lignes as Array<{ designation?: string; type?: string; quantite?: number }>;
         quoteMaterials = lignes
           .filter((l) => !l.type || l.type === 'materiel' || l.type === 'forfait')
-          .map((l) => l.designation ?? '')
+          .map((l) => {
+            const d = l.designation ?? '';
+            if (!d) return '';
+            const q = l.quantite ?? 1;
+            return q > 1 ? `${d} × ${q}` : d;
+          })
           .filter(Boolean);
       }
     }
