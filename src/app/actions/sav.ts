@@ -27,12 +27,30 @@ export type SAVInput = {
 export async function createSAVAction(input: SAVInput) {
   const { admin, tenant_id } = await getAuthContext();
 
-  const { error } = await admin.from('sav_tickets').insert({
+  // Colonnes de base — toujours présentes
+  const payload: Record<string, unknown> = {
     tenant_id,
-    ...input,
-    date_ouverture: new Date().toISOString(),
-  });
-  if (error) return { error: translateSupabaseError(error.message) };
+    client_id:       input.client_id,
+    titre:           input.titre,
+    description:     input.description,
+    priorite:        input.priorite,
+    statut:          input.statut,
+    contrat_id:      input.contrat_id,
+    assigne_a:       input.assigne_a,
+    date_resolution: input.date_resolution,
+    date_ouverture:  new Date().toISOString(),
+  };
+
+  // Colonnes optionnelles ajoutées en migration 021 — uniquement si valeur non nulle
+  // (évite une erreur "column does not exist" si la migration n'a pas encore été exécutée)
+  if (input.project_id)       payload.project_id       = input.project_id;
+  if (input.resolution_notes) payload.resolution_notes = input.resolution_notes;
+
+  const { error } = await admin.from('sav_tickets').insert(payload);
+  if (error) {
+    console.error('[createSAVAction] Supabase error:', JSON.stringify(error));
+    return { error: translateSupabaseError(error.message) };
+  }
   revalidatePath(PATH);
   revalidatePath(PATH2);
   return { success: true };
@@ -41,8 +59,25 @@ export async function createSAVAction(input: SAVInput) {
 export async function updateSAVAction(id: string, input: SAVInput) {
   const { admin } = await getAuthContext();
 
-  const { error } = await admin.from('sav_tickets').update(input).eq('id', id);
-  if (error) return { error: translateSupabaseError(error.message) };
+  const payload: Record<string, unknown> = {
+    client_id:       input.client_id,
+    titre:           input.titre,
+    description:     input.description,
+    priorite:        input.priorite,
+    statut:          input.statut,
+    contrat_id:      input.contrat_id,
+    assigne_a:       input.assigne_a,
+    date_resolution: input.date_resolution,
+  };
+
+  if (input.project_id       !== undefined) payload.project_id       = input.project_id       ?? null;
+  if (input.resolution_notes !== undefined) payload.resolution_notes = input.resolution_notes ?? null;
+
+  const { error } = await admin.from('sav_tickets').update(payload).eq('id', id);
+  if (error) {
+    console.error('[updateSAVAction] Supabase error:', JSON.stringify(error));
+    return { error: translateSupabaseError(error.message) };
+  }
   revalidatePath(PATH);
   revalidatePath(PATH2);
   return { success: true };

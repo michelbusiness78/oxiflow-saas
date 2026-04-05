@@ -29,6 +29,10 @@ export function translateSupabaseError(message: string): string {
   if (message.includes('JWT') || message.includes('not authenticated')) {
     return 'Session expirée. Veuillez vous reconnecter.';
   }
+  if (message.includes('column') && message.includes('does not exist')) {
+    return `Colonne manquante — exécuter la migration SQL (${message.slice(0, 80)})`;
+  }
 
-  return 'Une erreur est survenue. Veuillez réessayer.';
+  // Retourner le message brut tronqué pour faciliter le debug
+  return `Erreur : ${message.slice(0, 120)}`;
 }
