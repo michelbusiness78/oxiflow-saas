@@ -3,7 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { ProjetDetail }       from '@/components/chef-projet/ProjetDetail';
 import { ProjectDetailFull }  from '@/components/chef-projet/ProjectDetailFull';
 import { ProjectList }        from '@/components/projets/ProjectList';
-import { ProjetList }         from '@/components/chef-projet/ProjetList';
+import { DossierSection }     from '@/components/chef-projet/DossierSection';
 import { ChefDashboard }      from '@/components/chef-projet/ChefDashboard';
 import { ChefDashboardV2 }    from '@/components/chef-projet/ChefDashboardV2';
 import { CalendarView }       from '@/components/chef-projet/CalendarView';
@@ -272,12 +272,14 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
 
           <ChefDashboardV2 data={dashData} />
 
-          {projets.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-base font-semibold text-slate-800">Mes dossiers</h2>
-              <ProjetList projets={projets} clients={clients} />
-            </div>
-          )}
+          <div className="space-y-4">
+            <DossierSection
+              projets={projets}
+              clients={clients}
+              projectsR4={projectsR4}
+              tenantId={tenantId ?? ''}
+            />
+          </div>
 
           {/* Ancien dashboard KPI (fallback alerts) */}
           {(taches.length > 0 || interventions.length > 0) && (
