@@ -715,16 +715,14 @@ export async function POST(request: NextRequest) {
       if (found) assigne_a = found.id as string;
     }
 
-    const { error } = await admin.from('taches').insert({
-      tenant_id:      tenantId,
-      projet_id:      null,
-      titre,
-      description:    null,
-      assigne_a,
-      priorite,
-      etat:           'a_faire',
-      date_echeance:  date_echeance || null,
-      pct_avancement: 0,
+    const { error } = await admin.from('project_tasks').insert({
+      tenant_id:  tenantId,
+      project_id: null,
+      name:       titre,
+      done:       false,
+      due:        date_echeance || null,
+      priority:   priorite === 'urgente' || priorite === 'haute' ? 'high'
+                : priorite === 'faible' ? 'low' : 'mid',
     });
 
     if (error) return NextResponse.json({ result: `Erreur création tâche : ${error.message}` });

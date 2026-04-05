@@ -29,76 +29,69 @@ export async function fetchKPIs(period: Period) {
   const [
     caPeriod,
     caPrev,
-    devisEnAttente,
-    facturesImpayees,
+    quotesEnAttente,
+    invoicesImpayees,
     interventionsEnCours,
     savData,
-    devisConversion,
+    quotesConversion,
   ] = await Promise.all([
-    // CA période courante
     supabase
-      .from('factures')
-      .select('montant_ttc')
-      .eq('statut', 'payee')
-      .gte('date', startStr),
+      .from('invoices')
+      .select('total_ttc')
+      .eq('status', 'payee')
+      .gte('date_facture', startStr),
 
-    // CA période précédente (pour variation)
     supabase
-      .from('factures')
-      .select('montant_ttc')
-      .eq('statut', 'payee')
-      .gte('date', prevStartStr)
-      .lt('date', prevEndStr),
+      .from('invoices')
+      .select('total_ttc')
+      .eq('status', 'payee')
+      .gte('date_facture', prevStartStr)
+      .lt('date_facture', prevEndStr),
 
-    // Devis en attente (état courant)
     supabase
-      .from('devis')
+      .from('quotes')
       .select('montant_ttc')
       .eq('statut', 'envoye'),
 
-    // Factures impayées (état courant)
     supabase
-      .from('factures')
-      .select('montant_ttc')
-      .eq('statut', 'impayee'),
+      .from('invoices')
+      .select('total_ttc')
+      .eq('status', 'emise'),
 
-    // Interventions en cours (état courant)
     supabase
       .from('interventions')
       .select('id', { count: 'exact', head: true })
       .eq('statut', 'en_cours'),
 
-    // SAV ouverts + délai moyen
     supabase
       .from('sav_tickets')
       .select('date_ouverture')
       .in('statut', ['ouvert', 'en_cours']),
 
-    // Taux de conversion devis (période)
     supabase
-      .from('devis')
+      .from('quotes')
       .select('statut')
       .in('statut', ['envoye', 'accepte', 'refuse'])
       .gte('created_at', start.toISOString()),
   ]);
 
-  const caVal   = caPeriod.data?.reduce((s, f) => s + (f.montant_ttc ?? 0), 0) ?? 0;
-  const caPrevVal = caPrev.data?.reduce((s, f) => s + (f.montant_ttc ?? 0), 0) ?? 0;
+  const caVal    = caPeriod.data?.reduce((s, f) => s + ((f.total_ttc as number) ?? 0), 0) ?? 0;
+  const caPrevVal = caPrev.data?.reduce((s, f) => s + ((f.total_ttc as number) ?? 0), 0) ?? 0;
   const caVariation = caPrevVal > 0
     ? Math.round(((caVal - caPrevVal) / caPrevVal) * 100)
     : null;
 
-  const devisCount   = devisEnAttente.data?.length ?? 0;
-  const devisTotal   = devisEnAttente.data?.reduce((s, d) => s + (d.montant_ttc ?? 0), 0) ?? 0;
+  const devisCount = quotesEnAttente.data?.length ?? 0;
+  const devisTotal = quotesEnAttente.data?.reduce((s, d) => s + ((d.montant_ttc as number) ?? 0), 0) ?? 0;
 
-  const impayeesCount = facturesImpayees.data?.length ?? 0;
-  const impayeesTotal = facturesImpayees.data?.reduce((s, f) => s + (f.montant_ttc ?? 0), 0) ?? 0;
+  const impayeesCount = invoicesImpayees.data?.length ?? 0;
+  const impayeesTotal = invoicesImpayees.data?.reduce((s, f) => s + ((f.total_ttc as number) ?? 0), 0) ?? 0;
 
   const interventionsCount = interventionsEnCours.count ?? 0;
 
-  const savList    = savData.data ?? [];
-  const savCount   = savList.length;
-  const savAvgH    = savCount > 0
+  const savList  = savData.data ?? [];
+  const savCount = savList.length;
+  const savAvgH  = savCount > 0
     ? Math.round(
         savList.reduce((s, t) => {
           return s + (Date.now() - new Date(t.date_ouverture).getTime()) / 3_600_000;
@@ -106,19 +99,19 @@ export async function fetchKPIs(period: Period) {
       )
     : 0;
 
-  const devisAll      = devisConversion.data ?? [];
-  const devisAcceptes = devisAll.filter((d) => d.statut === 'accepte').length;
-  const tauxConversion = devisAll.length > 0
-    ? Math.round((devisAcceptes / devisAll.length) * 100)
+  const quotesAll      = quotesConversion.data ?? [];
+  const quotesAcceptes = quotesAll.filter((d) => d.statut === 'accepte').length;
+  const tauxConversion = quotesAll.length > 0
+    ? Math.round((quotesAcceptes / quotesAll.length) * 100)
     : null;
 
   return {
-    ca:             { value: caVal,          variation: caVariation },
-    devis:          { count: devisCount,     total: devisTotal },
-    impayees:       { count: impayeesCount,  total: impayeesTotal },
-    interventions:  { count: interventionsCount },
-    sav:            { count: savCount,       avgHours: savAvgH },
-    conversion:     { pct: tauxConversion },
+    ca:            { value: caVal,         variation: caVariation },
+    devis:         { count: devisCount,    total: devisTotal },
+    impayees:      { count: impayeesCount, total: impayeesTotal },
+    interventions: { count: interventionsCount },
+    sav:           { count: savCount,      avgHours: savAvgH },
+    conversion:    { pct: tauxConversion },
   };
 }
 
@@ -134,16 +127,16 @@ export interface ActivityItem {
 export async function fetchActivity(): Promise<ActivityItem[]> {
   const supabase = await createClient();
 
-  const [recentDevis, recentFactures, recentInterventions, recentSav] =
+  const [recentQuotes, recentInvoices, recentInterventions, recentSav] =
     await Promise.all([
       supabase
-        .from('devis')
-        .select('id, num, statut, created_at, clients(nom)')
+        .from('quotes')
+        .select('id, number, statut, created_at, clients(nom)')
         .order('created_at', { ascending: false })
         .limit(4),
       supabase
-        .from('factures')
-        .select('id, num, statut, created_at, clients(nom)')
+        .from('invoices')
+        .select('id, number, status, created_at, clients(nom)')
         .order('created_at', { ascending: false })
         .limit(4),
       supabase
@@ -160,7 +153,7 @@ export async function fetchActivity(): Promise<ActivityItem[]> {
 
   const items: ActivityItem[] = [];
 
-  for (const d of recentDevis.data ?? []) {
+  for (const d of recentQuotes.data ?? []) {
     const clientNom = (d.clients as unknown as { nom: string } | null)?.nom ?? 'Client';
     const labels: Record<string, string> = {
       brouillon: 'Devis brouillon créé',
@@ -171,24 +164,22 @@ export async function fetchActivity(): Promise<ActivityItem[]> {
     items.push({
       id:          `devis-${d.id}`,
       type:        'devis',
-      description: `${labels[d.statut] ?? 'Devis'} — ${clientNom} (n°${d.num})`,
+      description: `${labels[d.statut] ?? 'Devis'} — ${clientNom} (n°${d.number})`,
       timestamp:   d.created_at,
     });
   }
 
-  for (const f of recentFactures.data ?? []) {
+  for (const f of recentInvoices.data ?? []) {
     const clientNom = (f.clients as unknown as { nom: string } | null)?.nom ?? 'Client';
     const labels: Record<string, string> = {
       brouillon: 'Facture créée',
-      envoyee:   'Facture envoyée',
+      emise:     'Facture envoyée',
       payee:     'Facture payée',
-      impayee:   'Facture marquée impayée',
-      partielle: 'Paiement partiel reçu',
     };
     items.push({
       id:          `facture-${f.id}`,
       type:        'facture',
-      description: `${labels[f.statut] ?? 'Facture'} — ${clientNom} (n°${f.num})`,
+      description: `${labels[f.status] ?? 'Facture'} — ${clientNom} (n°${f.number})`,
       timestamp:   f.created_at,
     });
   }
@@ -238,22 +229,22 @@ export async function fetchAlerts(): Promise<Alert[]> {
   const supabase = await createClient();
   const now      = new Date();
 
-  const thirtyDaysAgo   = dateISO(subtractDays(now, 30));
-  const fortyEightHAgo  = subtractDays(now, 2).toISOString();
-  const today           = dateISO(now);
+  const thirtyDaysAgo  = dateISO(subtractDays(now, 30));
+  const fortyEightHAgo = subtractDays(now, 2).toISOString();
+  const today          = dateISO(now);
 
-  const [overdueInvoices, expiredDevis, savDelayed] = await Promise.all([
+  const [overdueInvoices, expiredQuotes, savDelayed] = await Promise.all([
     supabase
-      .from('factures')
+      .from('invoices')
       .select('id', { count: 'exact', head: true })
-      .in('statut', ['envoyee', 'impayee'])
-      .lt('echeance', thirtyDaysAgo),
+      .in('status', ['emise'])
+      .lt('date_echeance', thirtyDaysAgo),
 
     supabase
-      .from('devis')
+      .from('quotes')
       .select('id', { count: 'exact', head: true })
       .eq('statut', 'envoye')
-      .lt('validite', today),
+      .lt('validity', today),
 
     supabase
       .from('sav_tickets')
@@ -275,7 +266,7 @@ export async function fetchAlerts(): Promise<Alert[]> {
     });
   }
 
-  const expiredCount = expiredDevis.count ?? 0;
+  const expiredCount = expiredQuotes.count ?? 0;
   if (expiredCount > 0) {
     alerts.push({
       id:       'expired-devis',

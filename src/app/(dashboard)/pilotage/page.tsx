@@ -73,7 +73,7 @@ const MODULE_CARDS = [
     iconBgCls:    'bg-violet-600/15 text-violet-400',
     icon:         '📁',
     title:        'Projets & Dossiers',
-    subtitle:     'Dossiers clients, suivi avancement, tâches',
+    subtitle:     'Suivi projets, SAV et fiches clients',
     href:         '/projets',
     roleKey:      '/projets',
   },

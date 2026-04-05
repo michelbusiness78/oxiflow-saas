@@ -15,7 +15,7 @@ export interface MeteoSociete {
 }
 
 export interface PrioriteItem {
-  type:        'tache' | 'facture' | 'devis';
+  type:        'facture' | 'devis';
   id:          string;
   titre:       string;
   echeance:    string | null;
@@ -30,9 +30,9 @@ export interface DirigeantDashboardData {
   kpis: {
     caMoisNet:        number;
     caMoisPrecedent:  number;
-    variationMois:    number | null;  // % vs M-1
+    variationMois:    number | null;
     caAnnuel:         number;
-    margeDevisPct:    number | null;  // null = données insuffisantes
+    margeDevisPct:    number | null;
     enRetardFactures: number;
     enRetardTaches:   number;
   };
@@ -76,20 +76,18 @@ export async function getDashboardDirigeant(
   const prevMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
   const fifteenAgo     = new Date(now.getTime() - 15 * 86_400_000).toISOString();
 
-  // ── Phase 1 : données directement filtrables par tenant_id ──────────────────
   const [
     userRes,
-    projetsRes,
     clientsRes,
     facturesMoisRes,
     facturesPrevRes,
     facturesAnnuelRes,
     facturesRetardRes,
     quotesRelanceRes,
+    taskRetardRes,
   ] = await Promise.all([
     admin.from('users').select('name').eq('id', userId).single(),
 
-    admin.from('projets').select('id').eq('tenant_id', tenantId),
     admin.from('clients').select('id').eq('tenant_id', tenantId),
 
     admin.from('invoices').select('total_ttc')
@@ -108,44 +106,31 @@ export async function getDashboardDirigeant(
     admin.from('quotes').select('id, number, objet, montant_ttc, created_at, clients(nom)')
       .eq('tenant_id', tenantId).eq('statut', 'envoye')
       .lt('created_at', fifteenAgo).order('created_at', { ascending: false }).limit(5),
+
+    admin.from('project_tasks')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId).eq('done', false)
+      .not('due', 'is', null).lt('due', todayISO),
   ]);
 
-  if (facturesMoisRes.error)   console.error('[getDashboardDirigeant] invoices mois error:',   facturesMoisRes.error);
-  if (facturesPrevRes.error)   console.error('[getDashboardDirigeant] invoices prev error:',   facturesPrevRes.error);
-  if (facturesAnnuelRes.error) console.error('[getDashboardDirigeant] invoices annuel error:', facturesAnnuelRes.error);
-  if (facturesRetardRes.error) console.error('[getDashboardDirigeant] invoices retard error:', facturesRetardRes.error);
-
-  const userName       = (userRes.data?.name as string | null)  ?? '';
-  const projetIds      = (projetsRes.data ?? []).map((p) => p.id as string);
+  const userName       = (userRes.data?.name as string | null) ?? '';
   const clientIds      = (clientsRes.data ?? []).map((c) => c.id as string);
   const facturesMois   = facturesMoisRes.data   ?? [];
   const facturesPrev   = facturesPrevRes.data   ?? [];
   const facturesAnnuel = facturesAnnuelRes.data ?? [];
   const facturesRetard = facturesRetardRes.data ?? [];
   const quotesRelance  = quotesRelanceRes.data  ?? [];
+  const tachesEnRetard = taskRetardRes.count    ?? 0;
 
-  // ── Phase 2 : tables optionnelles + dépendantes des IDs ─────────────────────
-  const [tachesRes, savRes, companiesRes] = await Promise.allSettled([
-    projetIds.length > 0
-      ? admin.from('taches')
-          .select('id, titre, date_echeance, projet_id, projets(nom)')
-          .in('projet_id', projetIds)
-          .lt('date_echeance', todayISO)
-          .neq('etat', 'termine')
-          .order('date_echeance', { ascending: true })
-          .limit(5)
-      : Promise.resolve({ data: [] as {id:string;titre:string;date_echeance:string|null;projet_id:string;projets:unknown}[] }),
-
+  const [savRes, companiesRes] = await Promise.allSettled([
     clientIds.length > 0
       ? admin.from('sav_tickets').select('statut').in('client_id', clientIds)
       : Promise.resolve({ data: [] as { statut: string }[] }),
-
     admin.from('companies').select('id, nom, color').eq('tenant_id', tenantId).order('nom'),
   ]);
 
-  const tachesRetard = tachesRes.status  === 'fulfilled' ? (tachesRes.value.data  ?? []) : [];
-  const savRaw       = savRes.status     === 'fulfilled' ? savRes.value.data             : null;
-  const companies    = companiesRes.status === 'fulfilled' ? (companiesRes.value.data ?? []) : [];
+  const savRaw    = savRes.status     === 'fulfilled' ? savRes.value.data             : null;
+  const companies = companiesRes.status === 'fulfilled' ? (companiesRes.value.data ?? []) : [];
 
   // ── Calculs ──────────────────────────────────────────────────────────────────
 
@@ -164,16 +149,12 @@ export async function getDashboardDirigeant(
         : 'red'
       : 'unknown';
 
-  // ── SAV ──────────────────────────────────────────────────────────────────────
-
   const savHasTable = savRaw !== null;
   const savOuverts  = savRaw?.filter((t) => t.statut === 'ouvert').length   ?? 0;
   const savEnCours  = savRaw?.filter((t) => t.statut === 'en_cours').length ?? 0;
   const savClotures = savRaw?.filter((t) =>
     ['cloture', 'ferme', 'resolu', 'termine'].includes(t.statut ?? ''),
   ).length ?? 0;
-
-  // ── Météo sociétés ────────────────────────────────────────────────────────────
 
   const meteoSocietes: MeteoSociete[] = companies.map((c, i) => ({
     id:       c.id    as string,
@@ -188,18 +169,6 @@ export async function getDashboardDirigeant(
   // ── Priorités ─────────────────────────────────────────────────────────────────
 
   const priorites: PrioriteItem[] = [];
-
-  for (const t of tachesRetard) {
-    const echeance   = t.date_echeance as string | null;
-    const jours      = echeance
-      ? Math.max(0, Math.floor((now.getTime() - new Date(echeance).getTime()) / 86_400_000))
-      : 0;
-    const projetNom  = (t.projets as unknown as { nom: string } | null)?.nom ?? null;
-    priorites.push({
-      type: 'tache', id: t.id as string, titre: t.titre as string,
-      echeance, lien: '/projets?tab=taches', projetNom, montant: null, joursRetard: jours,
-    });
-  }
 
   for (const f of facturesRetard.slice(0, 3)) {
     const echeance = f.date_echeance as string | null;
@@ -235,9 +204,9 @@ export async function getDashboardDirigeant(
       caMoisPrecedent,
       variationMois,
       caAnnuel,
-      margeDevisPct:    null,  // TODO: prix_achat dans lignes devis
+      margeDevisPct:    null,
       enRetardFactures: facturesRetard.length,
-      enRetardTaches:   tachesRetard.length,
+      enRetardTaches:   tachesEnRetard,
     },
     meteoSocietes,
     meteoGlobal,

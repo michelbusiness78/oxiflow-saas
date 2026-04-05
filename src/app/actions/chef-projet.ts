@@ -90,6 +90,20 @@ export interface ProjectDetailData {
   reminder_time:     string | null;
   reminder_email:    string | null;
   reminder_active:   boolean;
+  // Champs administratifs (nouvelles colonnes)
+  partner:            string | null;
+  manufacturer:       string | null;
+  project_type:       string | null;
+  request_type:       string | null;
+  contract_proposed:  boolean;
+  validation_date:    string | null;
+  validated_amount:   number | null;
+  expected_date:      string | null;
+  expected_amount:    number | null;
+  progress_percent:   number;
+  progress_notes:     string | null;
+  folder_validated:   boolean;
+  commercial_name:    string | null;
   // Joined client
   client_nom:     string;
   client_adresse: string | null;
@@ -143,7 +157,7 @@ export async function getDashboardChefProjet(): Promise<DashboardData> {
   const todayStart = `${todayStr}T00:00:00+00:00`;
   const todayEnd   = `${todayStr}T23:59:59+00:00`;
 
-  const [projRes, intRes, tachRes, projData] = await Promise.all([
+  const [projRes, intRes, projData] = await Promise.all([
     admin
       .from('projects')
       .select('*', { count: 'exact', head: true })
@@ -156,14 +170,6 @@ export async function getDashboardChefProjet(): Promise<DashboardData> {
       .eq('tenant_id', tenant_id)
       .gte('date_start', todayStart)
       .lte('date_start', todayEnd),
-
-    admin
-      .from('taches')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenant_id)
-      .neq('etat', 'terminee')
-      .not('date_echeance', 'is', null)
-      .lt('date_echeance', todayStr),
 
     admin
       .from('projects')
@@ -239,7 +245,7 @@ export async function getDashboardChefProjet(): Promise<DashboardData> {
   const result = {
     projetsEnCours:     projRes.count ?? 0,
     interventionsToday: (intRes.data ?? []).length,
-    tachesEnRetard:     (tachRes.count ?? 0) + ptaskCount,
+    tachesEnRetard:     ptaskCount,
     techsActifs:        equipeMap.size,
     equipeAujourdhui,
     chantiersEnCours,
@@ -566,7 +572,7 @@ export async function getOverdueProjectTasks(): Promise<OverdueTaskItem[]> {
 // ── getProjectFull ────────────────────────────────────────────────────────────
 
 const BASE_PROJECT_SELECT = 'id, name, description, status, affair_number, quote_number, quote_id, client_id, deadline, amount_ttc, type, notes, clients(nom, adresse, ville, tel, email, contact)';
-const FULL_PROJECT_SELECT = `${BASE_PROJECT_SELECT}, purchase_amount, hours_sold, installer_name, installer_ref, installer_contact, supplier_name, materials, reminder_time, reminder_email, reminder_active`;
+const FULL_PROJECT_SELECT = `${BASE_PROJECT_SELECT}, purchase_amount, hours_sold, installer_name, installer_ref, installer_contact, supplier_name, materials, reminder_time, reminder_email, reminder_active, partner, manufacturer, project_type, request_type, contract_proposed, validation_date, validated_amount, expected_date, expected_amount, progress_percent, progress_notes, folder_validated, commercial_name`;
 
 export async function getProjectFull(
   projectId: string,
@@ -660,6 +666,19 @@ export async function getProjectFull(
       reminder_time:     (projData.reminder_time as string | null) ?? null,
       reminder_email:    (projData.reminder_email as string | null) ?? null,
       reminder_active:   (projData.reminder_active as boolean) ?? false,
+      partner:           (projData.partner as string | null) ?? null,
+      manufacturer:      (projData.manufacturer as string | null) ?? null,
+      project_type:      (projData.project_type as string | null) ?? null,
+      request_type:      (projData.request_type as string | null) ?? null,
+      contract_proposed: (projData.contract_proposed as boolean) ?? false,
+      validation_date:   (projData.validation_date as string | null) ?? null,
+      validated_amount:  (projData.validated_amount as number | null) ?? null,
+      expected_date:     (projData.expected_date as string | null) ?? null,
+      expected_amount:   (projData.expected_amount as number | null) ?? null,
+      progress_percent:  (projData.progress_percent as number) ?? 0,
+      progress_notes:    (projData.progress_notes as string | null) ?? null,
+      folder_validated:  (projData.folder_validated as boolean) ?? false,
+      commercial_name:   (projData.commercial_name as string | null) ?? null,
       client_nom:        cl?.nom     ?? '—',
       client_adresse:    cl?.adresse ?? null,
       client_ville:      cl?.ville   ?? null,
@@ -725,6 +744,19 @@ export async function getProjectFull(
       reminder_time:     null,
       reminder_email:    null,
       reminder_active:   false,
+      partner:           null,
+      manufacturer:      null,
+      project_type:      null,
+      request_type:      null,
+      contract_proposed: false,
+      validation_date:   null,
+      validated_amount:  null,
+      expected_date:     null,
+      expected_amount:   null,
+      progress_percent:  0,
+      progress_notes:    null,
+      folder_validated:  false,
+      commercial_name:   null,
       client_nom:        cl?.nom     ?? '—',
       client_adresse:    cl?.adresse ?? null,
       client_ville:      cl?.ville   ?? null,
@@ -760,6 +792,20 @@ export async function saveProjectDetail(
     reminder_time?:     string | null;
     reminder_email?:    string | null;
     reminder_active?:   boolean;
+    // Champs administratifs
+    partner?:            string | null;
+    manufacturer?:       string | null;
+    project_type?:       string | null;
+    request_type?:       string | null;
+    contract_proposed?:  boolean;
+    validation_date?:    string | null;
+    validated_amount?:   number | null;
+    expected_date?:      string | null;
+    expected_amount?:    number | null;
+    progress_percent?:   number;
+    progress_notes?:     string | null;
+    folder_validated?:   boolean;
+    commercial_name?:    string | null;
   },
 ): Promise<{ error?: string }> {
   const admin = createAdminClient();
@@ -768,25 +814,6 @@ export async function saveProjectDetail(
     .update({ ...data, updated_at: new Date().toISOString() })
     .eq('id', projectId)
     .eq('tenant_id', tenantId);
-  if (error) return { error: translateSupabaseError(error.message) };
-  revalidatePath(PATH);
-  return {};
-}
-
-// ── assignerTechnicienProjetAction (existant) ─────────────────────────────────
-
-export async function assignerTechnicienProjetAction(
-  projetId:     string,
-  technicienId: string,
-) {
-  const { admin } = await getAuthContext();
-
-  const { error } = await admin
-    .from('taches')
-    .update({ assigne_a: technicienId })
-    .eq('projet_id', projetId)
-    .is('assigne_a', null);
-
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};

@@ -34,7 +34,7 @@ async function fetchCommerceData() {
   const tenantId        = profile?.tenant_id as string;
   const currentUserName = (profile?.name as string) ?? user.email ?? 'Utilisateur';
 
-  const [clientsRes, quotesRes, contratsRes, catalogueRes, devisRes, usersRes, companiesData, invoicesData] =
+  const [clientsRes, quotesRes, contratsRes, catalogueRes, usersRes, companiesData, invoicesData] =
     await Promise.all([
       admin
         .from('clients')
@@ -56,11 +56,6 @@ async function fetchCommerceData() {
         .select('id, ref, designation, description, fournisseur, categorie, type, prix_achat, prix_vente, tva, unite, actif, imported_from, created_at')
         .eq('tenant_id', tenantId)
         .order('designation'),
-      admin
-        .from('devis')
-        .select('id, num, client_id, date, validite, statut, lignes, montant_ht, tva, montant_ttc, clients(nom)')
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false }),
       admin
         .from('users')
         .select('id, name, role')
@@ -86,18 +81,12 @@ async function fetchCommerceData() {
 
   const catalogue  = (catalogueRes.data ?? []) as CatalogueItem[];
 
-  const devis = (devisRes.data ?? []).map((d) => ({
-    ...d,
-    lignes:     (d.lignes as unknown[]) ?? [],
-    client_nom: (d.clients as unknown as { nom: string } | null)?.nom ?? '—',
-  }));
-
   const users    = (usersRes.data ?? []) as TenantUser[];
   const companies = companiesData;
   const invoices  = invoicesData;
 
   return {
-    tenantId, clients, quotes, invoices, contrats, catalogue, devis,
+    tenantId, clients, quotes, invoices, contrats, catalogue,
     users, currentUserId: user.id, currentUserName, companies,
   };
 }
@@ -149,10 +138,8 @@ export default async function CommercePage({ searchParams }: PageProps) {
   }
 
   // ── Autres onglets ──────────────────────────────────────────────────────────
-  const {
-    clients, quotes, invoices, contrats, catalogue,
-    users, currentUserId, currentUserName, companies,
-  } = await fetchCommerceData();
+  const { clients, quotes, invoices, contrats, catalogue, users, currentUserId, currentUserName, companies } =
+    await fetchCommerceData();
 
   const tabs: TabItem[] = [
     { key: 'dashboard',  label: 'Tableau de bord'                              },

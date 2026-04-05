@@ -17,8 +17,6 @@ const TABLES = [
   'catalogue',
   'company_objectives',
   'api_usage',
-  'dossiers',
-  'taches',
   'sav_tickets',
   'contrats',
 ] as const;

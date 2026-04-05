@@ -70,6 +70,21 @@ export function ProjectDetailFull({ project, tasks, tenantId }: Props) {
   const [reminderEmail,    setReminderEmail]    = useState(project.reminder_email ?? '');
   const [reminderActive,   setReminderActive]   = useState(project.reminder_active ?? false);
 
+  // Administratif
+  const [commercialName,    setCommercialName]    = useState(project.commercial_name ?? '');
+  const [partner,           setPartner]           = useState(project.partner ?? '');
+  const [manufacturer,      setManufacturer]      = useState(project.manufacturer ?? '');
+  const [adminProjectType,  setAdminProjectType]  = useState(project.project_type ?? '');
+  const [requestType,       setRequestType]       = useState(project.request_type ?? '');
+  const [expectedDate,      setExpectedDate]      = useState(project.expected_date ?? '');
+  const [expectedAmount,    setExpectedAmount]    = useState(project.expected_amount ?? 0);
+  const [contractProposed,  setContractProposed]  = useState(project.contract_proposed ?? false);
+  const [folderValidated,   setFolderValidated]   = useState(project.folder_validated ?? false);
+  const [validationDate,    setValidationDate]    = useState(project.validation_date ?? '');
+  const [validatedAmount,   setValidatedAmount]   = useState(project.validated_amount ?? 0);
+  const [progressPercent,   setProgressPercent]   = useState(project.progress_percent ?? 0);
+  const [progressNotes,     setProgressNotes]     = useState(project.progress_notes ?? '');
+
   // Finances
   const saleHT   = project.amount_ttc / 1.2;  // approx HT (TTC / 1.20)
   const marge     = saleHT - purchaseAmount;
@@ -104,6 +119,19 @@ export function ProjectDetailFull({ project, tasks, tenantId }: Props) {
         reminder_time:     reminderTime || null,
         reminder_email:    reminderEmail || null,
         reminder_active:   reminderActive,
+        commercial_name:   commercialName || null,
+        partner:           partner || null,
+        manufacturer:      manufacturer || null,
+        project_type:      adminProjectType || null,
+        request_type:      requestType || null,
+        expected_date:     expectedDate || null,
+        expected_amount:   expectedAmount || null,
+        contract_proposed: contractProposed,
+        folder_validated:  folderValidated,
+        validation_date:   validationDate || null,
+        validated_amount:  validatedAmount || null,
+        progress_percent:  progressPercent,
+        progress_notes:    progressNotes || null,
       });
       if (res.error) { setSaveError(res.error); return; }
       setSaveOk(true);
@@ -404,7 +432,122 @@ export function ProjectDetailFull({ project, tasks, tenantId }: Props) {
         />
       </Section>
 
-      {/* ── 8. NOTES ────────────────────────────────────────────────────────── */}
+      {/* ── 8. ADMINISTRATIF ────────────────────────────────────────────────── */}
+      <Section title="Informations administratives">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Commercial">
+            <input type="text" value={commercialName} onChange={(e) => setCommercialName(e.target.value)} placeholder="Nom du commercial" className={inputCls} />
+          </Field>
+
+          <Field label="Partenaire">
+            <input type="text" value={partner} onChange={(e) => setPartner(e.target.value)} placeholder="Partenaire" className={inputCls} />
+          </Field>
+
+          <Field label="Constructeur / Marque">
+            <input type="text" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="Ex: Schneider, Legrand…" className={inputCls} />
+          </Field>
+
+          <Field label="Type de projet">
+            <select value={adminProjectType} onChange={(e) => setAdminProjectType(e.target.value)} className={inputCls}>
+              <option value="">— Sélectionner —</option>
+              <option value="courant_fort">Courant fort</option>
+              <option value="courant_faible">Courant faible</option>
+              <option value="photovoltaique">Photovoltaïque</option>
+              <option value="infrastructure">Infrastructure</option>
+              <option value="autre">Autre</option>
+            </select>
+          </Field>
+
+          <Field label="Type de demande">
+            <select value={requestType} onChange={(e) => setRequestType(e.target.value)} className={inputCls}>
+              <option value="">— Sélectionner —</option>
+              <option value="neuf">Neuf</option>
+              <option value="renovation">Rénovation</option>
+              <option value="extension">Extension</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+          </Field>
+
+          <Field label="Date prévisionnelle">
+            <input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} className={inputCls} />
+          </Field>
+
+          <Field label="Montant HT prévisionnel (€)">
+            <input type="number" min={0} step={100} value={expectedAmount || ''} onChange={(e) => setExpectedAmount(parseFloat(e.target.value) || 0)} placeholder="0" className={inputCls} />
+          </Field>
+
+          <div className="sm:col-span-2 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setContractProposed((v) => !v)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                contractProposed
+                  ? 'bg-green-100 text-green-700 border border-green-300'
+                  : 'bg-slate-100 text-slate-500 border border-slate-200'
+              }`}
+            >
+              {contractProposed ? '✅ Contrat proposé' : '☐ Contrat proposé'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFolderValidated((v) => !v)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                folderValidated
+                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                  : 'bg-slate-100 text-slate-500 border border-slate-200'
+              }`}
+            >
+              {folderValidated ? '📁 Dossier validé' : '📁 Dossier non validé'}
+            </button>
+          </div>
+
+          <Field label="Date de validation">
+            <input type="date" value={validationDate} onChange={(e) => setValidationDate(e.target.value)} className={inputCls} />
+          </Field>
+
+          <Field label="Montant HT validé (€)">
+            <input type="number" min={0} step={100} value={validatedAmount || ''} onChange={(e) => setValidatedAmount(parseFloat(e.target.value) || 0)} placeholder="0" className={inputCls} />
+          </Field>
+
+          <div className="sm:col-span-2 space-y-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Avancement <span className="text-blue-600 font-bold">{progressPercent}%</span>
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={progressPercent}
+              onChange={(e) => setProgressPercent(parseInt(e.target.value, 10))}
+              className="w-full accent-blue-600"
+            />
+            <div className="h-2 rounded-full bg-[#dde3f0] overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  progressPercent >= 80 ? 'bg-green-500' : progressPercent >= 40 ? 'bg-blue-500' : 'bg-amber-500'
+                }`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="sm:col-span-2">
+            <Field label="Notes d'avancement">
+              <textarea
+                value={progressNotes}
+                onChange={(e) => setProgressNotes(e.target.value)}
+                rows={3}
+                placeholder="Commentaires sur l'avancement du projet…"
+                className={`${inputCls} resize-y min-h-[72px]`}
+              />
+            </Field>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── 9. NOTES ────────────────────────────────────────────────────────── */}
       <Section title="Notes">
         <textarea
           value={notes}
@@ -415,7 +558,7 @@ export function ProjectDetailFull({ project, tasks, tenantId }: Props) {
         />
       </Section>
 
-      {/* ── 9. RAPPEL AUTOMATIQUE ────────────────────────────────────────────── */}
+      {/* ── 10. RAPPEL AUTOMATIQUE ───────────────────────────────────────────── */}
       <Section title="Rappel automatique">
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
