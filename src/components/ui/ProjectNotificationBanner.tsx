@@ -141,7 +141,7 @@ export function ProjectNotificationBanner({ initialNotifications }: ProjectNotif
                 {/* Actions */}
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                   <a
-                    href={`/chef-projet?project=${n.project_id}`}
+                    href={`/commerce?tab=factures`}
                     className="w-full rounded-lg bg-orange-500 px-3 py-2 text-center text-xs font-semibold text-white hover:bg-orange-600 transition-colors sm:w-auto sm:py-1.5"
                   >
                     Facturer →

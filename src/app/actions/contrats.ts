@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
@@ -17,7 +18,7 @@ export type ContratInput = {
 export async function createContratAction(input: ContratInput) {
   const { admin, tenant_id } = await getAuthContext();
   const { error } = await admin.from('contrats').insert({ ...input, tenant_id });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -25,7 +26,7 @@ export async function createContratAction(input: ContratInput) {
 export async function updateContratAction(id: string, input: Partial<ContratInput>) {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('contrats').update(input).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -33,7 +34,7 @@ export async function updateContratAction(id: string, input: Partial<ContratInpu
 export async function deleteContratAction(id: string) {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('contrats').delete().eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -41,7 +42,7 @@ export async function deleteContratAction(id: string) {
 export async function toggleContratActifAction(id: string, actif: boolean) {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('contrats').update({ actif }).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }

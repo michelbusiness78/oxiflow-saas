@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
@@ -25,7 +26,7 @@ export async function createTacheAction(input: TacheInput) {
   const { admin, tenant_id } = await getAuthContext();
 
   const { error } = await admin.from('taches').insert({ tenant_id, ...input });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   revalidatePath(PATH_CHEF);
   return { success: true };
@@ -35,7 +36,7 @@ export async function updateTacheAction(id: string, input: TacheInput) {
   const { admin } = await getAuthContext();
 
   const { error } = await admin.from('taches').update(input).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   revalidatePath(PATH_CHEF);
   return { success: true };
@@ -45,7 +46,7 @@ export async function deleteTacheAction(id: string) {
   const { admin } = await getAuthContext();
 
   const { error } = await admin.from('taches').delete().eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   revalidatePath(PATH_CHEF);
   return { success: true };
@@ -62,7 +63,7 @@ export async function changeTacheEtatAction(
     .from('taches')
     .update({ etat, pct_avancement: pct })
     .eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   revalidatePath(PATH_CHEF);
   return { success: true };

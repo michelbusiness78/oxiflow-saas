@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
@@ -36,7 +37,7 @@ export async function createFactureAction(input: FactureInput) {
     tenant_id,
     devis_id: input.devis_id || null,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -44,7 +45,7 @@ export async function createFactureAction(input: FactureInput) {
 export async function updateFactureAction(id: string, input: Partial<FactureInput>) {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('factures').update(input).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -52,7 +53,7 @@ export async function updateFactureAction(id: string, input: Partial<FactureInpu
 export async function deleteFactureAction(id: string) {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('factures').delete().eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -63,7 +64,7 @@ export async function changeFactureStatutAction(
 ) {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('factures').update({ statut }).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -97,7 +98,7 @@ export async function creerAvoirAction(id: string) {
     montant_ttc: -Math.abs(original.montant_ttc),
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }

@@ -14,30 +14,49 @@ import type { Tache } from '@/components/projets/TacheForm';
 
 // ─── Legacy fetch (gardé pour la vue détail et ProjetList) ────────────────────
 
-async function fetchLegacyData(userId: string) {
-  const supabase = await createClient();
+async function fetchLegacyData(userId: string, tenantId: string | null) {
+  // createAdminClient() pour contourner RLS et récupérer toutes les données du tenant
+  const admin = createAdminClient();
 
   const [projetsRes, tachesRes, interventionsRes, clientsRes, techniciensRes, allUsersRes] =
     await Promise.all([
-      supabase
+      admin
         .from('projets')
         .select('id, nom, statut, date_debut, date_fin_prevue, pct_avancement, montant_ht, client_id, chef_projet_id, created_at, updated_at, clients(nom), users(name)')
         .eq('chef_projet_id', userId)
         .order('created_at', { ascending: false }),
 
-      supabase
-        .from('taches')
-        .select('id, projet_id, titre, description, assigne_a, priorite, etat, date_echeance, pct_avancement, created_at, projets(nom), users(name)')
-        .order('date_echeance', { ascending: true, nullsFirst: false }),
+      tenantId
+        ? admin
+            .from('taches')
+            .select('id, projet_id, titre, description, assigne_a, priorite, etat, date_echeance, pct_avancement, created_at, projets(nom), users(name)')
+            .eq('tenant_id', tenantId)
+            .order('date_echeance', { ascending: true, nullsFirst: false })
+        : admin
+            .from('taches')
+            .select('id, projet_id, titre, description, assigne_a, priorite, etat, date_echeance, pct_avancement, created_at, projets(nom), users(name)')
+            .order('date_echeance', { ascending: true, nullsFirst: false }),
 
-      supabase
-        .from('interventions')
-        .select('id, projet_id, technicien_id, date, type, statut, duree_minutes, clients(nom), users(name)')
-        .order('date', { ascending: false }),
+      tenantId
+        ? admin
+            .from('interventions')
+            .select('id, projet_id, technicien_id, date, type, statut, duree_minutes, clients(nom), users(name)')
+            .eq('tenant_id', tenantId)
+            .order('date', { ascending: false })
+        : admin
+            .from('interventions')
+            .select('id, projet_id, technicien_id, date, type, statut, duree_minutes, clients(nom), users(name)')
+            .order('date', { ascending: false }),
 
-      supabase.from('clients').select('id, nom, adresse, ville, tel').order('nom'),
-      supabase.from('users').select('id, name, color').eq('role', 'technicien').order('name'),
-      supabase.from('users').select('id, name').order('name'),
+      tenantId
+        ? admin.from('clients').select('id, nom, adresse, ville, tel').eq('tenant_id', tenantId).order('nom')
+        : admin.from('clients').select('id, nom, adresse, ville, tel').order('nom'),
+      tenantId
+        ? admin.from('users').select('id, name, color').eq('role', 'technicien').eq('tenant_id', tenantId).order('name')
+        : admin.from('users').select('id, name, color').eq('role', 'technicien').order('name'),
+      tenantId
+        ? admin.from('users').select('id, name').eq('tenant_id', tenantId).order('name')
+        : admin.from('users').select('id, name').order('name'),
     ]);
 
   const projets = (projetsRes.data ?? []).map((p) => ({
@@ -126,7 +145,7 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
   // ── Vue détail projet legacy (?projet=ID) ──────────────────────────────────
 
   if (projetId) {
-    const legacyData = await fetchLegacyData(user.id);
+    const legacyData = await fetchLegacyData(user.id, tenantId);
     const projet = legacyData.projets.find((p) => p.id === projetId);
     if (!projet) redirect('/chef-projet');
 
@@ -155,7 +174,7 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
   // ── Fetch parallèle ─────────────────────────────────────────────────────────
 
   const [legacyData, dashData, projectsR4, usersRes, initialEvents, projectsForPlanning, contractedIds] = await Promise.all([
-    fetchLegacyData(user.id),
+    fetchLegacyData(user.id, tenantId),
     getDashboardChefProjet(),
     tenantId ? getMyProjects(tenantId, user.id) : Promise.resolve([]),
     admin.from('users').select('id, name').order('name'),

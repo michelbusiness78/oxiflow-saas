@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { createAdminClient } from '@/lib/supabase/server';
 import { revalidatePath }    from 'next/cache';
@@ -58,7 +59,7 @@ export async function addProjectTask(
     })
     .select('id')
     .single();
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { id: data?.id };
 }
@@ -78,7 +79,7 @@ export async function toggleProjectTask(
     .from('project_tasks')
     .update({ done: !current?.done, updated_at: new Date().toISOString() })
     .eq('id', taskId);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -93,7 +94,7 @@ export async function deleteProjectTask(
     .from('project_tasks')
     .delete()
     .eq('id', taskId);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -117,7 +118,7 @@ export async function updateTaskReminder(
       updated_at:      new Date().toISOString(),
     })
     .eq('id', taskId);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -138,7 +139,7 @@ export async function clearTaskReminder(
       updated_at:      new Date().toISOString(),
     })
     .eq('id', taskId);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }

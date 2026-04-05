@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
@@ -20,14 +21,14 @@ export async function updateNameAction(name: string): Promise<{ error?: string }
       .from('users')
       .update({ name: trimmed })
       .eq('id', user.id);
-    if (error) return { error: error.message };
+    if (error) return { error: translateSupabaseError(error.message) };
   } catch {
     // Fallback client régulier
     const { error } = await supabase
       .from('users')
       .update({ name: trimmed })
       .eq('id', user.id);
-    if (error) return { error: error.message };
+    if (error) return { error: translateSupabaseError(error.message) };
   }
 
   revalidatePath('/profil');
@@ -58,7 +59,7 @@ export async function updatePasswordAction(
   if (signInError) return { error: 'Mot de passe actuel incorrect.' };
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
 
   revalidatePath('/profil');
   revalidatePath('/pilotage', 'layout');

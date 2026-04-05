@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
@@ -69,12 +70,9 @@ type AdminClient = Awaited<ReturnType<typeof getAuthContext>>['admin'];
 async function nextQuoteNumbers(
   admin: AdminClient,
   tenant_id: string,
-  userName: string,
 ): Promise<{ number: string; affair_number: string }> {
-  const year = new Date().getFullYear();
-  const raw  = (userName ?? '').toUpperCase().replace(/[^A-Z]/g, '');
-  const code = raw.slice(0, 4) || 'OXI';
-  const devPrefix = `DEV-${code}-${year}-`;
+  const year      = new Date().getFullYear();
+  const devPrefix = `DEV-${year}-`;
 
   const { count } = await admin
     .from('quotes')
@@ -84,8 +82,8 @@ async function nextQuoteNumbers(
 
   const seq = String((count ?? 0) + 1).padStart(3, '0');
   return {
-    number:       `DEV-${code}-${year}-${seq}`,
-    affair_number: `AF-${code}-${year}-${seq}`,
+    number:        `DEV-${year}-${seq}`,
+    affair_number: `AF-${year}-${seq}`,
   };
 }
 
@@ -118,12 +116,12 @@ export async function saveQuoteAction(
       .from('quotes')
       .update({ ...common, updated_at: new Date().toISOString() })
       .eq('id', id);
-    if (error) return { error: error.message };
+    if (error) return { error: translateSupabaseError(error.message) };
     revalidatePath(PATH);
     return { success: true, id };
   }
 
-  const { number, affair_number } = await nextQuoteNumbers(admin, tenant_id, name);
+  const { number, affair_number } = await nextQuoteNumbers(admin, tenant_id);
 
   const { data, error } = await admin
     .from('quotes')
@@ -137,7 +135,7 @@ export async function saveQuoteAction(
     .select('id')
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true, id: data.id };
 }
@@ -145,7 +143,7 @@ export async function saveQuoteAction(
 export async function deleteQuoteAction(id: string) {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('quotes').delete().eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -156,7 +154,7 @@ export async function changeQuoteStatutAction(id: string, statut: QuoteStatut) {
     .from('quotes')
     .update({ statut, updated_at: new Date().toISOString() })
     .eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -172,7 +170,7 @@ export async function duplicateQuoteAction(id: string) {
 
   if (fetchErr || !source) return { error: fetchErr?.message ?? 'Devis introuvable' };
 
-  const { number, affair_number } = await nextQuoteNumbers(admin, tenant_id, name);
+  const { number, affair_number } = await nextQuoteNumbers(admin, tenant_id);
 
   const { error } = await admin
     .from('quotes')
@@ -196,7 +194,7 @@ export async function duplicateQuoteAction(id: string) {
       montant_ttc:         source.montant_ttc,
     });
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }

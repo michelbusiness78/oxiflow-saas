@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath }    from 'next/cache';
 import { getAuthContext }    from '@/lib/auth-context';
@@ -235,7 +236,7 @@ export async function saveInvoiceAction(
 
   if (id) {
     const { error } = await admin.from('invoices').update(common).eq('id', id);
-    if (error) return { error: error.message };
+    if (error) return { error: translateSupabaseError(error.message) };
     await admin.from('invoice_lines').delete().eq('invoice_id', id);
     if (input.lines.length > 0) {
       const { error: lErr } = await admin.from('invoice_lines').insert(
@@ -254,7 +255,7 @@ export async function saveInvoiceAction(
     .select('id')
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
 
   if (input.lines.length > 0) {
     await admin.from('invoice_lines').insert(
@@ -283,7 +284,7 @@ export async function deleteInvoiceAction(invoiceId: string): Promise<{ success?
   }
 
   const { error } = await admin.from('invoices').delete().eq('id', invoiceId);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -319,7 +320,7 @@ export async function changeInvoiceStatusAction(
     .update({ status: newStatus, updated_at: new Date().toISOString() })
     .eq('id', invoiceId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }

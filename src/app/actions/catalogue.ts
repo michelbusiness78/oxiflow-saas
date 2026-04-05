@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
@@ -52,7 +53,7 @@ export async function createProduitAction(input: CatalogueInput) {
   const { error } = await admin
     .from('catalogue')
     .insert({ ...input, tenant_id });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -63,7 +64,7 @@ export async function updateProduitAction(id: string, input: CatalogueInput) {
     .from('catalogue')
     .update({ ...input, updated_at: new Date().toISOString() })
     .eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -74,7 +75,7 @@ export async function deleteProduitAction(id: string) {
     .from('catalogue')
     .delete()
     .eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }

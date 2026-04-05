@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/server';
@@ -292,7 +293,7 @@ export async function dismissProjectNotification(
     .update({ read: true })
     .eq('id', notificationId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath('/chef-projet');
   return { success: true };
 }

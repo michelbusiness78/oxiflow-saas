@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath }    from 'next/cache';
 import { getAuthContext }    from '@/lib/auth-context';
@@ -77,7 +78,7 @@ export async function saveCompany(
 
   if (id) {
     const { error } = await admin.from('companies').update(payload).eq('id', id);
-    if (error) return { error: error.message };
+    if (error) return { error: translateSupabaseError(error.message) };
     revalidatePath(PATH);
     return { success: true, id };
   }
@@ -88,7 +89,7 @@ export async function saveCompany(
     .select('id')
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true, id: data.id as string };
 }
@@ -100,7 +101,7 @@ export async function deleteCompany(
 ): Promise<{ success?: true; error?: string }> {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('companies').delete().eq('id', companyId);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -172,7 +173,7 @@ export async function saveCompanyObjectives(
       { onConflict: 'company_id,year' },
     );
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }

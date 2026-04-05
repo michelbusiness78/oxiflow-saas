@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath }               from 'next/cache';
 import { getAuthContext }               from '@/lib/auth-context';
@@ -134,6 +135,8 @@ const INTERVENTION_COLORS: Record<string, string> = {
 export async function getDashboardChefProjet(): Promise<DashboardData> {
   const { admin, tenant_id } = await getAuthContext();
 
+  console.log('[getDashboardChefProjet] tenant_id:', tenant_id);
+
   const today    = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
@@ -233,7 +236,7 @@ export async function getDashboardChefProjet(): Promise<DashboardData> {
     };
   });
 
-  return {
+  const result = {
     projetsEnCours:     projRes.count ?? 0,
     interventionsToday: (intRes.data ?? []).length,
     tachesEnRetard:     (tachRes.count ?? 0) + ptaskCount,
@@ -241,6 +244,8 @@ export async function getDashboardChefProjet(): Promise<DashboardData> {
     equipeAujourdhui,
     chantiersEnCours,
   };
+  console.log('[getDashboardChefProjet] KPIs:', JSON.stringify({ projetsEnCours: result.projetsEnCours, interventionsToday: result.interventionsToday, tachesEnRetard: result.tachesEnRetard }));
+  return result;
 }
 
 // ── getCalendarEvents ──────────────────────────────────────────────────────────
@@ -427,7 +432,7 @@ export async function createIntervention(
     .select('id')
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
 
   revalidatePath(PATH);
   return { id: row?.id };
@@ -465,7 +470,7 @@ export async function updateIntervention(
     .eq('id', id)
     .eq('tenant_id', tenant_id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -763,7 +768,7 @@ export async function saveProjectDetail(
     .update({ ...data, updated_at: new Date().toISOString() })
     .eq('id', projectId)
     .eq('tenant_id', tenantId);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -782,7 +787,7 @@ export async function assignerTechnicienProjetAction(
     .eq('projet_id', projetId)
     .is('assigne_a', null);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }

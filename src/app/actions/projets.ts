@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
@@ -31,7 +32,7 @@ export async function createProjetAction(input: ProjetInput) {
     ...input,
     chef_projet_id: input.chef_projet_id ?? user.id,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -40,7 +41,7 @@ export async function updateProjetAction(id: string, input: ProjetInput) {
   const { admin } = await getAuthContext();
 
   const { error } = await admin.from('projets').update(input).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -49,7 +50,7 @@ export async function deleteProjetAction(id: string) {
   const { admin } = await getAuthContext();
 
   const { error } = await admin.from('projets').delete().eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -61,7 +62,7 @@ export async function updateProjetAvancementAction(id: string, pct: number) {
     .from('projets')
     .update({ pct_avancement: Math.max(0, Math.min(100, pct)) })
     .eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -99,7 +100,7 @@ export async function createProjetFromDevisAction(devisId: string) {
     pct_avancement:  0,
     montant_ht:      devis.montant_ht,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   revalidatePath('/commerce');
   return { success: true };

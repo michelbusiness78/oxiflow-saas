@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
@@ -36,7 +37,7 @@ export async function createInterventionAction(input: InterventionInput) {
     ...input,
     technicien_id: input.technicien_id ?? user.id,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -45,7 +46,7 @@ export async function updateInterventionAction(id: string, input: InterventionIn
   const { admin } = await getAuthContext();
 
   const { error } = await admin.from('interventions').update(input).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -54,7 +55,7 @@ export async function deleteInterventionAction(id: string) {
   const { admin } = await getAuthContext();
 
   const { error } = await admin.from('interventions').delete().eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -79,7 +80,7 @@ export async function terminerInterventionAction(
     photos,
     signature_url,
   }).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -102,7 +103,7 @@ export async function uploadInterventionFileAction(
     .from('interventions')
     .upload(path, buffer, { contentType: file.type, upsert: false });
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
 
   const { data: { publicUrl } } = admin.storage
     .from('interventions')

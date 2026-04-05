@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthContext }    from '@/lib/auth-context';
@@ -128,7 +129,7 @@ export async function markInterventionRead(
     .update({ is_new: false, updated_at: new Date().toISOString() })
     .eq('id', interventionId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath('/technicien');
   return {};
 }
@@ -160,7 +161,7 @@ export async function updateInterventionStatus(
     .eq('id', interventionId)
     .eq('tenant_id', tenant_id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath('/technicien');
 
   // Notification chef de projet quand une intervention liée à un projet est terminée
@@ -224,7 +225,7 @@ export async function saveInterventionProgress(
     .eq('id', interventionId)
     .eq('tenant_id', tenant_id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath('/technicien');
   return {};
 }
@@ -249,7 +250,7 @@ export async function saveInterventionSignature(
     .eq('id', interventionId)
     .eq('tenant_id', tenant_id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath('/technicien');
   return {};
 }
@@ -496,7 +497,7 @@ export async function deleteInterventionPhoto(
     .eq('id', interventionId)
     .eq('tenant_id', tenant_id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath('/technicien');
   return {};
 }

@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath }    from 'next/cache';
 import { getAuthContext }    from '@/lib/auth-context';
@@ -112,7 +113,7 @@ export async function saveUser(
   if (input.email?.trim()) payload.email = input.email.trim();
 
   const { error } = await admin.from('users').update(payload).eq('id', userId);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -153,7 +154,7 @@ export async function toggleUserActive(
     .update({ active, status: active ? 'active' : 'inactive' })
     .eq('id', userId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }

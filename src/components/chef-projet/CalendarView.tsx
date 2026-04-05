@@ -27,8 +27,8 @@ const messages = {
   next:            '›',
   today:           "Aujourd'hui",
   month:           'Mois',
-  week:            'Semaine 7j',
-  work_week:       'Semaine',
+  week:            'Semaine',
+  work_week:       'Semaine 5j',
   day:             'Jour',
   agenda:          'Agenda',
   date:            'Date',
@@ -87,21 +87,65 @@ interface CalEvent {
   resource: CalendarEventData;
 }
 
+// ── Weekend span splitter ─────────────────────────────────────────────────────
+// Découpe les événements multi-jours qui franchissent un weekend en segments
+// lundi-vendredi, de sorte que les cases samedi/dimanche restent vides.
+
+function splitAtWeekends(ev: CalEvent): CalEvent[] {
+  const segments: CalEvent[] = [];
+  let cursor = new Date(ev.start);
+
+  // Avancer au lundi si le début tombe un weekend
+  const startDow = cursor.getDay();
+  if (startDow === 6) cursor.setDate(cursor.getDate() + 2); // Sat → Mon
+  if (startDow === 0) cursor.setDate(cursor.getDate() + 1); // Sun → Mon
+
+  let idx = 0;
+  while (cursor < ev.end) {
+    const dow     = cursor.getDay();                          // 1–5 (weekday)
+    const toSat   = 6 - (dow === 0 ? 7 : dow);              // jours jusqu'au samedi
+    const satMidnight = new Date(cursor);
+    satMidnight.setDate(satMidnight.getDate() + toSat);
+    satMidnight.setHours(0, 0, 0, 0);
+
+    const segEnd = satMidnight < ev.end ? satMidnight : ev.end;
+
+    segments.push({
+      ...ev,
+      id:    idx === 0 ? ev.id : `${ev.id}_w${idx}`,
+      start: new Date(cursor),
+      end:   segEnd,
+    });
+
+    if (satMidnight >= ev.end) break;
+
+    // Passer le weekend : Sat 00:00 → Lun 00:00 = +2 jours
+    cursor = new Date(satMidnight);
+    cursor.setDate(cursor.getDate() + 2);
+    // Conserver l'heure de début
+    cursor.setHours(ev.start.getHours(), ev.start.getMinutes(), 0, 0);
+    idx++;
+  }
+
+  return segments.length > 0 ? segments : [ev];
+}
+
 function toCalEvents(data: CalendarEventData[]): CalEvent[] {
-  return data.map((e) => {
+  return data.flatMap((e) => {
     let prefix = '';
     if (e.type === 'intervention') {
       prefix = e.nature === 'sav'
         ? (e.urgency === 'critique' ? '🚨 ' : '🔧 ')
         : '🏗 ';
     }
-    return {
+    const base: CalEvent = {
       id:       e.id,
       title:    prefix + e.title,
       start:    new Date(e.startISO),
       end:      new Date(e.endISO),
       resource: e,
     };
+    return splitAtWeekends(base);
   });
 }
 
@@ -427,8 +471,8 @@ export function CalendarView({
           events={allCalEvents}
           startAccessor="start"
           endAccessor="end"
-          defaultView={Views.WORK_WEEK}
-          views={[Views.MONTH, Views.WORK_WEEK, Views.DAY]}
+          defaultView={Views.WEEK}
+          views={[Views.MONTH, Views.WEEK, Views.DAY]}
           messages={messages}
           culture="fr"
           eventPropGetter={eventStyleGetter}

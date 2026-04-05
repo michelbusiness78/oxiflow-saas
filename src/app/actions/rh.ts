@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
@@ -24,7 +25,7 @@ export async function createCongeAction(input: CongeInput) {
     ...input,
     statut: 'en_attente',
   });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -39,7 +40,7 @@ export async function deleteCongeAction(id: string) {
     .eq('user_id', user.id)   // ne peut supprimer que ses propres congés
     .eq('statut', 'en_attente'); // seulement si pas encore traité
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -59,7 +60,7 @@ export async function changeCongeStatutAction(id: string, statut: 'valide' | 're
     .from('conges')
     .update({ statut, valide_par: user.id })
     .eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
 
   // Déduction automatique du solde si CP ou RTT validé
   if (statut === 'valide' && conge && (conge.type === 'cp' || conge.type === 'rtt')) {
@@ -110,7 +111,7 @@ export async function createNoteFraisAction(input: NoteFraisInput) {
     ...input,
     statut: 'soumise',
   });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -125,7 +126,7 @@ export async function deleteNoteFraisAction(id: string) {
     .eq('user_id', user.id)
     .eq('statut', 'soumise');
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -143,7 +144,7 @@ export async function changeNoteFraisStatutAction(
     .update({ statut, valide_par: user.id })
     .eq('id', id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return {};
 }
@@ -165,7 +166,7 @@ export async function uploadJustificatifAction(
     .from('rh')
     .upload(path, buffer, { contentType: file.type, upsert: false });
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
 
   const { data: { publicUrl } } = admin.storage.from('rh').getPublicUrl(path);
   return { url: publicUrl, path };
@@ -199,7 +200,7 @@ export async function updateSoldeAction(
       { tenant_id, user_id: userId, type, solde: newSolde },
       { onConflict: 'user_id,type' },
     );
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
 
   await admin.from('mouvements_soldes').insert({
     tenant_id,

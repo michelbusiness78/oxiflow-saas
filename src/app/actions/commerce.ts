@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
@@ -28,7 +29,7 @@ export async function createClientAction(input: ClientInput) {
   const { error } = await admin
     .from('clients')
     .insert({ ...input, tenant_id });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -39,7 +40,7 @@ export async function updateClientAction(id: string, input: ClientInput) {
     .from('clients')
     .update(input)
     .eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -50,7 +51,7 @@ export async function deleteClientAction(id: string) {
     .from('clients')
     .delete()
     .eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -95,7 +96,7 @@ export async function createDevisAction(input: DevisInput) {
     tenant_id,
     commercial_id: user.id,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -103,7 +104,7 @@ export async function createDevisAction(input: DevisInput) {
 export async function updateDevisAction(id: string, input: Partial<DevisInput>) {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('devis').update(input).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -111,7 +112,7 @@ export async function updateDevisAction(id: string, input: Partial<DevisInput>) 
 export async function deleteDevisAction(id: string) {
   const { admin } = await getAuthContext();
   const { error } = await admin.from('devis').delete().eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -122,7 +123,7 @@ export async function changeDevisStatutAction(
 ) {
   const { admin, tenant_id, user } = await getAuthContext();
   const { error } = await admin.from('devis').update({ statut }).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
 
   // Création automatique d'un projet quand le devis est accepté
   if (statut === 'accepte') {
@@ -296,7 +297,7 @@ export async function dupliquerDevisAction(id: string) {
     montant_ttc:   original.montant_ttc,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };
 }

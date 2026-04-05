@@ -1,4 +1,5 @@
 'use server';
+import { translateSupabaseError } from '@/lib/error-messages';
 
 import { revalidatePath } from 'next/cache';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
@@ -54,7 +55,7 @@ export async function updateSocieteAction(input: SocieteInput) {
       .from('tenants')
       .update(input)
       .eq('id', tenant_id);
-    if (error) return { error: error.message };
+    if (error) return { error: translateSupabaseError(error.message) };
     revalidatePath(PATH);
     return { success: true };
   } catch (e) {
@@ -154,7 +155,7 @@ export async function updateUserRoleAction(userId: string, role: string) {
       .from('users')
       .update({ role })
       .eq('id', userId);
-    if (error) return { error: error.message };
+    if (error) return { error: translateSupabaseError(error.message) };
     revalidatePath(PATH);
     return { success: true };
   } catch (e) {
@@ -170,7 +171,7 @@ export async function toggleUserStatusAction(userId: string, status: 'active' | 
       .from('users')
       .update({ status })
       .eq('id', userId);
-    if (error) return { error: error.message };
+    if (error) return { error: translateSupabaseError(error.message) };
     revalidatePath(PATH);
     return { success: true };
   } catch (e) {
