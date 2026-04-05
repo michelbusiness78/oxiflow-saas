@@ -11,7 +11,6 @@ const METEO_META = {
 };
 
 const PRIORITE_ICON: Record<PrioriteItem['type'], string> = {
-  tache:   '✓',
   facture: '€',
   devis:   '📋',
 };

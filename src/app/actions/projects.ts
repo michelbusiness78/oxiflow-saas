@@ -281,6 +281,38 @@ export async function getMyProjects(tenantId: string, userId: string): Promise<P
   }));
 }
 
+// ─── createProjectAction ──────────────────────────────────────────────────────
+
+export async function createProjectAction(data: {
+  name:        string;
+  client_id:   string | null;
+  deadline:    string | null;
+  type:        string | null;
+  description: string | null;
+}): Promise<{ success?: true; project_id?: string; error?: string }> {
+  const { admin, tenant_id, user } = await getAuthContext();
+
+  const { data: project, error } = await admin
+    .from('projects')
+    .insert({
+      tenant_id,
+      name:                data.name,
+      client_id:           data.client_id,
+      deadline:            data.deadline,
+      type:                data.type,
+      description:         data.description,
+      status:              'nouveau',
+      amount_ttc:          0,
+      chef_projet_user_id: user.id,
+    })
+    .select('id')
+    .single();
+
+  if (error) return { error: translateSupabaseError(error.message) };
+  revalidatePath('/chef-projet');
+  return { success: true, project_id: project.id };
+}
+
 // ─── dismissProjectNotification ───────────────────────────────────────────────
 
 export async function dismissProjectNotification(

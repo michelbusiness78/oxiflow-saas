@@ -1,10 +1,13 @@
 import { redirect }         from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { ProjectDetailFull }  from '@/components/chef-projet/ProjectDetailFull';
-import { ProjectList }        from '@/components/projets/ProjectList';
+import { ProjectsTab }        from '@/components/chef-projet/ProjectsTab';
+import { ChefProjetNav }      from '@/components/chef-projet/ChefProjetNav';
+import { TechniciensTab }     from '@/components/chef-projet/TechniciensTab';
 import { ChefDashboardV2 }    from '@/components/chef-projet/ChefDashboardV2';
 import { CalendarView }       from '@/components/chef-projet/CalendarView';
-import { getMyProjects }      from '@/app/actions/projects';
+import { SAVList }            from '@/components/projets/SAVList';
+import { getProjects }        from '@/app/actions/projects';
 import {
   getDashboardChefProjet,
   getCalendarEvents,
@@ -13,6 +16,8 @@ import {
   getProjectFull,
 } from '@/app/actions/chef-projet';
 import { getProjectTasks } from '@/app/actions/project-tasks';
+import type { TechnicienWithStats } from '@/components/chef-projet/TechniciensTab';
+import type { SAVTicket }  from '@/components/projets/SAVForm';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -25,10 +30,10 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const admin = createAdminClient();
+  const admin     = createAdminClient();
   const profileRes = await admin.from('users').select('name, tenant_id').eq('id', user.id).single();
-  const userName = profileRes.data?.name      ?? user.email ?? 'Chef de projet';
-  const tenantId = profileRes.data?.tenant_id ?? null;
+  const userName  = profileRes.data?.name      ?? user.email ?? 'Chef de projet';
+  const tenantId  = profileRes.data?.tenant_id ?? null;
 
   const params    = await searchParams;
   const projectId = params?.project;
@@ -47,7 +52,7 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     );
   }
 
-  // ── Plage calendrier initiale (semaine courante) ──────────────────────────────
+  // ── Plage calendrier (semaine courante) ───────────────────────────────────────
 
   const now    = new Date();
   const monday = new Date(now);
@@ -62,17 +67,19 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
 
   const [
     dashData,
-    projectsR4,
+    allProjects,
     usersRes,
     initialEvents,
     projectsForPlanning,
     contractedIds,
     clientsRes,
     techniciensRes,
+    savRes,
+    contratsRes,
   ] = await Promise.all([
     getDashboardChefProjet(),
-    tenantId ? getMyProjects(tenantId, user.id) : Promise.resolve([]),
-    admin.from('users').select('id, name').order('name'),
+    tenantId ? getProjects(tenantId) : Promise.resolve([]),
+    admin.from('users').select('id, name, email').order('name'),
     getCalendarEvents(monday.toISOString(), sunday.toISOString()),
     getProjectsForPlanning(),
     getContractedClientIds(),
@@ -80,15 +87,28 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
       ? admin.from('clients').select('id, nom, adresse, ville, tel').eq('tenant_id', tenantId).order('nom')
       : admin.from('clients').select('id, nom, adresse, ville, tel').order('nom'),
     tenantId
-      ? admin.from('users').select('id, name, color').eq('role', 'technicien').eq('tenant_id', tenantId).order('name')
-      : admin.from('users').select('id, name, color').eq('role', 'technicien').order('name'),
+      ? admin.from('users').select('id, name, email, color').eq('role', 'technicien').eq('tenant_id', tenantId).order('name')
+      : admin.from('users').select('id, name, email, color').eq('role', 'technicien').order('name'),
+    // SAV tickets avec client nom
+    tenantId
+      ? admin
+          .from('sav_tickets')
+          .select('id, client_id, titre, description, priorite, statut, contrat_id, assigne_a, date_ouverture, date_resolution, created_at, clients(nom)')
+          .eq('tenant_id', tenantId)
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
+    // Contrats pour le formulaire SAV
+    tenantId
+      ? admin.from('contrats').select('id, client_id, type, actif').eq('tenant_id', tenantId)
+      : Promise.resolve({ data: [] }),
   ]);
 
-  // Task counts pour les cartes ProjectList
+  // ── Task counts pour cartes projets ──────────────────────────────────────────
+
   const taskCountsMap: Record<string, { done: number; total: number }> = {};
-  if (tenantId && projectsR4.length > 0) {
+  if (tenantId && allProjects.length > 0) {
     try {
-      const projectIds = projectsR4.map((p) => p.id);
+      const projectIds = allProjects.map((p) => p.id);
       const { data: taskRows } = await admin
         .from('project_tasks')
         .select('project_id, done')
@@ -100,10 +120,27 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
         taskCountsMap[id].total++;
         if (t.done) taskCountsMap[id].done++;
       }
-    } catch {
-      // table project_tasks absente — on ignore
-    }
+    } catch { /* table absente */ }
   }
+
+  // ── Interventions actives par technicien ──────────────────────────────────────
+
+  const interventionCountMap: Record<string, number> = {};
+  if (tenantId) {
+    try {
+      const { data: activeInter } = await admin
+        .from('interventions')
+        .select('assigne_a')
+        .eq('tenant_id', tenantId)
+        .eq('statut', 'en_cours');
+      for (const i of (activeInter ?? [])) {
+        const id = i.assigne_a as string | null;
+        if (id) interventionCountMap[id] = (interventionCountMap[id] ?? 0) + 1;
+      }
+    } catch { /* table absente */ }
+  }
+
+  // ── Mapping des données ───────────────────────────────────────────────────────
 
   const usersPlain = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
 
@@ -112,8 +149,10 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     nom:     c.nom as string,
     adresse: (c as unknown as { adresse?: string }).adresse ?? null,
     ville:   (c as unknown as { ville?: string }).ville   ?? null,
-    tel:     (c as unknown as { tel?: string }).tel     ?? null,
+    tel:     (c as unknown as { tel?: string }).tel       ?? null,
   }));
+
+  const clientsSimple = (clientsRes.data ?? []).map((c) => ({ id: c.id, nom: c.nom as string }));
 
   const techniciens = (techniciensRes.data ?? []).map((u) => ({
     id:    u.id,
@@ -121,82 +160,122 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     color: (u as unknown as { color?: string }).color ?? null,
   }));
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // TechniciensTab data
+  const techProjectMap: Record<string, string[]> = {};
+  for (const p of allProjects) {
+    if (p.chef_projet_user_id) {
+      if (!techProjectMap[p.chef_projet_user_id]) techProjectMap[p.chef_projet_user_id] = [];
+      techProjectMap[p.chef_projet_user_id].push(p.name);
+    }
+  }
+
+  const techniciensWithStats: TechnicienWithStats[] = (techniciensRes.data ?? []).map((u) => ({
+    id:                   u.id,
+    name:                 u.name as string,
+    color:                (u as unknown as { color?: string }).color ?? null,
+    email:                (u as unknown as { email?: string }).email ?? null,
+    interventionsActives: interventionCountMap[u.id] ?? 0,
+    projetsAssignes:      techProjectMap[u.id] ?? [],
+  }));
+
+  // SAV tickets
+  const savTickets: (SAVTicket & { client_nom?: string; assigne_nom?: string; sous_contrat?: boolean })[] =
+    (savRes.data ?? []).map((t: unknown) => {
+      const row = t as Record<string, unknown>;
+      const clientNom = (row.clients as { nom: string } | null)?.nom ?? '—';
+      const assigne   = usersPlain.find((u) => u.id === (row.assigne_a as string | null));
+      const contrats  = (contratsRes.data ?? []) as { id: string; client_id: string; type: string; actif: boolean }[];
+      const hasCont   = contrats.some((c) => c.client_id === (row.client_id as string) && c.actif);
+      return {
+        id:              row.id as string,
+        client_id:       row.client_id as string,
+        titre:           row.titre as string | null,
+        description:     (row.description as string) ?? '',
+        priorite:        (row.priorite as SAVTicket['priorite']) ?? 'normale',
+        statut:          (row.statut as SAVTicket['statut']) ?? 'ouvert',
+        contrat_id:      row.contrat_id as string | null,
+        assigne_a:       row.assigne_a as string | null,
+        date_ouverture:  row.date_ouverture as string,
+        date_resolution: row.date_resolution as string | null,
+        created_at:      row.created_at as string,
+        client_nom:      clientNom,
+        assigne_nom:     assigne ? assigne.name : undefined,
+        sous_contrat:    hasCont,
+      };
+    });
+
+  const contratsForSAV = (contratsRes.data ?? []) as { id: string; client_id: string; type: string; actif: boolean }[];
+
+  const usersForSAV = usersPlain.map((u) => ({ id: u.id, nom: u.name, prenom: '' }));
+
+  // ── Render ─────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* En-tête */}
       <div>
         <h1 className="text-xl font-semibold text-slate-800">Chef de Projet</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
-          {userName}
-          {projectsR4.length > 0 && (
-            ` · ${projectsR4.length} projet${projectsR4.length !== 1 ? 's' : ''} assigné${projectsR4.length !== 1 ? 's' : ''}`
+        <p className="mt-0.5 text-sm text-slate-500">{userName}</p>
+      </div>
+
+      {/* Layout sidebar + contenu */}
+      <div className="flex gap-6 items-start">
+        <ChefProjetNav activeTab={activeTab} />
+
+        {/* Zone de contenu — padding-bottom mobile pour la bottom nav */}
+        <div className="flex-1 min-w-0 pb-24 md:pb-0 space-y-4">
+
+          {/* ── TABLEAU DE BORD ── */}
+          {activeTab === 'dashboard' && (
+            <ChefDashboardV2 data={dashData} />
           )}
-        </p>
-      </div>
 
-      {/* Onglets */}
-      <div className="border-b border-slate-200">
-        <nav className="-mb-px flex gap-6">
-          {[
-            { key: 'dashboard', label: 'Tableau de bord' },
-            { key: 'planning',  label: 'Planning'        },
-          ].map(({ key, label }) => (
-            <a
-              key={key}
-              href={`/chef-projet?tab=${key}`}
-              className={[
-                'whitespace-nowrap border-b-2 pb-3 text-sm font-medium transition-colors',
-                activeTab === key
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700',
-              ].join(' ')}
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
-      </div>
+          {/* ── PLANNING ── */}
+          {activeTab === 'planning' && (
+            <CalendarView
+              initialEvents={initialEvents}
+              clients={clientsForModal}
+              techniciens={techniciens}
+              projects={projectsForPlanning}
+              contractedClientIds={contractedIds}
+            />
+          )}
 
-      {/* Tableau de bord */}
-      {activeTab === 'dashboard' && (
-        <div className="space-y-8">
-          {projectsR4.length > 0 ? (
+          {/* ── PROJETS ── */}
+          {activeTab === 'projets' && (
+            <ProjectsTab
+              projects={allProjects}
+              users={usersPlain}
+              taskCounts={taskCountsMap}
+              clients={clientsSimple}
+            />
+          )}
+
+          {/* ── SAV / TICKETS ── */}
+          {activeTab === 'sav' && (
             <div className="space-y-4">
               <h2 className="text-base font-semibold text-slate-800">
-                Mes projets assignés
-                <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                  {projectsR4.length}
+                SAV / Tickets
+                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                  {savTickets.length}
                 </span>
               </h2>
-              <ProjectList
-                projects={projectsR4}
-                users={usersPlain}
-                taskCounts={taskCountsMap}
-                detailBaseUrl="/chef-projet?project="
+              <SAVList
+                tickets={savTickets}
+                clients={clientsSimple}
+                contrats={contratsForSAV}
+                users={usersForSAV}
               />
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 py-14 text-center text-sm text-slate-400">
-              Aucun projet assigné pour le moment
             </div>
           )}
 
-          <ChefDashboardV2 data={dashData} />
-        </div>
-      )}
+          {/* ── TECHNICIENS ── */}
+          {activeTab === 'techniciens' && (
+            <TechniciensTab techniciens={techniciensWithStats} />
+          )}
 
-      {/* Planning */}
-      {activeTab === 'planning' && (
-        <CalendarView
-          initialEvents={initialEvents}
-          clients={clientsForModal}
-          techniciens={techniciens}
-          projects={projectsForPlanning}
-          contractedClientIds={contractedIds}
-        />
-      )}
+        </div>
+      </div>
     </div>
   );
 }

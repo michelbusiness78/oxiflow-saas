@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
 
 const PATH = '/projets';
+const PATH2 = '/chef-projet';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ export async function createSAVAction(input: SAVInput) {
   });
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
+  revalidatePath(PATH2);
   return { success: true };
 }
 
@@ -40,6 +42,7 @@ export async function updateSAVAction(id: string, input: SAVInput) {
   const { error } = await admin.from('sav_tickets').update(input).eq('id', id);
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
+  revalidatePath(PATH2);
   return { success: true };
 }
 
@@ -49,6 +52,7 @@ export async function deleteSAVAction(id: string) {
   const { error } = await admin.from('sav_tickets').delete().eq('id', id);
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
+  revalidatePath(PATH2);
   return { success: true };
 }
 
@@ -66,5 +70,6 @@ export async function changeSAVStatutAction(
   const { error } = await admin.from('sav_tickets').update(updates).eq('id', id);
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
+  revalidatePath(PATH2);
   return { success: true };
 }
