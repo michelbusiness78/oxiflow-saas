@@ -6,7 +6,7 @@ import { ChefProjetNav }      from '@/components/chef-projet/ChefProjetNav';
 import { TechniciensTab }     from '@/components/chef-projet/TechniciensTab';
 import { ChefDashboardV2 }    from '@/components/chef-projet/ChefDashboardV2';
 import { CalendarView }       from '@/components/chef-projet/CalendarView';
-import { SAVList }            from '@/components/projets/SAVList';
+import { SAVTab }             from '@/components/chef-projet/SAVTab';
 import { getProjects }        from '@/app/actions/projects';
 import {
   getDashboardChefProjet,
@@ -15,9 +15,9 @@ import {
   getContractedClientIds,
   getProjectFull,
 } from '@/app/actions/chef-projet';
-import { getProjectTasks } from '@/app/actions/project-tasks';
+import { getProjectTasks }    from '@/app/actions/project-tasks';
 import type { TechnicienWithStats } from '@/components/chef-projet/TechniciensTab';
-import type { SAVTicket }  from '@/components/projets/SAVForm';
+import type { SAVTicketFull }       from '@/components/chef-projet/SAVTab';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -75,7 +75,6 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     clientsRes,
     techniciensRes,
     savRes,
-    contratsRes,
   ] = await Promise.all([
     getDashboardChefProjet(),
     tenantId ? getProjects(tenantId) : Promise.resolve([]),
@@ -89,17 +88,13 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     tenantId
       ? admin.from('users').select('id, name, email, color').eq('role', 'technicien').eq('tenant_id', tenantId).order('name')
       : admin.from('users').select('id, name, email, color').eq('role', 'technicien').order('name'),
-    // SAV tickets avec client nom
+    // SAV tickets avec joins client + projet
     tenantId
       ? admin
           .from('sav_tickets')
-          .select('id, client_id, titre, description, priorite, statut, contrat_id, assigne_a, date_ouverture, date_resolution, created_at, clients(nom)')
+          .select('id, client_id, project_id, contrat_id, assigne_a, titre, description, priorite, statut, date_ouverture, date_resolution, resolution_notes, created_at, clients(nom), projects(name)')
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] }),
-    // Contrats pour le formulaire SAV
-    tenantId
-      ? admin.from('contrats').select('id, client_id, type, actif').eq('tenant_id', tenantId)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -178,35 +173,37 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     projetsAssignes:      techProjectMap[u.id] ?? [],
   }));
 
-  // SAV tickets
-  const savTickets: (SAVTicket & { client_nom?: string; assigne_nom?: string; sous_contrat?: boolean })[] =
-    (savRes.data ?? []).map((t: unknown) => {
-      const row = t as Record<string, unknown>;
-      const clientNom = (row.clients as { nom: string } | null)?.nom ?? '—';
-      const assigne   = usersPlain.find((u) => u.id === (row.assigne_a as string | null));
-      const contrats  = (contratsRes.data ?? []) as { id: string; client_id: string; type: string; actif: boolean }[];
-      const hasCont   = contrats.some((c) => c.client_id === (row.client_id as string) && c.actif);
-      return {
-        id:              row.id as string,
-        client_id:       row.client_id as string,
-        titre:           row.titre as string | null,
-        description:     (row.description as string) ?? '',
-        priorite:        (row.priorite as SAVTicket['priorite']) ?? 'normale',
-        statut:          (row.statut as SAVTicket['statut']) ?? 'ouvert',
-        contrat_id:      row.contrat_id as string | null,
-        assigne_a:       row.assigne_a as string | null,
-        date_ouverture:  row.date_ouverture as string,
-        date_resolution: row.date_resolution as string | null,
-        created_at:      row.created_at as string,
-        client_nom:      clientNom,
-        assigne_nom:     assigne ? assigne.name : undefined,
-        sous_contrat:    hasCont,
-      };
-    });
+  // SAV tickets — mapping avec joins
+  const savTickets: SAVTicketFull[] = (savRes.data ?? []).map((t: unknown) => {
+    const row       = t as Record<string, unknown>;
+    const clientNom = (row.clients as { nom: string } | null)?.nom ?? '—';
+    const projectNom = (row.projects as { name: string } | null)?.name ?? null;
+    const assigneUser = usersPlain.find((u) => u.id === (row.assigne_a as string | null));
+    return {
+      id:               row.id as string,
+      client_id:        row.client_id as string,
+      project_id:       (row.project_id as string | null) ?? null,
+      contrat_id:       (row.contrat_id as string | null) ?? null,
+      assigne_a:        (row.assigne_a  as string | null) ?? null,
+      titre:            (row.titre as string | null) ?? null,
+      description:      (row.description as string) ?? '',
+      priorite:         (row.priorite as SAVTicketFull['priorite']) ?? 'normale',
+      statut:           (row.statut   as SAVTicketFull['statut'])   ?? 'ouvert',
+      date_ouverture:   row.date_ouverture as string,
+      date_resolution:  (row.date_resolution as string | null) ?? null,
+      resolution_notes: (row.resolution_notes as string | null) ?? null,
+      created_at:       row.created_at as string,
+      client_nom:       clientNom,
+      project_nom:      projectNom,
+      assigne_nom:      assigneUser?.name ?? null,
+    };
+  });
 
-  const contratsForSAV = (contratsRes.data ?? []) as { id: string; client_id: string; type: string; actif: boolean }[];
+  const projectsForSAV = allProjects.map((p) => ({ id: p.id, name: p.name }));
+  const technicienRefs = techniciens.map((t) => ({ id: t.id, name: t.name }));
 
-  const usersForSAV = usersPlain.map((u) => ({ id: u.id, nom: u.name, prenom: '' }));
+  // Open tickets count for nav badge
+  const openTicketCount = savTickets.filter((t) => t.statut === 'ouvert' || t.statut === 'en_cours').length;
 
   // ── Render ─────────────────────────────────────────────────────────────────────
 
@@ -220,9 +217,9 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
 
       {/* Layout sidebar + contenu */}
       <div className="flex gap-6 items-start">
-        <ChefProjetNav activeTab={activeTab} />
+        <ChefProjetNav activeTab={activeTab} notifCount={openTicketCount} />
 
-        {/* Zone de contenu — padding-bottom mobile pour la bottom nav */}
+        {/* Zone de contenu */}
         <div className="flex-1 min-w-0 pb-24 md:pb-0 space-y-4">
 
           {/* ── TABLEAU DE BORD ── */}
@@ -253,20 +250,12 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
 
           {/* ── SAV / TICKETS ── */}
           {activeTab === 'sav' && (
-            <div className="space-y-4">
-              <h2 className="text-base font-semibold text-slate-800">
-                SAV / Tickets
-                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                  {savTickets.length}
-                </span>
-              </h2>
-              <SAVList
-                tickets={savTickets}
-                clients={clientsSimple}
-                contrats={contratsForSAV}
-                users={usersForSAV}
-              />
-            </div>
+            <SAVTab
+              tickets={savTickets}
+              clients={clientsSimple}
+              projects={projectsForSAV}
+              techniciens={technicienRefs}
+            />
           )}
 
           {/* ── TECHNICIENS ── */}

@@ -10,14 +10,16 @@ const PATH2 = '/chef-projet';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type SAVInput = {
-  client_id:       string;
-  titre:           string;
-  description:     string;
-  priorite:        'faible' | 'normale' | 'haute' | 'urgente';
-  statut:          'ouvert' | 'en_cours' | 'resolu' | 'cloture';
-  contrat_id:      string | null;
-  assigne_a:       string | null;
-  date_resolution: string | null;
+  client_id:         string;
+  titre:             string;
+  description:       string;
+  priorite:          'faible' | 'normale' | 'haute' | 'urgente';
+  statut:            'ouvert' | 'en_cours' | 'resolu' | 'cloture';
+  contrat_id:        string | null;
+  assigne_a:         string | null;
+  date_resolution:   string | null;
+  project_id?:       string | null;
+  resolution_notes?: string | null;
 };
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
@@ -57,14 +59,16 @@ export async function deleteSAVAction(id: string) {
 }
 
 export async function changeSAVStatutAction(
-  id: string,
-  statut: SAVInput['statut'],
+  id:               string,
+  statut:           SAVInput['statut'],
+  resolutionNotes?: string | null,
 ) {
   const { admin } = await getAuthContext();
 
   const updates: Record<string, unknown> = { statut };
   if (statut === 'resolu' || statut === 'cloture') {
     updates.date_resolution = new Date().toISOString();
+    if (resolutionNotes !== undefined) updates.resolution_notes = resolutionNotes;
   }
 
   const { error } = await admin.from('sav_tickets').update(updates).eq('id', id);
