@@ -88,11 +88,13 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     tenantId
       ? admin.from('users').select('id, name, email, color').eq('role', 'technicien').eq('tenant_id', tenantId).order('name')
       : admin.from('users').select('id, name, email, color').eq('role', 'technicien').order('name'),
-    // SAV tickets avec joins client + projet
+    // SAV tickets : on utilise * pour éviter "column does not exist" sur les colonnes
+    // optionnelles (titre, assigne_a, project_id, resolution_notes — migration 022).
+    // Le join clients(nom) est safe car la FK existe depuis migration 001.
     tenantId
       ? admin
           .from('sav_tickets')
-          .select('id, client_id, project_id, contrat_id, assigne_a, titre, description, priorite, statut, date_ouverture, date_resolution, resolution_notes, created_at, clients(nom), projects(name)')
+          .select('*, clients(nom)')
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -173,28 +175,34 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     projetsAssignes:      techProjectMap[u.id] ?? [],
   }));
 
-  // SAV tickets — mapping avec joins
+  // SAV tickets — mapping robuste
+  // Les colonnes optionnelles (titre, assigne_a, project_id, resolution_notes)
+  // peuvent être absentes avant la migration 022 → on utilise ?? null systématiquement.
+  // project_nom est résolu côté client via allProjects (pas de join projects dans le SELECT).
+  const projectsMap = new Map(allProjects.map((p) => [p.id, p.name]));
+
   const savTickets: SAVTicketFull[] = (savRes.data ?? []).map((t: unknown) => {
-    const row       = t as Record<string, unknown>;
-    const clientNom = (row.clients as { nom: string } | null)?.nom ?? '—';
-    const projectNom = (row.projects as { name: string } | null)?.name ?? null;
-    const assigneUser = usersPlain.find((u) => u.id === (row.assigne_a as string | null));
+    const row        = t as Record<string, unknown>;
+    const clientNom  = (row.clients as { nom: string } | null)?.nom ?? '—';
+    const projectId  = (row.project_id as string | null) ?? null;
+    const assigneId  = (row.assigne_a  as string | null) ?? null;
+    const assigneUser = usersPlain.find((u) => u.id === assigneId);
     return {
       id:               row.id as string,
       client_id:        row.client_id as string,
-      project_id:       (row.project_id as string | null) ?? null,
+      project_id:       projectId,
       contrat_id:       (row.contrat_id as string | null) ?? null,
-      assigne_a:        (row.assigne_a  as string | null) ?? null,
+      assigne_a:        assigneId,
       titre:            (row.titre as string | null) ?? null,
-      description:      (row.description as string) ?? '',
+      description:      (row.description as string)  ?? '',
       priorite:         (row.priorite as SAVTicketFull['priorite']) ?? 'normale',
       statut:           (row.statut   as SAVTicketFull['statut'])   ?? 'ouvert',
       date_ouverture:   row.date_ouverture as string,
-      date_resolution:  (row.date_resolution as string | null) ?? null,
+      date_resolution:  (row.date_resolution  as string | null) ?? null,
       resolution_notes: (row.resolution_notes as string | null) ?? null,
       created_at:       row.created_at as string,
       client_nom:       clientNom,
-      project_nom:      projectNom,
+      project_nom:      projectId ? (projectsMap.get(projectId) ?? null) : null,
       assigne_nom:      assigneUser?.name ?? null,
     };
   });

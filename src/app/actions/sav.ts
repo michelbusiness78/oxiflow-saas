@@ -27,24 +27,23 @@ export type SAVInput = {
 export async function createSAVAction(input: SAVInput) {
   const { admin, tenant_id } = await getAuthContext();
 
-  // Colonnes de base — toujours présentes
+  // ── Colonnes garanties (migration 001) ──────────────────────────────────────
   const payload: Record<string, unknown> = {
     tenant_id,
     client_id:       input.client_id,
-    titre:           input.titre,
     description:     input.description,
     priorite:        input.priorite,
     statut:          input.statut,
     contrat_id:      input.contrat_id,
-    assigne_a:       input.assigne_a,
-    date_resolution: input.date_resolution,
     date_ouverture:  new Date().toISOString(),
   };
 
-  // Colonnes optionnelles ajoutées en migration 021 — uniquement si valeur non nulle
-  // (évite une erreur "column does not exist" si la migration n'a pas encore été exécutée)
-  if (input.project_id)       payload.project_id       = input.project_id;
-  if (input.resolution_notes) payload.resolution_notes = input.resolution_notes;
+  // ── Colonnes optionnelles (migration 022) — incluses uniquement si elles ont une valeur ──
+  // Cela évite l'erreur PostgREST "column does not exist" tant que la migration n'est pas appliquée.
+  if (input.titre)             payload.titre             = input.titre;
+  if (input.assigne_a)         payload.assigne_a         = input.assigne_a;
+  if (input.project_id)        payload.project_id        = input.project_id;
+  if (input.resolution_notes)  payload.resolution_notes  = input.resolution_notes;
 
   const { error } = await admin.from('sav_tickets').insert(payload);
   if (error) {
@@ -59,17 +58,18 @@ export async function createSAVAction(input: SAVInput) {
 export async function updateSAVAction(id: string, input: SAVInput) {
   const { admin } = await getAuthContext();
 
+  // ── Colonnes garanties ───────────────────────────────────────────────────────
   const payload: Record<string, unknown> = {
-    client_id:       input.client_id,
-    titre:           input.titre,
-    description:     input.description,
-    priorite:        input.priorite,
-    statut:          input.statut,
-    contrat_id:      input.contrat_id,
-    assigne_a:       input.assigne_a,
-    date_resolution: input.date_resolution,
+    client_id:    input.client_id,
+    description:  input.description,
+    priorite:     input.priorite,
+    statut:       input.statut,
+    contrat_id:   input.contrat_id,
   };
 
+  // ── Colonnes optionnelles (migration 022) ────────────────────────────────────
+  if (input.titre            !== undefined) payload.titre            = input.titre            ?? null;
+  if (input.assigne_a        !== undefined) payload.assigne_a        = input.assigne_a        ?? null;
   if (input.project_id       !== undefined) payload.project_id       = input.project_id       ?? null;
   if (input.resolution_notes !== undefined) payload.resolution_notes = input.resolution_notes ?? null;
 
@@ -103,7 +103,8 @@ export async function changeSAVStatutAction(
   const updates: Record<string, unknown> = { statut };
   if (statut === 'resolu' || statut === 'cloture') {
     updates.date_resolution = new Date().toISOString();
-    if (resolutionNotes !== undefined) updates.resolution_notes = resolutionNotes;
+    // resolution_notes : colonne optionnelle (migration 022)
+    if (resolutionNotes) updates.resolution_notes = resolutionNotes;
   }
 
   const { error } = await admin.from('sav_tickets').update(updates).eq('id', id);
