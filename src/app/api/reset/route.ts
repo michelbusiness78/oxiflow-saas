@@ -3,7 +3,7 @@ import { createAdminClient }         from '@/lib/supabase/server';
 
 const RESET_SECRET = 'OXIFLOW_RESET_2026';
 
-// Tables vidées dans l'ordre (FK oblige)
+// Tables vidées dans l'ordre (FK oblige : enfants d'abord)
 const TABLES = [
   'invoice_lines',
   'invoices',
@@ -24,41 +24,34 @@ const TABLES = [
 ] as const;
 
 export async function GET(req: NextRequest) {
-  // ── Auth par secret ──────────────────────────────────────────────────────────
+  // ── Auth ─────────────────────────────────────────────────────────────────────
   const secret = req.nextUrl.searchParams.get('secret');
   if (secret !== RESET_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const admin   = createAdminClient();
-  const results: Record<string, number> = {};
-  const errors:  Record<string, string> = {};
+  const results: Record<string, number | string> = {};
 
   // ── Vider chaque table ───────────────────────────────────────────────────────
   for (const table of TABLES) {
-    // DELETE avec condition toujours vraie (id IS NOT NULL ou created_at IS NOT NULL)
-    // On utilise neq sur un uuid inexistant pour forcer le DELETE de toutes les lignes
-    const { data, error } = await admin
+    const { count, error } = await admin
       .from(table)
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000')
-      .select('id');
+      .delete({ count: 'exact' })
+      .neq('id', '00000000-0000-0000-0000-000000000000');
 
     if (error) {
-      // Table peut ne pas exister — on continue
-      errors[table] = error.message;
-      results[table] = 0;
+      console.error(`[reset] ${table} — ERREUR : ${error.message}`);
+      results[table] = `ERROR: ${error.message}`;
     } else {
-      results[table] = data?.length ?? 0;
+      console.log(`[reset] ${table} — ${count ?? 0} lignes supprimées`);
+      results[table] = count ?? 0;
     }
   }
 
-  const totalDeleted = Object.values(results).reduce((a, b) => a + b, 0);
+  const totalDeleted = Object.values(results)
+    .filter((v): v is number => typeof v === 'number')
+    .reduce((a, b) => a + b, 0);
 
-  return NextResponse.json({
-    success:      true,
-    totalDeleted,
-    tables:       results,
-    ...(Object.keys(errors).length > 0 ? { errors } : {}),
-  });
+  return NextResponse.json({ success: true, totalDeleted, tables: results });
 }
