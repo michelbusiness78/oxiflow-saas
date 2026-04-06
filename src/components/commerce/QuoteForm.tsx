@@ -554,7 +554,7 @@ export function QuoteForm({
                     <p className="text-sm font-semibold text-blue-800">🔗 Projet créé depuis ce devis</p>
                     <p className="text-xs text-blue-600">Matériel pré-rempli · Visible dans le module Projets.</p>
                   </div>
-                  <a href="/projets" className="shrink-0 rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 transition-colors">
+                  <a href="/chef-projet" className="shrink-0 rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 transition-colors">
                     Voir →
                   </a>
                 </div>

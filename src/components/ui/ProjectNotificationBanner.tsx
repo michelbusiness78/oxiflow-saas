@@ -21,8 +21,9 @@ export function ProjectNotificationBanner({ initialNotifications }: ProjectNotif
 
   if (notifications.length === 0) return null;
 
-  const newProjects   = notifications.filter((n) => n.type !== 'facturation');
+  const newProjects   = notifications.filter((n) => n.type !== 'facturation' && n.type !== 'sav_resolu');
   const facturations  = notifications.filter((n) => n.type === 'facturation');
+  const savResolus    = notifications.filter((n) => n.type === 'sav_resolu');
 
   async function handleAccept(id: string) {
     setPending(id);
@@ -91,7 +92,7 @@ export function ProjectNotificationBanner({ initialNotifications }: ProjectNotif
                 {/* Actions — pleine largeur sur mobile */}
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                   <a
-                    href="/projets"
+                    href="/chef-projet"
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors sm:w-auto sm:py-1.5"
                   >
                     Voir →
@@ -103,6 +104,49 @@ export function ProjectNotificationBanner({ initialNotifications }: ProjectNotif
                     className="w-full rounded-lg bg-green-600 px-3 py-2 text-center text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors sm:w-auto sm:py-1.5"
                   >
                     {pending === n.id ? '…' : '✓ Accepter'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Bandeau BLEU — Tickets SAV résolus ────────────────────────────── */}
+      {savResolus.length > 0 && (
+        <div className="w-full rounded-xl border-l-4 border-blue-500 bg-blue-50 p-[14px_16px]">
+          <p className="mb-3 text-sm font-bold text-blue-800 uppercase tracking-wide">
+            🔧 Ticket SAV résolu ({savResolus.length})
+          </p>
+
+          <div className="space-y-[10px]">
+            {savResolus.map((n) => (
+              <div
+                key={n.id}
+                className="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 shadow-sm overflow-hidden"
+              >
+                <div className="min-w-0">
+                  <p className="text-[14px] font-bold text-slate-800 leading-snug">{n.title}</p>
+                  <p className="mt-0.5 text-[12px] text-slate-500">{n.client_nom}</p>
+                  {n.message && (
+                    <p className="mt-1 text-[11px] text-slate-400">{n.message}</p>
+                  )}
+                </div>
+
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                  <a
+                    href="/chef-projet?tab=sav"
+                    className="w-full rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-semibold text-white hover:bg-blue-700 transition-colors sm:w-auto sm:py-1.5"
+                  >
+                    Voir tickets →
+                  </a>
+                  <button
+                    type="button"
+                    disabled={pending === n.id}
+                    onClick={() => handleDismiss(n.id)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50 transition-colors sm:w-auto sm:py-1.5"
+                  >
+                    {pending === n.id ? '…' : 'Ignorer'}
                   </button>
                 </div>
               </div>

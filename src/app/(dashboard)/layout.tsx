@@ -7,10 +7,10 @@ import { getCompanies } from '@/app/actions/companies';
 
 // Modules autorisés par rôle (en sync avec proxy.ts)
 const ROLE_MODULES: Record<string, string[]> = {
-  dirigeant:   ['/pilotage', '/commerce', '/projets', '/technicien', '/chef-projet', '/rh'],
+  dirigeant:   ['/pilotage', '/commerce', '/technicien', '/chef-projet', '/rh'],
   commercial:  ['/pilotage', '/commerce'],
   technicien:  ['/technicien'],
-  chef_projet: ['/pilotage', '/projets', '/chef-projet'],
+  chef_projet: ['/pilotage', '/chef-projet'],
   rh:          ['/pilotage', '/rh'],
 };
 
@@ -75,7 +75,7 @@ export default async function DashboardLayout({
       userEmail={userEmail}
       userRole={role}
       allowedHrefs={allowedHrefs}
-      moduleCounts={{ '/commerce': catalogueCount, '/projets': projectsCount }}
+      moduleCounts={{ '/commerce': catalogueCount, '/chef-projet': projectsCount }}
       notifications={notifications}
       companies={companies}
     >

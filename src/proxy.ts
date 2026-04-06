@@ -13,10 +13,10 @@ const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/setup-password'
 // ─── Accès par rôle ───────────────────────────────────────────────────────────
 
 const ROLE_MODULES: Record<string, string[]> = {
-  dirigeant:   ['/pilotage', '/commerce', '/projets', '/technicien', '/chef-projet', '/rh'],
+  dirigeant:   ['/pilotage', '/commerce', '/technicien', '/chef-projet', '/rh'],
   commercial:  ['/pilotage', '/commerce'],
   technicien:  ['/technicien'],
-  chef_projet: ['/pilotage', '/projets', '/chef-projet'],
+  chef_projet: ['/pilotage', '/chef-projet'],
   rh:          ['/pilotage', '/rh'],
 };
 
@@ -25,12 +25,12 @@ const ROLE_DEFAULT: Record<string, string> = {
   dirigeant:   '/pilotage',
   commercial:  '/commerce',
   technicien:  '/technicien',
-  chef_projet: '/projets',
+  chef_projet: '/chef-projet',
   rh:          '/pilotage',
 };
 
 // Tous les modules dashboard (pour détecter si la route est un module)
-const ALL_MODULES = ['/pilotage', '/commerce', '/projets', '/technicien', '/chef-projet', '/rh'];
+const ALL_MODULES = ['/pilotage', '/commerce', '/technicien', '/chef-projet', '/rh'];
 
 function isDashboardModule(pathname: string) {
   return ALL_MODULES.some((m) => pathname === m || pathname.startsWith(m + '/'));

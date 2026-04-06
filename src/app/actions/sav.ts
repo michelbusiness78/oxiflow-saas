@@ -4,7 +4,7 @@ import { translateSupabaseError } from '@/lib/error-messages';
 import { revalidatePath } from 'next/cache';
 import { getAuthContext } from '@/lib/auth-context';
 
-const PATH = '/projets';
+const PATH = '/chef-projet';
 const PATH2 = '/chef-projet';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

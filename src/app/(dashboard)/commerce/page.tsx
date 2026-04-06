@@ -8,6 +8,7 @@ import { ContratList }         from '@/components/commerce/ContratList';
 import { CatalogueList }       from '@/components/commerce/CatalogueList';
 import { CommerceDashboard }   from '@/components/commerce/CommerceDashboard';
 import { InvoiceList }         from '@/components/commerce/InvoiceList';
+import { FicheClient }         from '@/components/commerce/FicheClient';
 import { getDashboardCommerce } from '@/app/actions/commerce';
 import { getInvoices }         from '@/app/actions/invoices';
 import { getCompanies }        from '@/app/actions/companies';
@@ -34,7 +35,7 @@ async function fetchCommerceData() {
   const tenantId        = profile?.tenant_id as string;
   const currentUserName = (profile?.name as string) ?? user.email ?? 'Utilisateur';
 
-  const [clientsRes, quotesRes, contratsRes, catalogueRes, usersRes, companiesData, invoicesData] =
+  const [clientsRes, quotesRes, contratsRes, catalogueRes, usersRes, companiesData, invoicesData, savRes, projectsRes] =
     await Promise.all([
       admin
         .from('clients')
@@ -63,6 +64,16 @@ async function fetchCommerceData() {
         .order('name'),
       getCompanies(tenantId),
       getInvoices(tenantId),
+      admin
+        .from('sav_tickets')
+        .select('id, client_id, titre, priorite, statut, date_ouverture')
+        .eq('tenant_id', tenantId)
+        .order('date_ouverture', { ascending: false }),
+      admin
+        .from('projects')
+        .select('id, client_id, nom, statut, pct_avancement, montant_ht, date_fin_prevue')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false }),
     ]);
 
   const clients = (clientsRes.data ?? []) as Client[];
@@ -85,9 +96,20 @@ async function fetchCommerceData() {
   const companies = companiesData;
   const invoices  = invoicesData;
 
+  const savs = (savRes.data ?? []) as {
+    id: string; client_id: string; titre: string | null;
+    priorite: string; statut: string; date_ouverture: string;
+  }[];
+
+  const dossiers = (projectsRes.data ?? []) as {
+    id: string; client_id: string; nom: string; statut: string;
+    pct_avancement: number; montant_ht: number | null; date_fin_prevue: string | null;
+  }[];
+
   return {
     tenantId, clients, quotes, invoices, contrats, catalogue,
     users, currentUserId: user.id, currentUserName, companies,
+    savs, dossiers,
   };
 }
 
@@ -119,12 +141,13 @@ export default async function CommercePage({ searchParams }: PageProps) {
     const dashData   = await getDashboardCommerce(tenantId);
 
     const tabs: TabItem[] = [
-      { key: 'dashboard',  label: 'Tableau de bord'                            },
-      { key: 'clients',    label: 'Clients'                                     },
-      { key: 'catalogue',  label: 'Catalogue'                                   },
-      { key: 'devis',      label: 'Devis',     count: dashData.kpis.totalDevis  },
-      { key: 'factures',   label: 'Factures'                                    },
-      { key: 'contrats',   label: 'Contrats'                                    },
+      { key: 'dashboard',     label: 'Tableau de bord'                            },
+      { key: 'clients',       label: 'Clients'                                     },
+      { key: 'fiche-client',  label: 'Fiche Client'                                },
+      { key: 'catalogue',     label: 'Catalogue'                                   },
+      { key: 'devis',         label: 'Devis',     count: dashData.kpis.totalDevis  },
+      { key: 'factures',      label: 'Factures'                                    },
+      { key: 'contrats',      label: 'Contrats'                                    },
     ];
 
     return (
@@ -138,16 +161,17 @@ export default async function CommercePage({ searchParams }: PageProps) {
   }
 
   // ── Autres onglets ──────────────────────────────────────────────────────────
-  const { clients, quotes, invoices, contrats, catalogue, users, currentUserId, currentUserName, companies } =
+  const { clients, quotes, invoices, contrats, catalogue, users, currentUserId, currentUserName, companies, savs, dossiers } =
     await fetchCommerceData();
 
   const tabs: TabItem[] = [
-    { key: 'dashboard',  label: 'Tableau de bord'                              },
-    { key: 'clients',    label: 'Clients',   count: clients.length             },
-    { key: 'catalogue',  label: 'Catalogue', count: catalogue.length           },
-    { key: 'devis',      label: 'Devis',     count: quotes.length              },
-    { key: 'factures',   label: 'Factures',  count: invoices.length            },
-    { key: 'contrats',   label: 'Contrats',  count: contrats.length            },
+    { key: 'dashboard',     label: 'Tableau de bord'                              },
+    { key: 'clients',       label: 'Clients',      count: clients.length          },
+    { key: 'fiche-client',  label: 'Fiche Client'                                 },
+    { key: 'catalogue',     label: 'Catalogue',    count: catalogue.length        },
+    { key: 'devis',         label: 'Devis',        count: quotes.length           },
+    { key: 'factures',      label: 'Factures',     count: invoices.length         },
+    { key: 'contrats',      label: 'Contrats',     count: contrats.length         },
   ];
 
   return (
@@ -157,7 +181,41 @@ export default async function CommercePage({ searchParams }: PageProps) {
       </Suspense>
 
       <div className="space-y-4">
-        {tab === 'clients'   && <ClientList clients={clients} />}
+        {tab === 'clients'      && <ClientList clients={clients} />}
+
+        {tab === 'fiche-client' && (
+          <FicheClient
+            clients={clients}
+            dossiers={dossiers}
+            devis={quotes.filter((q) => q.client_id).map((q) => ({
+              id:          q.id,
+              client_id:   q.client_id as string,
+              num:         q.number,
+              statut:      q.statut,
+              montant_ttc: q.montant_ttc,
+              date:        q.date,
+            }))}
+            factures={invoices.map((f) => ({
+              id:          f.id,
+              client_id:   f.client_id,
+              num:         f.number,
+              statut:      f.status,
+              montant_ttc: f.total_ttc,
+              date:        f.date_facture,
+              echeance:    f.date_echeance,
+            }))}
+            contrats={contrats.map((c) => ({
+              id:              c.id,
+              client_id:       c.client_id,
+              type:            c.type,
+              montant_mensuel: c.montant_mensuel,
+              actif:           c.actif,
+              date_debut:      c.date_debut,
+              date_fin:        c.date_fin,
+            }))}
+            savs={savs}
+          />
+        )}
 
         {tab === 'devis'     && (
           <QuoteList

@@ -122,7 +122,7 @@ export async function createProjectFromQuote(
       });
   }
 
-  revalidatePath('/projets');
+  revalidatePath('/chef-projet');
   revalidatePath('/commerce');
   return { success: true, project_id: project.id };
 }
@@ -153,7 +153,7 @@ export async function acceptProjectNotification(
       .eq('id', notif.project_id),
   ]);
 
-  revalidatePath('/projets');
+  revalidatePath('/chef-projet');
   revalidatePath('/chef-projet');
   return { success: true };
 }

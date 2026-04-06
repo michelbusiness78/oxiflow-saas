@@ -65,25 +65,13 @@ const MODULE_CARDS = [
     href:         '/rh',
     roleKey:      '/rh',
   },
-  {
-    key:          'projets',
-    badge:        'OPÉRATIONNEL',
-    badgeCls:     'bg-violet-700',
-    borderCls:    'border-l-violet-600',
-    iconBgCls:    'bg-violet-600/15 text-violet-400',
-    icon:         '📁',
-    title:        'Projets & Dossiers',
-    subtitle:     'Suivi projets, SAV et fiches clients',
-    href:         '/projets',
-    roleKey:      '/projets',
-  },
 ] as const;
 
 const ROLE_ALLOWED: Record<string, string[]> = {
-  dirigeant:   ['/pilotage', '/commerce', '/projets', '/technicien', '/chef-projet', '/rh'],
+  dirigeant:   ['/pilotage', '/commerce', '/technicien', '/chef-projet', '/rh'],
   commercial:  ['/pilotage', '/commerce'],
   technicien:  ['/technicien'],
-  chef_projet: ['/pilotage', '/projets', '/chef-projet'],
+  chef_projet: ['/pilotage', '/chef-projet'],
   rh:          ['/pilotage', '/rh'],
 };
 

@@ -111,7 +111,6 @@ export const layout = {
 export const navModules = [
   { key: 'pilotage',     label: 'Pilotage',      href: '/pilotage',     icon: 'chart' },
   { key: 'commerce',     label: 'Commerce',      href: '/commerce',     icon: 'briefcase' },
-  { key: 'projets',      label: 'Projets',       href: '/projets',      icon: 'folder' },
   { key: 'technicien',   label: 'Technicien',    href: '/technicien',   icon: 'wrench' },
   { key: 'chef-projet',  label: 'Chef Projet',   href: '/chef-projet',  icon: 'clipboard' },
   { key: 'rh',           label: 'RH',            href: '/rh',           icon: 'users' },
