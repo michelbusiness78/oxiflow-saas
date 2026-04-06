@@ -293,6 +293,7 @@ export function CatalogueList({ catalogue }: CatalogueListProps) {
       )}
 
       <CatalogueForm
+        key={editing?.id ?? 'new'}
         open={formOpen}
         onClose={() => setFormOpen(false)}
         editing={editing}

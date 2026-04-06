@@ -499,6 +499,7 @@ export function CalendarView({
 
       {/* Form modal */}
       <InterventionFormModal
+        key={editing?.id ?? 'new'}
         open={formOpen}
         onClose={() => setFormOpen(false)}
         onSaved={handleSaved}

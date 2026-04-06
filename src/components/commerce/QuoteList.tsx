@@ -243,6 +243,7 @@ export function QuoteList({ quotes, clients, catalogue, users, companies, curren
       )}
 
       <QuoteForm
+        key={editing?.id ?? 'new'}
         open={formOpen}
         onClose={() => setFormOpen(false)}
         editing={editing}

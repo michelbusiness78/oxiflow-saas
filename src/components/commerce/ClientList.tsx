@@ -178,6 +178,7 @@ export function ClientList({ clients }: ClientListProps) {
       )}
 
       <ClientForm
+        key={editing?.id ?? 'new'}
         open={formOpen}
         onClose={() => setFormOpen(false)}
         editing={editing}

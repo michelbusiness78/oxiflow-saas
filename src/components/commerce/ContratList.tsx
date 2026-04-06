@@ -339,6 +339,7 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
       )}
 
       <ContratForm
+        key={editing?.id ?? 'new'}
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditing(null); }}
         clients={clients}

@@ -295,6 +295,7 @@ export function InterventionList({ interventions, clients, catalogue, currentUse
 
       {/* Form full-screen */}
       <InterventionForm
+        key={editing?.id ?? 'new'}
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditing(null); }}
         clients={clients}
