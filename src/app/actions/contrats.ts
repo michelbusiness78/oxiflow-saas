@@ -95,6 +95,47 @@ export async function toggleContratActifAction(id: string, actif: boolean) {
   return { success: true };
 }
 
+// ─── renouvellerContratAction ─────────────────────────────────────────────────
+
+export async function renouvellerContratAction(contratId: string): Promise<{ newDateFin?: string; error?: string }> {
+  const { admin } = await getAuthContext();
+
+  const { data: contrat, error: cErr } = await admin
+    .from('contrats')
+    .select('date_debut, date_fin')
+    .eq('id', contratId)
+    .single();
+
+  if (cErr || !contrat) return { error: 'Contrat introuvable.' };
+  const c = contrat as Record<string, unknown>;
+  if (!c.date_fin) return { error: 'Ce contrat n\'a pas de date de fin définie.' };
+
+  const dateFin   = new Date(c.date_fin  as string);
+  const dateDebut = new Date(c.date_debut as string);
+  const durationMs = dateFin.getTime() - dateDebut.getTime();
+
+  const newDateDebut = new Date(dateFin.getTime() + 86_400_000); // +1 jour
+  const newDateFin   = new Date(newDateDebut.getTime() + durationMs);
+
+  const newDateDebutStr = newDateDebut.toISOString().split('T')[0];
+  const newDateFinStr   = newDateFin.toISOString().split('T')[0];
+
+  const { error } = await admin
+    .from('contrats')
+    .update({
+      date_debut:  newDateDebutStr,
+      date_fin:    newDateFinStr,
+      statut:      'actif',
+      actif:       true,
+      updated_at:  new Date().toISOString(),
+    })
+    .eq('id', contratId);
+
+  if (error) return { error: translateSupabaseError(error.message) };
+  revalidatePath(PATH);
+  return { newDateFin: newDateFinStr };
+}
+
 // ─── factureContratAction ──────────────────────────────────────────────────────
 
 export async function factureContratAction(contratId: string): Promise<{ number?: string; error?: string }> {

@@ -49,7 +49,8 @@ export interface DirigeantDashboardData {
     tokensUsed: number;
     tokenMax:   number;
   };
-  priorites: PrioriteItem[];
+  priorites:             PrioriteItem[];
+  contratsARenouveler:   number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -85,6 +86,7 @@ export async function getDashboardDirigeant(
     facturesRetardRes,
     quotesRelanceRes,
     taskRetardRes,
+    contratsRes,
   ] = await Promise.all([
     admin.from('users').select('name').eq('id', userId).single(),
 
@@ -111,6 +113,14 @@ export async function getDashboardDirigeant(
       .select('*', { count: 'exact', head: true })
       .eq('tenant_id', tenantId).eq('done', false)
       .not('due', 'is', null).lt('due', todayISO),
+
+    // Contrats actifs arrivant à échéance dans 30 jours ou déjà expirés
+    admin.from('contrats')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('actif', true)
+      .not('date_fin', 'is', null)
+      .lte('date_fin', new Date(now.getTime() + 30 * 86_400_000).toISOString().split('T')[0]),
   ]);
 
   const userName       = (userRes.data?.name as string | null) ?? '';
@@ -120,7 +130,8 @@ export async function getDashboardDirigeant(
   const facturesAnnuel = facturesAnnuelRes.data ?? [];
   const facturesRetard = facturesRetardRes.data ?? [];
   const quotesRelance  = quotesRelanceRes.data  ?? [];
-  const tachesEnRetard = taskRetardRes.count    ?? 0;
+  const tachesEnRetard       = taskRetardRes.count  ?? 0;
+  const contratsARenouveler  = contratsRes.count    ?? 0;
 
   const [savRes, companiesRes] = await Promise.allSettled([
     clientIds.length > 0
@@ -214,5 +225,6 @@ export async function getDashboardDirigeant(
     sav:      { ouverts: savOuverts, enCours: savEnCours, clotures: savClotures, hasTable: savHasTable },
     apiUsage: { tokensUsed: 0, tokenMax: 500_000 },
     priorites,
+    contratsARenouveler,
   };
 }

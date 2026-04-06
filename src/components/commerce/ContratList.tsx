@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ContratForm, type Contrat } from './ContratForm';
 import { fmtEur, fmtDate } from '@/lib/format';
-import { deleteContratAction, factureContratAction } from '@/app/actions/contrats';
+import { deleteContratAction, factureContratAction, renouvellerContratAction } from '@/app/actions/contrats';
 import type { ContratStatut } from '@/app/actions/contrats';
 import type { Invoice } from '@/app/actions/invoices';
 
@@ -42,7 +42,7 @@ const STATUT_META: Record<ContratStatut, { label: string; bg: string; text: stri
   resilie: { label: 'Résilié',  bg: 'bg-red-100',    text: 'text-red-700',    dot: 'bg-red-500'    },
 };
 
-type Filter = 'tous' | ContratStatut;
+type Filter = 'tous' | ContratStatut | 'a_renouveler';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -84,6 +84,10 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
   const [search,       setSearch]       = useState('');
   const [facturantId,  setFacturantId]  = useState<string | null>(null);
   const [factureToast, setFactureToast] = useState('');
+  const [renewId,      setRenewId]      = useState<string | null>(null);
+  const [renewLabel,   setRenewLabel]   = useState('');
+  const [renewToast,   setRenewToast]   = useState('');
+  const [renewing,     setRenewing]     = useState(false);
   const [isPending,    startTransition] = useTransition();
 
   // Index last contrat invoice per client_id
@@ -109,13 +113,47 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
     });
   }
 
+  async function handleRenew() {
+    if (!renewId) return;
+    setRenewing(true);
+    const res = await renouvellerContratAction(renewId);
+    setRenewing(false);
+    if ('error' in res && res.error) { setError(res.error); setRenewId(null); return; }
+    setRenewId(null);
+    if (res.newDateFin) {
+      setRenewToast(`Contrat renouvelé jusqu'au ${fmtDate(res.newDateFin)}`);
+      setTimeout(() => setRenewToast(''), 5000);
+    }
+  }
+
+  function openRenew(c: ContratWithClient & { _statut: ContratStatut }) {
+    if (!c.date_fin) return;
+    const dateFin    = new Date(c.date_fin);
+    const dateDebut  = new Date(c.date_debut);
+    const durationMs = dateFin.getTime() - dateDebut.getTime();
+    const newStart   = new Date(dateFin.getTime() + 86_400_000);
+    const newEnd     = new Date(newStart.getTime() + durationMs);
+    const newEndStr  = newEnd.toISOString().split('T')[0];
+    setRenewId(c.id);
+    setRenewLabel(
+      `Renouveler « ${c.nom ?? TYPE_LABELS[c.type]} » pour une nouvelle période ?\n` +
+      `Nouvelle période : ${fmtDate(newStart.toISOString().split('T')[0])} → ${fmtDate(newEndStr)}`,
+    );
+  }
+
   const companyMap = new Map(companies.map((c) => [c.id, c.name]));
 
   // Normalise statut for each contrat
   const normalized = contrats.map((c) => ({ ...c, _statut: getEffectiveStatut(c) }));
 
+  // Helper: contrat nécessitant renouvellement (actif + date_fin dans ≤30j ou dépassée)
+  const isARenouveler = (c: typeof normalized[number]) =>
+    c._statut === 'actif' && c.date_fin !== null && expiresInDays(c) !== null && expiresInDays(c)! <= 30;
+
   // Filter
-  const afterFilter = filter === 'tous' ? normalized : normalized.filter((c) => c._statut === filter);
+  const afterFilter = filter === 'tous'         ? normalized
+                    : filter === 'a_renouveler' ? normalized.filter(isARenouveler)
+                    : normalized.filter((c) => c._statut === filter);
 
   // Search
   const visible = search
@@ -125,15 +163,16 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
     : afterFilter;
 
   // KPIs
-  const actifs     = normalized.filter((c) => c._statut === 'actif').length;
-  const mrrTotal   = normalized.filter((c) => c._statut === 'actif' && c.montant_mensuel).reduce((s, c) => s + (c.montant_mensuel ?? 0), 0);
-  const expiring30 = normalized.filter((c) => { const d = expiresInDays(c); return d !== null && d >= 0 && d <= 30 && c._statut === 'actif'; }).length;
+  const actifs          = normalized.filter((c) => c._statut === 'actif').length;
+  const mrrTotal        = normalized.filter((c) => c._statut === 'actif' && c.montant_mensuel).reduce((s, c) => s + (c.montant_mensuel ?? 0), 0);
+  const aRenouvelerCount = normalized.filter(isARenouveler).length;
 
   const counts: Record<Filter, number> = {
-    tous:    normalized.length,
-    actif:   normalized.filter((c) => c._statut === 'actif').length,
-    expire:  normalized.filter((c) => c._statut === 'expire').length,
-    resilie: normalized.filter((c) => c._statut === 'resilie').length,
+    tous:         normalized.length,
+    actif:        normalized.filter((c) => c._statut === 'actif').length,
+    expire:       normalized.filter((c) => c._statut === 'expire').length,
+    resilie:      normalized.filter((c) => c._statut === 'resilie').length,
+    a_renouveler: aRenouvelerCount,
   };
 
   async function handleDelete() {
@@ -148,17 +187,35 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
   return (
     <>
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: 'Contrats actifs',      value: String(actifs),        color: 'text-green-600'  },
-          { label: 'MRR total',            value: fmtEur(mrrTotal),      color: 'text-blue-600'   },
-          { label: 'Exp. dans 30j',        value: String(expiring30),    color: expiring30 > 0 ? 'text-amber-600' : 'text-slate-400' },
-        ].map((m) => (
-          <div key={m.label} className="rounded-xl border border-slate-200 bg-white shadow-sm p-3 text-center">
-            <p className={`text-lg font-bold ${m.color}`}>{m.value}</p>
-            <p className="text-xs text-slate-400">{m.label}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-3 text-center">
+          <p className="text-lg font-bold text-green-600">{actifs}</p>
+          <p className="text-xs text-slate-400">Contrats actifs</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-3 text-center">
+          <p className="text-lg font-bold text-blue-600">{fmtEur(mrrTotal)}</p>
+          <p className="text-xs text-slate-400">MRR total</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-3 text-center">
+          <p className="text-lg font-bold text-slate-500">{counts.expire}</p>
+          <p className="text-xs text-slate-400">Expirés</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setFilter('a_renouveler')}
+          className={`rounded-xl border shadow-sm p-3 text-center transition-colors ${
+            aRenouvelerCount > 0
+              ? 'border-amber-300 bg-amber-50 hover:bg-amber-100'
+              : 'border-slate-200 bg-white hover:bg-slate-50'
+          }`}
+        >
+          <p className={`text-lg font-bold ${aRenouvelerCount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+            {aRenouvelerCount}
+          </p>
+          <p className={`text-xs ${aRenouvelerCount > 0 ? 'text-amber-600 font-semibold' : 'text-slate-400'}`}>
+            À renouveler
+          </p>
+        </button>
       </div>
 
       {/* Toolbar */}
@@ -183,9 +240,10 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
 
       {/* Filtres statut */}
       <div className="flex flex-wrap gap-1.5">
-        {(['tous', 'actif', 'expire', 'resilie'] as Filter[]).map((f) => {
-          const meta = f !== 'tous' ? STATUT_META[f as ContratStatut] : null;
+        {(['tous', 'actif', 'expire', 'resilie', 'a_renouveler'] as Filter[]).map((f) => {
+          const meta   = f !== 'tous' && f !== 'a_renouveler' ? STATUT_META[f as ContratStatut] : null;
           const active = filter === f;
+          const isRenew = f === 'a_renouveler';
           return (
             <button
               key={f}
@@ -194,11 +252,13 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
               className={[
                 'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
                 active
-                  ? (f === 'tous' ? 'bg-slate-800 text-white' : `${meta!.bg} ${meta!.text}`)
+                  ? f === 'tous'         ? 'bg-slate-800 text-white'
+                  : isRenew              ? 'bg-amber-100 text-amber-700'
+                  : `${meta!.bg} ${meta!.text}`
                   : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50',
               ].join(' ')}
             >
-              {f === 'tous' ? 'Tous' : meta!.label}
+              {f === 'tous' ? 'Tous' : isRenew ? '⚠ À renouveler' : meta!.label}
               <span className="ml-1.5 opacity-70">{counts[f]}</span>
             </button>
           );
@@ -213,10 +273,18 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
         </div>
       )}
 
+      {renewToast && (
+        <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 font-semibold">
+          ✅ {renewToast}
+        </div>
+      )}
+
       {/* Liste */}
       {visible.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-slate-200 py-14 text-center">
-          <p className="text-sm text-slate-400">Aucun contrat{filter !== 'tous' ? ' avec ce statut' : ''}.</p>
+          <p className="text-sm text-slate-400">
+            {filter === 'a_renouveler' ? 'Aucun contrat à renouveler.' : `Aucun contrat${filter !== 'tous' ? ' avec ce statut' : ''}.`}
+          </p>
           {filter === 'tous' && (
             <button onClick={() => setFormOpen(true)} className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
               Créer un contrat
@@ -231,12 +299,14 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
             const company    = c.company_id ? companyMap.get(c.company_id) : null;
             const mrr        = c.montant_mensuel;
 
-            const lastInv    = lastInvByClient.get(c.client_id);
-            const periodDays = periodeDays(c.frequence ?? null);
+            const lastInv      = lastInvByClient.get(c.client_id);
+            const periodDays   = periodeDays(c.frequence ?? null);
             const needsBilling = c._statut === 'actif' && mrr && (
               !lastInv || (Date.now() - new Date(lastInv.date_facture).getTime()) > periodDays * 86_400_000
             );
-            const isFacturing = facturantId === c.id && isPending;
+            const isFacturing  = facturantId === c.id && isPending;
+            const needsRenew   = isARenouveler(c);
+            const daysExpired  = daysLeft !== null && daysLeft < 0 ? Math.abs(daysLeft) : null;
 
             return (
               <div key={c.id} className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
@@ -260,6 +330,16 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
                       {needsBilling && (
                         <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">À facturer</span>
                       )}
+                      {c._statut === 'actif' && daysExpired !== null && (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                          🔴 Expiré depuis {daysExpired}j
+                        </span>
+                      )}
+                      {c._statut === 'actif' && daysLeft !== null && daysLeft >= 0 && daysLeft <= 30 && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                          ⚠ Expire dans {daysLeft}j
+                        </span>
+                      )}
                     </div>
 
                     {/* Ligne 2 : client + société */}
@@ -277,9 +357,6 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
                       )}
                       {c.frequence && <span>{FREQ_LABELS[c.frequence]}</span>}
                       <span>{fmtDate(c.date_debut)}{c.date_fin ? ` → ${fmtDate(c.date_fin)}` : ''}</span>
-                      {daysLeft !== null && daysLeft >= 0 && daysLeft <= 30 && (
-                        <span className="text-amber-600 font-semibold">⚠ expire dans {daysLeft}j</span>
-                      )}
                       {c.materiel_couvert?.length > 0 && (
                         <span>{c.materiel_couvert.length} équip.</span>
                       )}
@@ -301,6 +378,17 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
 
                   {/* Actions */}
                   <div className="flex shrink-0 items-center gap-1">
+                    {/* Bouton Renouveler */}
+                    {needsRenew && (
+                      <button
+                        onClick={() => { setError(''); openRenew(c); }}
+                        disabled={isPending}
+                        className="rounded-md px-2 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                        title="Renouveler le contrat"
+                      >
+                        🔄 Renouveler
+                      </button>
+                    )}
                     {/* Bouton Facturer (contrats actifs avec montant) */}
                     {c._statut === 'actif' && mrr && (
                       <button
@@ -356,6 +444,16 @@ export function ContratList({ contrats, clients, companies, projects, invoices =
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
         loading={deleting}
+      />
+
+      <ConfirmDialog
+        open={!!renewId}
+        title="Renouveler ce contrat ?"
+        description={renewLabel}
+        confirmLabel="🔄 Renouveler"
+        onConfirm={handleRenew}
+        onCancel={() => setRenewId(null)}
+        loading={renewing}
       />
     </>
   );

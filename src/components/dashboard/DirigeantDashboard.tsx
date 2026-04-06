@@ -79,7 +79,7 @@ interface Props {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export function DirigeantDashboard({ data }: Props) {
-  const { userName, kpis, meteoSocietes, meteoGlobal, caGlobalMois, sav, apiUsage, priorites } = data;
+  const { userName, kpis, meteoSocietes, meteoGlobal, caGlobalMois, sav, apiUsage, priorites, contratsARenouveler } = data;
 
   const prenom = userName.split(' ')[0] || userName;
   const today  = new Intl.DateTimeFormat('fr-FR', {
@@ -260,6 +260,26 @@ export function DirigeantDashboard({ data }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── Alerte contrats à renouveler ── */}
+      {contratsARenouveler > 0 && (
+        <a
+          href="/commerce?tab=contrats"
+          className="flex items-center gap-3 rounded-[var(--radius)] border border-amber-200 bg-amber-50 px-4 py-3 transition-colors hover:bg-amber-100"
+          style={{ boxShadow: 'var(--shadow)' }}
+        >
+          <span className="text-lg">⚠</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-800">
+              {contratsARenouveler} contrat{contratsARenouveler > 1 ? 's' : ''} à renouveler
+            </p>
+            <p className="text-xs text-amber-700">
+              Contrat{contratsARenouveler > 1 ? 's' : ''} actif{contratsARenouveler > 1 ? 's' : ''} arrivant à échéance dans 30 jours ou déjà expirés
+            </p>
+          </div>
+          <span className="shrink-0 text-xs font-semibold text-amber-700">Voir →</span>
+        </a>
+      )}
 
       {/* ── Priorités du jour ── */}
       <div>
