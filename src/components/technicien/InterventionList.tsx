@@ -74,8 +74,8 @@ function InterventionCard({
   onEdit:  () => void;
   onDelete:() => void;
 }) {
-  const t = TYPE_CONFIG[intervention.type]   ?? TYPE_CONFIG.maintenance;
-  const s = STATUT_CONFIG[intervention.statut] ?? STATUT_CONFIG.planifiee;
+  const t = TYPE_CONFIG[intervention.type_intervention ?? ''] ?? TYPE_CONFIG.maintenance;
+  const s = STATUT_CONFIG[intervention.status] ?? STATUT_CONFIG.planifiee;
   const photoCount = intervention.photos?.length ?? 0;
   const checkDone  = intervention.checklist?.filter((c) => c.done).length ?? 0;
   const checkTotal = intervention.checklist?.length ?? 0;
@@ -101,26 +101,26 @@ function InterventionCard({
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-base font-bold text-slate-800 leading-snug">{intervention.client_nom ?? '—'}</p>
-            {intervention.adresse && (
+            {intervention.client_address && (
               <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-3.5 w-3.5 shrink-0" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                 </svg>
-                {intervention.adresse}
+                {intervention.client_address}
               </p>
             )}
           </div>
-          {fmtDuree(intervention.duree_minutes) && (
+          {fmtDuree(intervention.timer_elapsed) && (
             <span className="rounded-lg bg-white px-2 py-1 text-xs font-mono font-semibold text-slate-500 shrink-0">
-              {fmtDuree(intervention.duree_minutes)}
+              {fmtDuree(intervention.timer_elapsed)}
             </span>
           )}
         </div>
 
         {/* Date */}
         <p className="text-sm text-slate-500">
-          {new Date(intervention.date).toLocaleDateString('fr-FR', {
+          {new Date(intervention.date_start).toLocaleDateString('fr-FR', {
             weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
           })}
         </p>
@@ -160,7 +160,7 @@ function InterventionCard({
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
           </svg>
-          {intervention.statut === 'terminee' ? 'Voir / Rapport' : 'Ouvrir'}
+          {intervention.status === 'terminee' ? 'Voir / Rapport' : 'Ouvrir'}
         </button>
         <div className="w-px bg-slate-200" />
         <button
@@ -187,16 +187,16 @@ export function InterventionList({ interventions, clients, catalogue, currentUse
   const [error,      setError]      = useState('');
 
   const filtered = interventions.filter((i) => {
-    if (dateFilter === 'today') return isToday(i.date);
-    if (dateFilter === 'week')  return isThisWeek(i.date);
+    if (dateFilter === 'today') return isToday(i.date_start);
+    if (dateFilter === 'week')  return isThisWeek(i.date_start);
     return true;
   });
 
   // Sort: terminées en bas
   const sorted = [...filtered].sort((a, b) => {
-    if (a.statut === 'terminee' && b.statut !== 'terminee') return 1;
-    if (a.statut !== 'terminee' && b.statut === 'terminee') return -1;
-    return new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (a.status === 'terminee' && b.status !== 'terminee') return 1;
+    if (a.status !== 'terminee' && b.status === 'terminee') return -1;
+    return new Date(a.date_start).getTime() - new Date(b.date_start).getTime();
   });
 
   async function handleDelete() {
@@ -209,11 +209,11 @@ export function InterventionList({ interventions, clients, catalogue, currentUse
   }
 
   // Counts for filter badges
-  const todayCount = interventions.filter((i) => isToday(i.date)).length;
-  const weekCount  = interventions.filter((i) => isThisWeek(i.date)).length;
+  const todayCount = interventions.filter((i) => isToday(i.date_start)).length;
+  const weekCount  = interventions.filter((i) => isThisWeek(i.date_start)).length;
 
-  const enCours  = interventions.filter((i) => i.statut === 'en_cours').length;
-  const terminee = interventions.filter((i) => i.statut === 'terminee').length;
+  const enCours  = interventions.filter((i) => i.status === 'en_cours').length;
+  const terminee = interventions.filter((i) => i.status === 'terminee').length;
 
   return (
     <>

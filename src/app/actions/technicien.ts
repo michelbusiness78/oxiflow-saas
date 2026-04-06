@@ -36,9 +36,7 @@ export interface PlanningIntervention {
   date_start:          string;
   date_end:            string | null;
   status:              string;
-  type:                string | null;
   nature:              string | null;
-  notes:               string | null;
   hours_planned:       number | null;
   is_new:              boolean;
   client_id:           string | null;
@@ -88,10 +86,10 @@ export async function getMyInterventions(
   const { data } = await admin
     .from('interventions')
     .select(`
-      id, title, date_start, date_end, status, type, nature, notes,
+      id, title, date_start, date_end, status, type_intervention, nature,
       hours_planned, is_new, client_id, tech_user_id, tech_name, project_id,
       client_name, client_address, client_city, client_phone,
-      affair_number, type_intervention, urgency, under_contract,
+      affair_number, urgency, under_contract,
       hour_start, hour_end, timer_elapsed,
       observations, checklist, materials_installed, photos,
       report_sent, report_sent_at, report_sent_to,
@@ -168,11 +166,50 @@ export async function updateInterventionStatus(
   if (newStatus === 'terminee') {
     const { data: iv } = await admin
       .from('interventions')
-      .select('title, client_name, project_id')
+      .select('title, client_name, project_id, nature')
       .eq('id', interventionId)
       .single();
 
-    if (iv?.project_id) {
+    if ((iv as { nature?: string | null } | null)?.nature === 'sav') {
+      // SAV : résoudre automatiquement le ticket + notifier le chef si projet lié
+      try {
+        const { data: savTicket } = await admin
+          .from('sav_tickets')
+          .select('id, project_id')
+          .eq('intervention_id', interventionId)
+          .single();
+
+        if (savTicket) {
+          await admin.from('sav_tickets').update({
+            statut:          'resolu',
+            date_resolution: new Date().toISOString(),
+          }).eq('id', savTicket.id as string);
+
+          const savProjectId = (savTicket.project_id as string | null)
+            ?? (iv?.project_id as string | null);
+
+          if (savProjectId) {
+            const { data: proj } = await admin
+              .from('projects')
+              .select('chef_projet_user_id, tenant_id')
+              .eq('id', savProjectId)
+              .single();
+
+            if (proj?.chef_projet_user_id) {
+              await admin.from('project_notifications').insert({
+                tenant_id:  (proj.tenant_id as string) ?? tenant_id,
+                project_id: savProjectId,
+                user_id:    proj.chef_projet_user_id as string,
+                type:       'sav_resolu',
+                title:      'Ticket SAV résolu',
+                message:    `Ticket "${(iv?.title as string) ?? 'SAV'}" chez ${(iv?.client_name as string) ?? 'client'} résolu par le technicien.`,
+              });
+              revalidatePath('/chef-projet');
+            }
+          }
+        }
+      } catch { /* ignore si colonne intervention_id absente */ }
+    } else if (iv?.project_id) {
       const { data: proj } = await admin
         .from('projects')
         .select('chef_projet_user_id, tenant_id')

@@ -12,19 +12,19 @@ export type ChecklistItem = { id: string; label: string; done: boolean };
 export type MaterielItem  = { id: string; designation: string; quantite: number; reference: string | null };
 
 export type InterventionInput = {
-  client_id:     string;
-  projet_id:     string | null;
-  technicien_id: string | null;
-  date:          string;
-  type:          'installation' | 'maintenance' | 'sav' | 'depannage';
-  statut:        'planifiee' | 'en_cours' | 'terminee' | 'annulee';
-  duree_minutes: number | null;
-  notes:         string | null;
-  adresse:       string | null;
-  photos:        string[];
-  checklist:     ChecklistItem[];
-  materiel:      MaterielItem[];
-  signature_url: string | null;
+  client_id:           string;
+  project_id:          string | null;
+  tech_user_id:        string | null;
+  date_start:          string;
+  type_intervention:   'installation' | 'maintenance' | 'sav' | 'depannage';
+  status:              'planifiee' | 'en_cours' | 'terminee' | 'annulee';
+  timer_elapsed:       number | null;
+  observations:        string | null;
+  client_address:      string | null;
+  photos:              string[];
+  checklist:           ChecklistItem[];
+  materials_installed: MaterielItem[];
+  signature_data:      string | null;
 };
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ export async function createInterventionAction(input: InterventionInput) {
   const { error } = await admin.from('interventions').insert({
     tenant_id,
     ...input,
-    technicien_id: input.technicien_id ?? user.id,
+    tech_user_id: input.tech_user_id ?? user.id,
   });
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
@@ -62,23 +62,23 @@ export async function deleteInterventionAction(id: string) {
 
 export async function terminerInterventionAction(
   id: string,
-  duree_minutes: number,
+  timer_elapsed: number,
   checklist: ChecklistItem[],
-  materiel: MaterielItem[],
-  notes: string | null,
+  materials_installed: MaterielItem[],
+  observations: string | null,
   photos: string[],
-  signature_url: string | null,
+  signature_data: string | null,
 ) {
   const { admin } = await getAuthContext();
 
   const { error } = await admin.from('interventions').update({
-    statut:        'terminee',
-    duree_minutes,
+    status:              'terminee',
+    timer_elapsed,
     checklist,
-    materiel,
-    notes,
+    materials_installed,
+    observations,
     photos,
-    signature_url,
+    signature_data,
   }).eq('id', id);
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);

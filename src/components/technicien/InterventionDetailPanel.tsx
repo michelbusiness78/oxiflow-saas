@@ -557,10 +557,10 @@ export function InterventionDetailPanel({
               )}
             </div>
 
-            {iv.notes && (
+            {iv.observations && (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Notes</p>
-                <p className="text-sm text-slate-600 whitespace-pre-wrap">{iv.notes}</p>
+                <p className="text-sm text-slate-600 whitespace-pre-wrap">{iv.observations}</p>
               </div>
             )}
           </div>

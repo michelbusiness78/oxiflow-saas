@@ -124,15 +124,13 @@ export interface InterventionInput {
   tech_user_id?:      string;
   tech_name?:         string;
   status?:            string;
-  notes?:             string;
-  type?:              string;
   // Nature Projet / SAV
   nature?:            string;   // 'projet' | 'sav'
-  type_intervention?: string;   // 'reseau' | 'securite' | 'telephonie' | 'informatique' | 'autre'
+  type_intervention?: string;   // 'installation' | 'maintenance' | 'depannage' | 'formation' | 'autre' | 'reseau' | …
   urgency?:           string;   // 'normal' | 'urgent' | 'critique'
   hours_planned?:     number;
   under_contract?:    boolean;
-  observations?:      string;   // description problème SAV (visible technicien)
+  observations?:      string;   // notes / instructions / description problème
 }
 
 // ── Colors ────────────────────────────────────────────────────────────────────
@@ -265,7 +263,7 @@ export async function getCalendarEvents(
   const [intRes, projRes] = await Promise.all([
     admin
       .from('interventions')
-      .select('id, title, date_start, date_end, status, client_id, tech_user_id, tech_name, project_id, notes, nature, urgency, clients(nom)')
+      .select('id, title, date_start, date_end, status, client_id, tech_user_id, tech_name, project_id, observations, nature, urgency, clients(nom)')
       .eq('tenant_id', tenant_id)
       // Toutes interventions qui chevauchent la plage [startDate, endDate]
       .lte('date_start', endDate)
@@ -311,7 +309,7 @@ export async function getCalendarEvents(
       clientNom:    (i.clients as unknown as { nom: string } | null)?.nom,
       techNom:      i.tech_name ?? undefined,
       projectId:    i.project_id ?? undefined,
-      notes:        i.notes     ?? undefined,
+      notes:        (i.observations as string | null) ?? undefined,
       nature:       nature ?? 'projet',
       urgency:      urgency ?? 'normal',
     });
@@ -412,11 +410,6 @@ export async function createIntervention(
       tech_user_id:        data.tech_user_id  ?? null,
       tech_name:           data.tech_name     ?? null,
       status:              data.status        ?? 'planifiee',
-      notes:               data.notes         ?? null,
-      type:                data.type          ?? null,
-      // backfill old columns for Technicien module compat
-      statut:              data.status        ?? 'planifiee',
-      technicien_id:       data.tech_user_id  ?? null,
       // is_new flag pour bandeau technicien
       is_new:              data.tech_user_id ? true : false,
       // champs dénormalisés
@@ -459,16 +452,11 @@ export async function updateIntervention(
   if (data.client_id    !== undefined) patch.client_id    = data.client_id;
   if (data.project_id   !== undefined) patch.project_id   = data.project_id;
   if (data.tech_user_id !== undefined) {
-    patch.tech_user_id  = data.tech_user_id;
-    patch.technicien_id = data.tech_user_id;
+    patch.tech_user_id = data.tech_user_id;
   }
   if (data.tech_name !== undefined) patch.tech_name = data.tech_name;
-  if (data.status    !== undefined) {
-    patch.status = data.status;
-    patch.statut = data.status;
-  }
-  if (data.notes !== undefined) patch.notes = data.notes;
-  if (data.type  !== undefined) patch.type  = data.type;
+  if (data.status    !== undefined) patch.status = data.status;
+  if (data.observations !== undefined) patch.observations = data.observations;
 
   const { error } = await admin
     .from('interventions')

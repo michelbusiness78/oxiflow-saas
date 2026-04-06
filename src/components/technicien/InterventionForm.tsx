@@ -18,23 +18,23 @@ interface Client   { id: string; nom: string; adresse?: string; cp?: string; vil
 interface Catalogue { id: string; ref: string; designation: string; }
 
 export interface Intervention {
-  id:              string;
-  client_id:       string;
-  projet_id:       string | null;
-  technicien_id:   string | null;
-  date:            string;
-  type:            'installation' | 'maintenance' | 'sav' | 'depannage';
-  statut:          'planifiee' | 'en_cours' | 'terminee' | 'annulee';
-  duree_minutes:   number | null;
-  notes:           string | null;
-  adresse:         string | null;
-  photos:          string[];
-  checklist:       ChecklistItem[];
-  materiel:        MaterielItem[];
-  signature_url:   string | null;
-  created_at:      string;
-  client_nom?:     string;
-  technicien_nom?: string;
+  id:                  string;
+  client_id:           string;
+  project_id:          string | null;
+  tech_user_id:        string | null;
+  date_start:          string;
+  type_intervention:   'installation' | 'maintenance' | 'sav' | 'depannage';
+  status:              'planifiee' | 'en_cours' | 'terminee' | 'annulee';
+  timer_elapsed:       number | null;
+  observations:        string | null;
+  client_address:      string | null;
+  photos:              string[];
+  checklist:           ChecklistItem[];
+  materials_installed: MaterielItem[];
+  signature_data:      string | null;
+  created_at:          string;
+  client_nom?:         string;
+  technicien_nom?:     string;
 }
 
 interface InterventionFormProps {
@@ -46,7 +46,7 @@ interface InterventionFormProps {
   currentUserId: string;
 }
 
-const TYPE_ITEMS: { value: Intervention['type']; label: string; color: string }[] = [
+const TYPE_ITEMS: { value: Intervention['type_intervention']; label: string; color: string }[] = [
   { value: 'installation', label: 'Installation', color: 'text-blue-600 border-blue-600 bg-blue-50'  },
   { value: 'maintenance',  label: 'Maintenance',  color: 'text-oxi-success border-oxi-success bg-green-50' },
   { value: 'sav',          label: 'SAV',           color: 'text-oxi-warning border-oxi-warning bg-oxi-warning-light' },
@@ -117,18 +117,18 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
   const today = new Date().toISOString().slice(0, 16);
 
   // ── Champs de base ─────────────────────────────────────────────────────────
-  const [clientId,   setClientId]   = useState(editing?.client_id  ?? '');
-  const [type,       setType]       = useState<Intervention['type']>(editing?.type ?? 'maintenance');
-  const [date,       setDate]       = useState(editing?.date ? editing.date.slice(0, 16) : today);
-  const [adresse,    setAdresse]    = useState(editing?.adresse     ?? '');
-  const [notes,      setNotes]      = useState(editing?.notes       ?? '');
+  const [clientId,   setClientId]   = useState(editing?.client_id      ?? '');
+  const [type,       setType]       = useState<Intervention['type_intervention']>(editing?.type_intervention ?? 'maintenance');
+  const [date,       setDate]       = useState(editing?.date_start ? editing.date_start.slice(0, 16) : today);
+  const [adresse,    setAdresse]    = useState(editing?.client_address ?? '');
+  const [notes,      setNotes]      = useState(editing?.observations   ?? '');
 
   // ── Checklist ──────────────────────────────────────────────────────────────
   const [checklist,  setChecklist]  = useState<ChecklistItem[]>(editing?.checklist ?? []);
   const [newItem,    setNewItem]    = useState('');
 
   // ── Matériel ───────────────────────────────────────────────────────────────
-  const [materiel,   setMateriel]   = useState<MaterielItem[]>(editing?.materiel ?? []);
+  const [materiel,   setMateriel]   = useState<MaterielItem[]>(editing?.materials_installed ?? []);
 
   // ── Photos ─────────────────────────────────────────────────────────────────
   const [photos,     setPhotos]     = useState<PhotoEntry[]>(
@@ -137,26 +137,26 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
 
   // ── Signature ──────────────────────────────────────────────────────────────
   const [showSig,      setShowSig]      = useState(false);
-  const [signatureUrl, setSignatureUrl] = useState<string | null>(editing?.signature_url ?? null);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(editing?.signature_data ?? null);
   const [savingSig,    setSavingSig]    = useState(false);
   const canvasSigRef                   = useRef<SignatureCanvasHandle>(null);
 
   // ── Timer ──────────────────────────────────────────────────────────────────
-  const timer = useTimer((editing?.duree_minutes ?? 0) * 60);
+  const timer = useTimer((editing?.timer_elapsed ?? 0) * 60);
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [error,      setError]      = useState('');
   const [saving,     setSaving]     = useState(false);
   const [terminating, setTerminating] = useState(false);
 
-  const isTerminee = editing?.statut === 'terminee';
+  const isTerminee = editing?.status === 'terminee';
 
   // Auto-fill adresse depuis la fiche client à chaque changement de client
   useEffect(() => {
     if (!clientId) return;
     const client = clients.find((c) => c.id === clientId);
     if (client?.adresse) {
-      setAdresse([client.adresse, client.cp, client.ville].filter(Boolean).join(', '));
+      setAdresse([client.adresse, client.cp, client.ville].filter(Boolean).join(', ')); // client.adresse est la colonne clients.adresse (inchangée)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
@@ -236,19 +236,19 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
     const photoUrls = await uploadPendingPhotos();
 
     const input = {
-      client_id:      clientId,
-      projet_id:      null,
-      technicien_id:  currentUserId,
-      date:           new Date(date).toISOString(),
-      type,
-      statut:         'planifiee' as const,
-      duree_minutes:  null,
-      notes:          notes.trim() || null,
-      adresse:        adresse.trim() || null,
-      photos:         photoUrls,
+      client_id:           clientId,
+      project_id:          null,
+      tech_user_id:        currentUserId,
+      date_start:          new Date(date).toISOString(),
+      type_intervention:   type,
+      status:              'planifiee' as const,
+      timer_elapsed:       null,
+      observations:        notes.trim() || null,
+      client_address:      adresse.trim() || null,
+      photos:              photoUrls,
       checklist,
-      materiel,
-      signature_url:  signatureUrl,
+      materials_installed: materiel,
+      signature_data:      signatureUrl,
     };
 
     const res = editing
@@ -276,7 +276,7 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
       notes.trim() || null,
       photoUrls,
       signatureUrl,
-    );
+    ); // params renamed in terminerInterventionAction but order preserved
     setTerminating(false);
     if ('error' in res && res.error) { setError(res.error); return; }
     onClose();
@@ -302,10 +302,10 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-base font-bold text-slate-800 truncate">
-            {editing ? `${selectedType.label} — ${editing.client_nom ?? ''}` : 'Nouvelle intervention'}
+            {editing ? `${selectedType?.label ?? ''} — ${editing.client_nom ?? ''}` : 'Nouvelle intervention'}
           </p>
           {editing && (
-            <p className="text-xs text-slate-400 capitalize">{editing.statut.replace('_', ' ')}</p>
+            <p className="text-xs text-slate-400 capitalize">{editing.status.replace('_', ' ')}</p>
           )}
         </div>
         {/* Timer display in header */}

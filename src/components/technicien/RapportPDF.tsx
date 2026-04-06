@@ -5,19 +5,19 @@ import type { jsPDF as JsPDFInstance } from 'jspdf';
 import type { ChecklistItem, MaterielItem } from '@/app/actions/interventions';
 
 interface InterventionForPDF {
-  id:            string;
-  date:          string;
-  type:          string;
-  statut:        string;
-  duree_minutes: number | null;
-  notes:         string | null;
-  adresse:       string | null;
-  checklist:     ChecklistItem[];
-  materiel:      MaterielItem[];
-  photos:        string[];
-  signature_url: string | null;
-  client_nom:    string;
-  technicien_nom:string;
+  id:                  string;
+  date_start:          string;
+  type_intervention:   string;
+  status:              string;
+  timer_elapsed:       number | null;
+  observations:        string | null;
+  client_address:      string | null;
+  checklist:           ChecklistItem[];
+  materials_installed: MaterielItem[];
+  photos:              string[];
+  signature_data:      string | null;
+  client_nom:          string;
+  technicien_nom:      string;
 }
 
 interface RapportPDFProps {
@@ -82,7 +82,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text('Rapport d\'intervention', 14, 20);
-      doc.text(new Date(intervention.date).toLocaleDateString('fr-FR', {
+      doc.text(new Date(intervention.date_start).toLocaleDateString('fr-FR', {
         day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
       }), pageW - 14, 20, { align: 'right' });
       y = 38;
@@ -96,10 +96,10 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
 
       const infos = [
         ['Client',       intervention.client_nom],
-        ['Type',         TYPE_LABELS[intervention.type] ?? intervention.type],
+        ['Type',         TYPE_LABELS[intervention.type_intervention] ?? intervention.type_intervention],
         ['Technicien',   intervention.technicien_nom],
-        ['Durée',        fmtDuree(intervention.duree_minutes)],
-        ['Adresse',      intervention.adresse ?? '—'],
+        ['Durée',        fmtDuree(intervention.timer_elapsed)],
+        ['Adresse',      intervention.client_address ?? '—'],
       ];
 
       autoTable(doc, {
@@ -141,7 +141,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
       }
 
       // ── Matériel ──
-      if (intervention.materiel.length > 0) {
+      if (intervention.materials_installed.length > 0) {
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
@@ -151,7 +151,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
         autoTable(doc, {
           startY: y,
           head:   [['Désignation', 'Référence', 'Qté']],
-          body:   intervention.materiel.map((m) => [
+          body:   intervention.materials_installed.map((m) => [
             m.designation,
             m.reference ?? '—',
             String(m.quantite),
@@ -166,7 +166,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
       }
 
       // ── Notes ──
-      if (intervention.notes) {
+      if (intervention.observations) {
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
@@ -174,7 +174,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
         y += 5;
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        const lines = doc.splitTextToSize(intervention.notes, pageW - 28);
+        const lines = doc.splitTextToSize(intervention.observations, pageW - 28);
         doc.text(lines, 14, y);
         y += lines.length * 5 + 8;
       }
@@ -213,8 +213,8 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
       }
 
       // ── Signature ──
-      if (intervention.signature_url) {
-        const sigData = await fetchImageAsDataUrl(intervention.signature_url);
+      if (intervention.signature_data) {
+        const sigData = await fetchImageAsDataUrl(intervention.signature_data);
         if (sigData) {
           doc.setFontSize(11);
           doc.setFont('helvetica', 'bold');
@@ -239,7 +239,7 @@ export function RapportPDF({ intervention, companyName = 'OxiFlow' }: RapportPDF
         doc.text(`Page ${i}/${pageCount}`, pageW - 14, 293, { align: 'right' });
       }
 
-      const date = new Date(intervention.date).toISOString().split('T')[0];
+      const date = new Date(intervention.date_start).toISOString().split('T')[0];
       doc.save(`rapport-intervention-${date}.pdf`);
     } finally {
       setLoading(false);

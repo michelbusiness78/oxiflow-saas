@@ -92,7 +92,7 @@ interface ProjetFormState {
   date:         string;
   date_end:     string;
   hours_planned: number;
-  notes:        string;
+  observations: string;
 }
 
 function ProjetForm({
@@ -212,8 +212,8 @@ function ProjetForm({
           Instructions <span className="text-slate-400 font-normal">(optionnel)</span>
         </label>
         <textarea
-          value={form.notes}
-          onChange={(e) => set('notes', e.target.value)}
+          value={form.observations}
+          onChange={(e) => set('observations', e.target.value)}
           rows={3}
           placeholder="Instructions pour le technicien, accès chantier, matériel à prévoir…"
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
@@ -431,14 +431,14 @@ function SavForm({
 // ── Formulaire d'édition (conserve l'ancien comportement) ─────────────────────
 
 interface EditFormState {
-  title:        string;
-  date_start:   string;
-  date_end:     string;
-  client_id:    string;
-  tech_user_id: string;
-  status:       string;
-  type:         string;
-  notes:        string;
+  title:             string;
+  date_start:        string;
+  date_end:          string;
+  client_id:         string;
+  tech_user_id:      string;
+  status:            string;
+  type_intervention: string;
+  observations:      string;
 }
 
 function EditForm({
@@ -502,9 +502,10 @@ function EditForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <label className="block text-sm font-semibold text-slate-700">Type</label>
-          <select value={form.type} onChange={(e) => set('type', e.target.value)}
+          <select value={form.type_intervention} onChange={(e) => set('type_intervention', e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
+            <option value="">— Sélectionner —</option>
             {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
@@ -520,7 +521,7 @@ function EditForm({
 
       <div className="space-y-1.5">
         <label className="block text-sm font-semibold text-slate-700">Notes</label>
-        <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={3}
+        <textarea value={form.observations} onChange={(e) => set('observations', e.target.value)} rows={3}
           placeholder="Instructions, accès, matériel nécessaire…"
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
         />
@@ -551,7 +552,7 @@ export function InterventionFormModal({
     date:         defaultDate,
     date_end:     '',
     hours_planned: 8,
-    notes:        '',
+    observations: '',
   });
 
   // ── État SAV ─────────────────────────────────────────────────────────────────
@@ -585,14 +586,14 @@ export function InterventionFormModal({
   })();
 
   const [editForm, setEditForm] = useState<EditFormState>({
-    title:        '',
-    date_start:   defaultStartLocal,
-    date_end:     defaultEndLocal,
-    client_id:    '',
-    tech_user_id: '',
-    status:       'planifiee',
-    type:         'intervention',
-    notes:        '',
+    title:             '',
+    date_start:        defaultStartLocal,
+    date_end:          defaultEndLocal,
+    client_id:         '',
+    tech_user_id:      '',
+    status:            'planifiee',
+    type_intervention: '',
+    observations:      '',
   });
 
   // ── Reset à l'ouverture ──────────────────────────────────────────────────────
@@ -605,14 +606,14 @@ export function InterventionFormModal({
 
     if (isEdit && editing) {
       setEditForm({
-        title:        editing.title,
-        date_start:   toLocalDateTime(editing.startISO),
-        date_end:     toLocalDateTime(editing.endISO),
-        client_id:    editing.client_id    ?? '',
-        tech_user_id: editing.tech_user_id ?? '',
-        status:       editing.status       ?? 'planifiee',
-        type:         editing.type         ?? 'intervention',
-        notes:        editing.notes        ?? '',
+        title:             editing.title,
+        date_start:        toLocalDateTime(editing.startISO),
+        date_end:          toLocalDateTime(editing.endISO),
+        client_id:         editing.client_id    ?? '',
+        tech_user_id:      editing.tech_user_id ?? '',
+        status:            editing.status       ?? 'planifiee',
+        type_intervention: '',
+        observations:      editing.notes        ?? '',
       });
     } else {
       setNature('projet');
@@ -622,7 +623,7 @@ export function InterventionFormModal({
         date:          newDate,
         date_end:      '',
         hours_planned: 8,
-        notes:         '',
+        observations:  '',
       });
       setSavForm({
         client_id:         '',
@@ -658,15 +659,15 @@ export function InterventionFormModal({
         if (!editForm.title.trim()) { setError('Le titre est obligatoire.'); return; }
         const techUser = techniciens.find((u) => u.id === editForm.tech_user_id);
         input = {
-          title:        editForm.title.trim(),
-          date_start:   new Date(editForm.date_start).toISOString(),
-          date_end:     editForm.date_end ? new Date(editForm.date_end).toISOString() : undefined,
-          client_id:    editForm.client_id || undefined,
-          tech_user_id: editForm.tech_user_id || undefined,
-          tech_name:    techUser?.name,
-          status:       editForm.status,
-          type:         editForm.type,
-          notes:        editForm.notes.trim() || undefined,
+          title:             editForm.title.trim(),
+          date_start:        new Date(editForm.date_start).toISOString(),
+          date_end:          editForm.date_end ? new Date(editForm.date_end).toISOString() : undefined,
+          client_id:         editForm.client_id || undefined,
+          tech_user_id:      editForm.tech_user_id || undefined,
+          tech_name:         techUser?.name,
+          status:            editForm.status,
+          type_intervention: editForm.type_intervention || undefined,
+          observations:      editForm.observations.trim() || undefined,
         };
         const res = await updateIntervention(editing!.id, input);
         if (res.error) { setError(res.error); return; }
@@ -688,7 +689,7 @@ export function InterventionFormModal({
           status:        'planifiee',
           nature:        'projet',
           hours_planned: projetForm.hours_planned,
-          notes:         projetForm.notes.trim() || undefined,
+          observations:  projetForm.observations.trim() || undefined,
         };
         const res = await createIntervention(input);
         if (res.error) { setError(res.error); return; }

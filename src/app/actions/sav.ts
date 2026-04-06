@@ -45,18 +45,45 @@ export async function createSAVAction(input: SAVInput) {
   if (input.project_id)        payload.project_id        = input.project_id;
   if (input.resolution_notes)  payload.resolution_notes  = input.resolution_notes;
 
-  const { error } = await admin.from('sav_tickets').insert(payload);
+  const { data: ticket, error } = await admin.from('sav_tickets').insert(payload).select('id').single();
   if (error) {
     console.error('[createSAVAction] Supabase error:', JSON.stringify(error));
     return { error: translateSupabaseError(error.message) };
   }
+
+  // ── Notification technicien (intervention is_new = true) ──────────────────
+  if (input.assigne_a && ticket) {
+    try {
+      const { data: clientData } = await admin
+        .from('clients').select('nom').eq('id', input.client_id).single();
+      const clientName = (clientData?.nom as string) ?? '';
+
+      const { data: iv } = await admin.from('interventions').insert({
+        tenant_id,
+        title:             input.titre || `SAV – ${clientName}`,
+        date_start:        new Date().toISOString(),
+        status:            'planifiee',
+        nature:            'sav',
+        type_intervention: 'depannage',
+        is_new:            true,
+        tech_user_id:      input.assigne_a,
+        client_id:         input.client_id,
+        client_name:       clientName,
+      }).select('id').single();
+
+      if (iv) {
+        await admin.from('sav_tickets').update({ intervention_id: iv.id }).eq('id', ticket.id);
+      }
+    } catch { /* interventions missing columns → skip silently */ }
+  }
+
   revalidatePath(PATH);
   revalidatePath(PATH2);
   return { success: true };
 }
 
 export async function updateSAVAction(id: string, input: SAVInput) {
-  const { admin } = await getAuthContext();
+  const { admin, tenant_id } = await getAuthContext();
 
   // ── Colonnes garanties ───────────────────────────────────────────────────────
   const payload: Record<string, unknown> = {
@@ -72,6 +99,35 @@ export async function updateSAVAction(id: string, input: SAVInput) {
   if (input.assigne_a        !== undefined) payload.assigne_a        = input.assigne_a        ?? null;
   if (input.project_id       !== undefined) payload.project_id       = input.project_id       ?? null;
   if (input.resolution_notes !== undefined) payload.resolution_notes = input.resolution_notes ?? null;
+
+  // ── Notification technicien si assigne_a a changé ────────────────────────────
+  if (input.assigne_a) {
+    try {
+      const { data: existing } = await admin
+        .from('sav_tickets').select('assigne_a').eq('id', id).single();
+
+      if (existing && (existing.assigne_a as string | null) !== input.assigne_a) {
+        const { data: clientData } = await admin
+          .from('clients').select('nom').eq('id', input.client_id).single();
+        const clientName = (clientData?.nom as string) ?? '';
+
+        const { data: iv } = await admin.from('interventions').insert({
+          tenant_id,
+          title:             input.titre || `SAV – ${clientName}`,
+          date_start:        new Date().toISOString(),
+          status:            'planifiee',
+          nature:            'sav',
+          type_intervention: 'depannage',
+          is_new:            true,
+          tech_user_id:      input.assigne_a,
+          client_id:         input.client_id,
+          client_name:       clientName,
+        }).select('id').single();
+
+        if (iv) payload.intervention_id = iv.id;
+      }
+    } catch { /* ignore */ }
+  }
 
   const { error } = await admin.from('sav_tickets').update(payload).eq('id', id);
   if (error) {

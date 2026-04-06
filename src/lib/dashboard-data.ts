@@ -141,7 +141,7 @@ export async function fetchActivity(): Promise<ActivityItem[]> {
         .limit(4),
       supabase
         .from('interventions')
-        .select('id, type, statut, created_at, clients(nom)')
+        .select('id, type_intervention, created_at, clients(nom)')
         .order('created_at', { ascending: false })
         .limit(4),
       supabase
@@ -195,7 +195,7 @@ export async function fetchActivity(): Promise<ActivityItem[]> {
     items.push({
       id:          `intervention-${i.id}`,
       type:        'intervention',
-      description: `${types[i.type] ?? 'Intervention'} — ${clientNom}`,
+      description: `${types[(i.type_intervention as string | null) ?? ''] ?? 'Intervention'} — ${clientNom}`,
       timestamp:   i.created_at,
     });
   }
