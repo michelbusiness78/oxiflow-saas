@@ -880,7 +880,18 @@ export async function getProjectQuoteLines(quoteId: string): Promise<QuoteLigneF
 export interface ProjectDocumentsData {
   quote:    { id: string; number: string; date: string; statut: string; montant_ttc: number } | null;
   invoices: { id: string; number: string; date_facture: string; status: string; total_ttc: number }[];
-  contrats: { id: string; type: string; montant_mensuel: number | null; actif: boolean; date_debut: string; date_fin: string | null }[];
+  contrats: {
+    id:              string;
+    type:            string;
+    nom:             string | null;
+    numero:          string | null;
+    statut:          string;
+    montant_mensuel: number | null;
+    actif:           boolean;
+    date_debut:      string;
+    date_fin:        string | null;
+    project_linked:  boolean;
+  }[];
 }
 
 export async function getProjectDocumentsData(
@@ -897,7 +908,7 @@ export async function getProjectDocumentsData(
       ? admin.from('invoices').select('id, number, date_facture, status, total_ttc').eq('quote_id', quoteId).eq('tenant_id', tenant_id).order('date_facture')
       : Promise.resolve({ data: [], error: null }),
     clientId
-      ? admin.from('contrats').select('id, type, montant_mensuel, actif, date_debut, date_fin').eq('client_id', clientId).eq('tenant_id', tenant_id).order('date_debut', { ascending: false })
+      ? admin.from('contrats').select('id, type, nom, numero, statut, montant_mensuel, actif, date_debut, date_fin, project_id').eq('client_id', clientId).eq('tenant_id', tenant_id).order('date_debut', { ascending: false })
       : Promise.resolve({ data: [], error: null }),
   ]);
   return {
@@ -915,13 +926,20 @@ export async function getProjectDocumentsData(
       status:       (i as Record<string, unknown>).status as string,
       total_ttc:    ((i as Record<string, unknown>).total_ttc as number) ?? 0,
     })),
-    contrats: (contratsRes.data ?? []).map((c) => ({
-      id:              (c as Record<string, unknown>).id as string,
-      type:            (c as Record<string, unknown>).type as string,
-      montant_mensuel: (c as Record<string, unknown>).montant_mensuel as number | null,
-      actif:           (c as Record<string, unknown>).actif as boolean,
-      date_debut:      (c as Record<string, unknown>).date_debut as string,
-      date_fin:        (c as Record<string, unknown>).date_fin as string | null,
-    })),
+    contrats: (contratsRes.data ?? []).map((c) => {
+      const row = c as Record<string, unknown>;
+      return {
+        id:              row.id as string,
+        type:            row.type as string,
+        nom:             (row.nom as string | null) ?? null,
+        numero:          (row.numero as string | null) ?? null,
+        statut:          (row.statut as string) ?? 'actif',
+        montant_mensuel: (row.montant_mensuel as number | null) ?? null,
+        actif:           (row.actif as boolean) ?? false,
+        date_debut:      row.date_debut as string,
+        date_fin:        (row.date_fin as string | null) ?? null,
+        project_linked:  (row.project_id as string | null) === projectId,
+      };
+    }),
   };
 }

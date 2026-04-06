@@ -49,7 +49,7 @@ async function fetchCommerceData() {
         .order('created_at', { ascending: false }),
       admin
         .from('contrats')
-        .select('id, client_id, type, date_debut, date_fin, montant_mensuel, actif, created_at, clients(nom)')
+        .select('id, client_id, type, nom, numero, description, frequence, date_debut, date_fin, montant_mensuel, statut, actif, materiel_couvert, project_id, company_id, notes, created_at, clients(nom)')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false }),
       admin
@@ -71,7 +71,7 @@ async function fetchCommerceData() {
         .order('date_ouverture', { ascending: false }),
       admin
         .from('projects')
-        .select('id, client_id, nom, statut, pct_avancement, montant_ht, date_fin_prevue')
+        .select('id, client_id, name, status, progress_percent, amount_ttc, deadline')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false }),
     ]);
@@ -87,7 +87,16 @@ async function fetchCommerceData() {
 
   const contrats = (contratsRes.data ?? []).map((c) => ({
     ...c,
-    client_nom: (c.clients as unknown as { nom: string } | null)?.nom ?? '—',
+    client_nom:      (c.clients as unknown as { nom: string } | null)?.nom ?? '—',
+    nom:             (c as Record<string, unknown>).nom              as string | null ?? null,
+    numero:          (c as Record<string, unknown>).numero           as string | null ?? null,
+    description:     (c as Record<string, unknown>).description      as string | null ?? null,
+    frequence:       (c as Record<string, unknown>).frequence        as import('@/app/actions/contrats').ContratFrequence | null ?? null,
+    statut:          (c as Record<string, unknown>).statut           as import('@/app/actions/contrats').ContratStatut ?? 'actif',
+    materiel_couvert:((c as Record<string, unknown>).materiel_couvert as import('@/app/actions/contrats').MaterielCouvert[]) ?? [],
+    project_id:      (c as Record<string, unknown>).project_id       as string | null ?? null,
+    company_id:      (c as Record<string, unknown>).company_id       as string | null ?? null,
+    notes:           (c as Record<string, unknown>).notes            as string | null ?? null,
   }));
 
   const catalogue  = (catalogueRes.data ?? []) as CatalogueItem[];
@@ -101,15 +110,25 @@ async function fetchCommerceData() {
     priorite: string; statut: string; date_ouverture: string;
   }[];
 
-  const dossiers = (projectsRes.data ?? []) as {
-    id: string; client_id: string; nom: string; statut: string;
-    pct_avancement: number; montant_ht: number | null; date_fin_prevue: string | null;
-  }[];
+  const dossiers = (projectsRes.data ?? []).map((p: Record<string, unknown>) => ({
+    id:              p.id as string,
+    client_id:       p.client_id as string,
+    nom:             ((p.name ?? p.nom) as string) ?? '',
+    statut:          ((p.status ?? p.statut) as string) ?? '',
+    pct_avancement:  (p.progress_percent as number) ?? 0,
+    montant_ht:      (p.amount_ttc as number | null) ?? null,
+    date_fin_prevue: (p.deadline as string | null) ?? null,
+  }));
+
+  // Projects for ContratForm selector
+  const projectsForContrat = dossiers.map((p) => ({
+    id: p.id, name: p.nom, client_id: p.client_id,
+  }));
 
   return {
     tenantId, clients, quotes, invoices, contrats, catalogue,
     users, currentUserId: user.id, currentUserName, companies,
-    savs, dossiers,
+    savs, dossiers, projectsForContrat,
   };
 }
 
@@ -161,7 +180,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
   }
 
   // ── Autres onglets ──────────────────────────────────────────────────────────
-  const { clients, quotes, invoices, contrats, catalogue, users, currentUserId, currentUserName, companies, savs, dossiers } =
+  const { clients, quotes, invoices, contrats, catalogue, users, currentUserId, currentUserName, companies, savs, dossiers, projectsForContrat } =
     await fetchCommerceData();
 
   const tabs: TabItem[] = [
@@ -239,7 +258,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
           />
         )}
 
-        {tab === 'contrats'  && <ContratList contrats={contrats} clients={clients} />}
+        {tab === 'contrats'  && <ContratList contrats={contrats} clients={clients} companies={companies} projects={projectsForContrat} />}
 
         {tab === 'catalogue' && <CatalogueList catalogue={catalogue} />}
       </div>

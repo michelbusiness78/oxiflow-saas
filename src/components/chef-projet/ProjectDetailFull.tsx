@@ -991,20 +991,34 @@ export function ProjectDetailFull({ project, tasks, tenantId }: Props) {
                   <p className="text-sm text-slate-400 italic">Aucun contrat pour ce client.</p>
                 ) : (
                   <div className="space-y-2">
-                    {documents.contrats.map((c) => (
-                      <div key={c.id} className="flex items-center justify-between gap-3 py-2 border-b border-[#dde3f0] last:border-0">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800 capitalize">{c.type}</p>
-                          <p className="text-xs text-slate-400">
+                    {[...documents.contrats].sort((a, b) => (b.project_linked ? 1 : 0) - (a.project_linked ? 1 : 0)).map((c) => (
+                      <div key={c.id} className="flex items-start justify-between gap-3 py-2 border-b border-[#dde3f0] last:border-0">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {c.numero && (
+                              <span className="font-mono text-xs font-semibold text-slate-400">{c.numero}</span>
+                            )}
+                            <p className="text-sm font-semibold text-slate-800 capitalize">
+                              {c.nom ?? c.type}
+                            </p>
+                            {c.project_linked && (
+                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">Lié au projet</span>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-xs text-slate-400">
                             {fmtDate(c.date_debut)}{c.date_fin ? ` → ${fmtDate(c.date_fin)}` : ''}
                             {c.montant_mensuel ? ` · ${fmtEur(c.montant_mensuel)}/mois` : ''}
                           </p>
                         </div>
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          c.actif ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          {c.actif ? 'Actif' : 'Inactif'}
-                        </span>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            c.statut === 'actif'   ? 'bg-green-100 text-green-700' :
+                            c.statut === 'expire'  ? 'bg-amber-100 text-amber-700' :
+                                                     'bg-slate-100 text-slate-500'
+                          }`}>
+                            {c.statut === 'actif' ? 'Actif' : c.statut === 'expire' ? 'Expiré' : 'Résilié'}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>

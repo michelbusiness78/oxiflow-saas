@@ -36,12 +36,14 @@ export interface SAVTicketFull {
 interface Client     { id: string; nom: string; }
 interface ProjectRef { id: string; name: string; }
 interface UserRef    { id: string; name: string; }
+interface ContratRef { id: string; type: string; nom: string | null; numero: string | null; client_id: string; actif: boolean; }
 
 interface Props {
   tickets:     SAVTicketFull[];
   clients:     Client[];
   projects:    ProjectRef[];
   techniciens: UserRef[];
+  contrats?:   ContratRef[];
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -79,12 +81,14 @@ interface FormProps {
   clients:     Client[];
   projects:    ProjectRef[];
   techniciens: UserRef[];
+  contrats?:   ContratRef[];
   editing?:    SAVTicketFull | null;
 }
 
-function TicketForm({ open, onClose, clients, projects, techniciens, editing }: FormProps) {
+function TicketForm({ open, onClose, clients, projects, techniciens, contrats, editing }: FormProps) {
   const [clientId,   setClientId]   = useState(editing?.client_id   ?? '');
   const [projectId,  setProjectId]  = useState(editing?.project_id  ?? '');
+  const [contratId,  setContratId]  = useState(editing?.contrat_id  ?? '');
   const [titre,      setTitre]      = useState(editing?.titre        ?? '');
   const [desc,       setDesc]       = useState(editing?.description  ?? '');
   const [priorite,   setPriorite]   = useState<SAVInput['priorite']>(editing?.priorite ?? 'normale');
@@ -92,6 +96,18 @@ function TicketForm({ open, onClose, clients, projects, techniciens, editing }: 
   const [assigneA,   setAssigneA]   = useState(editing?.assigne_a    ?? '');
   const [error,      setError]      = useState('');
   const [isPending,  startTransition] = useTransition();
+
+  // Contrats actifs pour le client sélectionné
+  const clientContrats = (contrats ?? []).filter((c) => c.client_id === clientId && c.actif);
+
+  // Auto-sélectionner si un seul contrat actif pour ce client
+  const prevClientId = useState(clientId)[0];
+  function handleClientChange(id: string) {
+    setClientId(id);
+    const active = (contrats ?? []).filter((c) => c.client_id === id && c.actif);
+    if (active.length === 1) setContratId(active[0].id);
+    else if (id !== prevClientId) setContratId('');
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -106,7 +122,7 @@ function TicketForm({ open, onClose, clients, projects, techniciens, editing }: 
       description:  desc.trim(),
       priorite,
       statut,
-      contrat_id:   null,
+      contrat_id:   contratId || null,
       assigne_a:    assigneA || null,
       date_resolution: null,
       project_id:   projectId || null,
@@ -136,11 +152,28 @@ function TicketForm({ open, onClose, clients, projects, techniciens, editing }: 
 
           <div className="space-y-1.5">
             <label className="block text-sm font-semibold text-slate-700">Client <span className="text-red-500">*</span></label>
-            <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={inputCls}>
+            <select value={clientId} onChange={(e) => handleClientChange(e.target.value)} className={inputCls}>
               <option value="">— Sélectionner un client —</option>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
             </select>
           </div>
+
+          {contrats && clientId && (
+            <div className="space-y-1.5">
+              <label className="block text-sm font-semibold text-slate-700">Contrat lié (optionnel)</label>
+              <select value={contratId} onChange={(e) => setContratId(e.target.value)} className={inputCls}>
+                <option value="">— Aucun contrat —</option>
+                {clientContrats.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.numero ? `${c.numero} · ` : ''}{c.nom ?? c.type}
+                  </option>
+                ))}
+                {clientContrats.length === 0 && (
+                  <option value="" disabled>Aucun contrat actif pour ce client</option>
+                )}
+              </select>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="block text-sm font-semibold text-slate-700">Projet lié (optionnel)</label>
@@ -408,7 +441,7 @@ function TicketDetail({ ticket, techniciens, open, onClose, onEdit }: DetailProp
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export function SAVTab({ tickets, clients, projects, techniciens }: Props) {
+export function SAVTab({ tickets, clients, projects, techniciens, contrats }: Props) {
   const [filter,         setFilter]         = useState<FilterKey>('tous');
   const [formOpen,       setFormOpen]       = useState(false);
   const [formKey,        setFormKey]        = useState(0);   // force reset du formulaire
@@ -580,6 +613,7 @@ export function SAVTab({ tickets, clients, projects, techniciens }: Props) {
         clients={clients}
         projects={projects}
         techniciens={techniciens}
+        contrats={contrats}
         editing={editingTicket}
       />
 

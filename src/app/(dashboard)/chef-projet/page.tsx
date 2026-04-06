@@ -75,6 +75,7 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     clientsRes,
     techniciensRes,
     savRes,
+    contratsRes,
   ] = await Promise.all([
     getDashboardChefProjet(),
     tenantId ? getProjects(tenantId) : Promise.resolve([]),
@@ -97,6 +98,15 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
           .select('*, clients(nom)')
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
+    // Contrats pour le sélecteur du formulaire SAV
+    tenantId
+      ? admin
+          .from('contrats')
+          .select('id, type, nom, numero, client_id, actif')
+          .eq('tenant_id', tenantId)
+          .eq('actif', true)
+          .order('nom')
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -209,6 +219,17 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
 
   const projectsForSAV = allProjects.map((p) => ({ id: p.id, name: p.name }));
   const technicienRefs = techniciens.map((t) => ({ id: t.id, name: t.name }));
+  const contratsForSAV = (contratsRes.data ?? []).map((c: unknown) => {
+    const row = c as Record<string, unknown>;
+    return {
+      id:        row.id as string,
+      type:      row.type as string,
+      nom:       (row.nom as string | null) ?? null,
+      numero:    (row.numero as string | null) ?? null,
+      client_id: row.client_id as string,
+      actif:     (row.actif as boolean) ?? true,
+    };
+  });
 
   // Open tickets count for nav badge
   const openTicketCount = savTickets.filter((t) => t.statut === 'ouvert' || t.statut === 'en_cours').length;
@@ -263,6 +284,7 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
               clients={clientsSimple}
               projects={projectsForSAV}
               techniciens={technicienRefs}
+              contrats={contratsForSAV}
             />
           )}
 
