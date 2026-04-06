@@ -806,3 +806,122 @@ export async function saveProjectDetail(
   revalidatePath(PATH);
   return {};
 }
+
+// ── getProjectInterventions ────────────────────────────────────────────────────
+
+export interface ProjectInterventionRow {
+  id:                string;
+  title:             string;
+  date_start:        string;
+  status:            string;
+  tech_name:         string | null;
+  hours_planned:     number | null;
+  type_intervention: string | null;
+}
+
+export async function getProjectInterventions(projectId: string): Promise<ProjectInterventionRow[]> {
+  const { admin, tenant_id } = await getAuthContext();
+  const { data } = await admin
+    .from('interventions')
+    .select('id, title, date_start, status, tech_name, hours_planned, type_intervention')
+    .eq('project_id', projectId)
+    .eq('tenant_id', tenant_id)
+    .order('date_start', { ascending: false });
+  return (data ?? []).map((i) => ({
+    id:                i.id as string,
+    title:             (i.title as string) ?? 'Intervention',
+    date_start:        i.date_start as string,
+    status:            (i.status as string) ?? 'planifiee',
+    tech_name:         (i.tech_name as string | null) ?? null,
+    hours_planned:     (i.hours_planned as number | null) ?? null,
+    type_intervention: (i.type_intervention as string | null) ?? null,
+  }));
+}
+
+// ── getProjectQuoteLines ───────────────────────────────────────────────────────
+
+export interface QuoteLigneForProject {
+  id:            string;
+  designation:   string;
+  quantite:      number;
+  prix_unitaire: number;
+  total_ht:      number;
+  reference:     string | null;
+  type:          string;
+}
+
+export async function getProjectQuoteLines(quoteId: string): Promise<QuoteLigneForProject[]> {
+  const { admin } = await getAuthContext();
+  const { data } = await admin
+    .from('quotes')
+    .select('lignes')
+    .eq('id', quoteId)
+    .single();
+  if (!data?.lignes) return [];
+  const lignes = data.lignes as Array<{
+    id?: string; designation?: string; quantite?: number;
+    prix_unitaire?: number; reference?: string; type?: string;
+  }>;
+  return lignes
+    .filter((l) => l.type === 'materiel' || !l.type)
+    .map((l) => ({
+      id:            l.id ?? crypto.randomUUID(),
+      designation:   l.designation ?? '',
+      quantite:      l.quantite    ?? 1,
+      prix_unitaire: l.prix_unitaire ?? 0,
+      total_ht:      (l.quantite ?? 1) * (l.prix_unitaire ?? 0),
+      reference:     l.reference ?? null,
+      type:          l.type ?? 'materiel',
+    }));
+}
+
+// ── getProjectDocumentsData ────────────────────────────────────────────────────
+
+export interface ProjectDocumentsData {
+  quote:    { id: string; number: string; date: string; statut: string; montant_ttc: number } | null;
+  invoices: { id: string; number: string; date_facture: string; status: string; total_ttc: number }[];
+  contrats: { id: string; type: string; montant_mensuel: number | null; actif: boolean; date_debut: string; date_fin: string | null }[];
+}
+
+export async function getProjectDocumentsData(
+  projectId: string,
+  quoteId:   string | null,
+  clientId:  string | null,
+): Promise<ProjectDocumentsData> {
+  const { admin, tenant_id } = await getAuthContext();
+  const [quoteRes, invoicesRes, contratsRes] = await Promise.all([
+    quoteId
+      ? admin.from('quotes').select('id, number, date, statut, montant_ttc').eq('id', quoteId).single()
+      : Promise.resolve({ data: null, error: null }),
+    quoteId
+      ? admin.from('invoices').select('id, number, date_facture, status, total_ttc').eq('quote_id', quoteId).eq('tenant_id', tenant_id).order('date_facture')
+      : Promise.resolve({ data: [], error: null }),
+    clientId
+      ? admin.from('contrats').select('id, type, montant_mensuel, actif, date_debut, date_fin').eq('client_id', clientId).eq('tenant_id', tenant_id).order('date_debut', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  return {
+    quote: quoteRes.data ? {
+      id:          (quoteRes.data as Record<string, unknown>).id as string,
+      number:      (quoteRes.data as Record<string, unknown>).number as string,
+      date:        (quoteRes.data as Record<string, unknown>).date as string,
+      statut:      (quoteRes.data as Record<string, unknown>).statut as string,
+      montant_ttc: ((quoteRes.data as Record<string, unknown>).montant_ttc as number) ?? 0,
+    } : null,
+    invoices: (invoicesRes.data ?? []).map((i) => ({
+      id:           (i as Record<string, unknown>).id as string,
+      number:       (i as Record<string, unknown>).number as string,
+      date_facture: (i as Record<string, unknown>).date_facture as string,
+      status:       (i as Record<string, unknown>).status as string,
+      total_ttc:    ((i as Record<string, unknown>).total_ttc as number) ?? 0,
+    })),
+    contrats: (contratsRes.data ?? []).map((c) => ({
+      id:              (c as Record<string, unknown>).id as string,
+      type:            (c as Record<string, unknown>).type as string,
+      montant_mensuel: (c as Record<string, unknown>).montant_mensuel as number | null,
+      actif:           (c as Record<string, unknown>).actif as boolean,
+      date_debut:      (c as Record<string, unknown>).date_debut as string,
+      date_fin:        (c as Record<string, unknown>).date_fin as string | null,
+    })),
+  };
+}
