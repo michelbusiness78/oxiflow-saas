@@ -119,12 +119,11 @@ export async function factureContratAction(contratId: string): Promise<{ number?
     .eq('id', c.client_id as string)
     .single();
 
-  // Calcul total_ht selon fréquence
+  // montant_mensuel stocke le montant PAR PÉRIODE (pas forcément mensuel).
+  // Le formulaire affiche "Montant par trimestre/an/mois" — on facture ce montant tel quel.
   const montantMensuel = c.montant_mensuel as number;
-  const frequence = (c.frequence as string) ?? 'mensuel';
-  const totalHT = frequence === 'trimestriel' ? +(montantMensuel * 3).toFixed(2)
-                : frequence === 'annuel'       ? +(montantMensuel * 12).toFixed(2)
-                                               : +montantMensuel.toFixed(2);
+  const frequence = (c.frequence as string) || 'mensuel';
+  const totalHT = +montantMensuel.toFixed(2);
   const totalTVA = +(totalHT * 0.20).toFixed(2);
   const totalTTC = +(totalHT + totalTVA).toFixed(2);
 
