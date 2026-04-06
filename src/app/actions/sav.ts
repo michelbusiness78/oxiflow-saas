@@ -69,6 +69,7 @@ export async function createSAVAction(input: SAVInput) {
         tech_user_id:      input.assigne_a,
         client_id:         input.client_id,
         client_name:       clientName,
+        under_contract:    input.contrat_id ? true : false,
       }).select('id').single();
 
       if (iv) {
@@ -101,12 +102,20 @@ export async function updateSAVAction(id: string, input: SAVInput) {
   if (input.resolution_notes !== undefined) payload.resolution_notes = input.resolution_notes ?? null;
 
   // ── Notification technicien si assigne_a a changé ────────────────────────────
-  if (input.assigne_a) {
-    try {
-      const { data: existing } = await admin
-        .from('sav_tickets').select('assigne_a').eq('id', id).single();
+  try {
+    const { data: existing } = await admin
+      .from('sav_tickets')
+      .select('assigne_a, contrat_id, intervention_id')
+      .eq('id', id)
+      .single();
 
-      if (existing && (existing.assigne_a as string | null) !== input.assigne_a) {
+    if (existing) {
+      const prevAssigne  = (existing.assigne_a    as string | null) ?? null;
+      const prevContrat  = (existing.contrat_id   as string | null) ?? null;
+      const interventionId = (existing.intervention_id as string | null) ?? null;
+
+      if (input.assigne_a && prevAssigne !== input.assigne_a) {
+        // Nouveau technicien → créer une intervention SAV
         const { data: clientData } = await admin
           .from('clients').select('nom').eq('id', input.client_id).single();
         const clientName = (clientData?.nom as string) ?? '';
@@ -122,12 +131,19 @@ export async function updateSAVAction(id: string, input: SAVInput) {
           tech_user_id:      input.assigne_a,
           client_id:         input.client_id,
           client_name:       clientName,
+          under_contract:    input.contrat_id ? true : false,
         }).select('id').single();
 
         if (iv) payload.intervention_id = iv.id;
+      } else if (interventionId && prevContrat !== input.contrat_id) {
+        // Contrat_id modifié → mettre à jour under_contract sur l'intervention liée
+        await admin
+          .from('interventions')
+          .update({ under_contract: input.contrat_id ? true : false })
+          .eq('id', interventionId);
       }
-    } catch { /* ignore */ }
-  }
+    }
+  } catch { /* ignore */ }
 
   const { error } = await admin.from('sav_tickets').update(payload).eq('id', id);
   if (error) {

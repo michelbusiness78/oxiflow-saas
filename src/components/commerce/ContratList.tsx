@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ContratForm, type Contrat } from './ContratForm';
 import { fmtEur, fmtDate } from '@/lib/format';
-import { deleteContratAction } from '@/app/actions/contrats';
+import { deleteContratAction, factureContratAction } from '@/app/actions/contrats';
 import type { ContratStatut } from '@/app/actions/contrats';
+import type { Invoice } from '@/app/actions/invoices';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ interface ContratListProps {
   clients:   Client[];
   companies: Company[];
   projects:  Project[];
+  invoices?: Invoice[];
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -57,16 +59,55 @@ function expiresInDays(c: ContratWithClient): number | null {
   return d;
 }
 
+function periodeDays(frequence: string | null): number {
+  if (frequence === 'trimestriel') return 90;
+  if (frequence === 'annuel')      return 365;
+  return 30;
+}
+
+const INV_STATUS_META: Record<string, { label: string; bg: string; text: string }> = {
+  emise:     { label: 'Émise',     bg: 'bg-blue-100',   text: 'text-blue-700'   },
+  payee:     { label: 'Payée',     bg: 'bg-green-100',  text: 'text-green-700'  },
+  en_retard: { label: 'En retard', bg: 'bg-red-100',    text: 'text-red-700'    },
+  brouillon: { label: 'Brouillon', bg: 'bg-slate-100',  text: 'text-slate-500'  },
+};
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ContratList({ contrats, clients, companies, projects }: ContratListProps) {
-  const [filter,    setFilter]   = useState<Filter>('tous');
-  const [formOpen,  setFormOpen]  = useState(false);
-  const [editing,   setEditing]   = useState<Contrat | null>(null);
-  const [deleteId,  setDeleteId]  = useState<string | null>(null);
-  const [deleting,  setDeleting]  = useState(false);
-  const [error,     setError]     = useState('');
-  const [search,    setSearch]    = useState('');
+export function ContratList({ contrats, clients, companies, projects, invoices = [] }: ContratListProps) {
+  const [filter,       setFilter]       = useState<Filter>('tous');
+  const [formOpen,     setFormOpen]     = useState(false);
+  const [editing,      setEditing]      = useState<Contrat | null>(null);
+  const [deleteId,     setDeleteId]     = useState<string | null>(null);
+  const [deleting,     setDeleting]     = useState(false);
+  const [error,        setError]        = useState('');
+  const [search,       setSearch]       = useState('');
+  const [facturantId,  setFacturantId]  = useState<string | null>(null);
+  const [factureToast, setFactureToast] = useState('');
+  const [isPending,    startTransition] = useTransition();
+
+  // Index last contrat invoice per client_id
+  const lastInvByClient = new Map<string, Invoice>();
+  for (const inv of invoices) {
+    if (inv.type !== 'contrat') continue;
+    const existing = lastInvByClient.get(inv.client_id);
+    if (!existing || inv.date_facture > existing.date_facture) {
+      lastInvByClient.set(inv.client_id, inv);
+    }
+  }
+
+  async function handleFacturer(contratId: string) {
+    setFacturantId(contratId);
+    startTransition(async () => {
+      const res = await factureContratAction(contratId);
+      setFacturantId(null);
+      if ('error' in res && res.error) { setError(res.error); return; }
+      if (res.number) {
+        setFactureToast(`Facture ${res.number} créée`);
+        setTimeout(() => setFactureToast(''), 4000);
+      }
+    });
+  }
 
   const companyMap = new Map(companies.map((c) => [c.id, c.name]));
 
@@ -166,6 +207,12 @@ export function ContratList({ contrats, clients, companies, projects }: ContratL
 
       {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
 
+      {factureToast && (
+        <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 font-semibold">
+          ✓ {factureToast}
+        </div>
+      )}
+
       {/* Liste */}
       {visible.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-slate-200 py-14 text-center">
@@ -183,6 +230,13 @@ export function ContratList({ contrats, clients, companies, projects }: ContratL
             const daysLeft   = expiresInDays(c);
             const company    = c.company_id ? companyMap.get(c.company_id) : null;
             const mrr        = c.montant_mensuel;
+
+            const lastInv    = lastInvByClient.get(c.client_id);
+            const periodDays = periodeDays(c.frequence ?? null);
+            const needsBilling = c._statut === 'actif' && mrr && (
+              !lastInv || (Date.now() - new Date(lastInv.date_facture).getTime()) > periodDays * 86_400_000
+            );
+            const isFacturing = facturantId === c.id && isPending;
 
             return (
               <div key={c.id} className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
@@ -203,6 +257,9 @@ export function ContratList({ contrats, clients, companies, projects }: ContratL
                         {statutMeta.label}
                       </span>
                       <Badge variant={TYPE_VARIANT[c.type] ?? 'default'}>{TYPE_LABELS[c.type]}</Badge>
+                      {needsBilling && (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">À facturer</span>
+                      )}
                     </div>
 
                     {/* Ligne 2 : client + société */}
@@ -227,10 +284,34 @@ export function ContratList({ contrats, clients, companies, projects }: ContratL
                         <span>{c.materiel_couvert.length} équip.</span>
                       )}
                     </div>
+
+                    {/* Ligne 4 : dernière facture */}
+                    {lastInv ? (
+                      <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-400">
+                        <span>Dernière facture : {lastInv.number} · {fmtDate(lastInv.date_facture)}</span>
+                        {(() => {
+                          const m = INV_STATUS_META[lastInv.status] ?? INV_STATUS_META.emise;
+                          return <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${m.bg} ${m.text}`}>{m.label}</span>;
+                        })()}
+                      </div>
+                    ) : c._statut === 'actif' && mrr ? (
+                      <p className="mt-1.5 text-xs text-slate-400 italic">Jamais facturé</p>
+                    ) : null}
                   </div>
 
                   {/* Actions */}
                   <div className="flex shrink-0 items-center gap-1">
+                    {/* Bouton Facturer (contrats actifs avec montant) */}
+                    {c._statut === 'actif' && mrr && (
+                      <button
+                        onClick={() => { setError(''); handleFacturer(c.id); }}
+                        disabled={isFacturing || isPending}
+                        className="rounded-md px-2 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                        title="Facturer la période"
+                      >
+                        {isFacturing ? '…' : 'Facturer'}
+                      </button>
+                    )}
                     <button
                       onClick={() => { setEditing(c); setFormOpen(true); }}
                       className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors"

@@ -258,7 +258,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
           />
         )}
 
-        {tab === 'contrats'  && <ContratList contrats={contrats} clients={clients} companies={companies} projects={projectsForContrat} />}
+        {tab === 'contrats'  && <ContratList contrats={contrats} clients={clients} companies={companies} projects={projectsForContrat} invoices={invoices} />}
 
         {tab === 'catalogue' && <CatalogueList catalogue={catalogue} />}
       </div>

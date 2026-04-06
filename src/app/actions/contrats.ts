@@ -94,3 +94,118 @@ export async function toggleContratActifAction(id: string, actif: boolean) {
   revalidatePath(PATH);
   return { success: true };
 }
+
+// ─── factureContratAction ──────────────────────────────────────────────────────
+
+export async function factureContratAction(contratId: string): Promise<{ number?: string; error?: string }> {
+  const { admin, tenant_id } = await getAuthContext();
+
+  // Fetch contrat
+  const { data: contrat, error: cErr } = await admin
+    .from('contrats')
+    .select('id, type, nom, numero, montant_mensuel, frequence, client_id, company_id, date_debut, date_fin, statut')
+    .eq('id', contratId)
+    .single();
+
+  if (cErr || !contrat) return { error: 'Contrat introuvable.' };
+  const c = contrat as Record<string, unknown>;
+  if ((c.statut as string) !== 'actif') return { error: 'Le contrat doit être actif pour facturer.' };
+  if (!c.montant_mensuel) return { error: 'Le contrat n\'a pas de montant défini.' };
+
+  // Fetch client conditions_paiement for echeance
+  const { data: clientRow } = await admin
+    .from('clients')
+    .select('conditions_paiement')
+    .eq('id', c.client_id as string)
+    .single();
+
+  // Calcul total_ht selon fréquence
+  const montantMensuel = c.montant_mensuel as number;
+  const frequence = (c.frequence as string) ?? 'mensuel';
+  const totalHT = frequence === 'trimestriel' ? +(montantMensuel * 3).toFixed(2)
+                : frequence === 'annuel'       ? +(montantMensuel * 12).toFixed(2)
+                                               : +montantMensuel.toFixed(2);
+  const totalTVA = +(totalHT * 0.20).toFixed(2);
+  const totalTTC = +(totalHT + totalTVA).toFixed(2);
+
+  // Calcul date_echeance depuis conditions_paiement
+  const conditions = (clientRow?.conditions_paiement as string | null) ?? null;
+  let days = 30;
+  if (conditions) {
+    const m = conditions.match(/(\d+)/);
+    if (m) days = parseInt(m[1], 10);
+    if (/imm[eé]diat/i.test(conditions)) days = 0;
+  }
+  const today    = new Date().toISOString().split('T')[0];
+  const echeance = new Date(Date.now() + days * 86_400_000).toISOString().split('T')[0];
+
+  // Numéro de facture séquentiel FAC-YYYY-NNN
+  const year   = new Date().getFullYear();
+  const prefix = `FAC-${year}-`;
+  const { data: lastInv } = await admin
+    .from('invoices')
+    .select('number')
+    .eq('tenant_id', tenant_id)
+    .like('number', `${prefix}%`)
+    .order('number', { ascending: false })
+    .limit(1);
+  let seq = 0;
+  if (lastInv && lastInv.length > 0) {
+    const parts = ((lastInv[0].number as string) ?? '').split('-');
+    seq = parseInt(parts[parts.length - 1], 10) || 0;
+  }
+  const number = `${prefix}${String(seq + 1).padStart(3, '0')}`;
+
+  // Libellé période
+  const periodeLabel = frequence === 'trimestriel' ? 'Trimestre en cours'
+                     : frequence === 'annuel'       ? 'Année en cours'
+                                                    : 'Mois en cours';
+  const notes = [
+    'Facture contrat',
+    c.numero ? (c.numero as string) : null,
+    c.nom ? (c.nom as string) : (c.type as string),
+    `Période : ${periodeLabel}`,
+  ].filter(Boolean).join(' - ');
+
+  // INSERT invoices
+  const { data: inv, error: invErr } = await admin
+    .from('invoices')
+    .insert({
+      tenant_id,
+      number,
+      type:          'contrat',
+      client_id:     c.client_id,
+      company_id:    (c.company_id as string | null) ?? null,
+      date_facture:  today,
+      date_echeance: echeance,
+      status:        'emise',
+      notes,
+      total_ht:      totalHT,
+      total_tva:     totalTVA,
+      total_ttc:     totalTTC,
+    })
+    .select('id')
+    .single();
+
+  if (invErr || !inv) return { error: translateSupabaseError(invErr?.message ?? 'Erreur création facture') };
+
+  // INSERT invoice_lines
+  const TYPE_FR: Record<string, string> = { maintenance: 'Maintenance', support: 'Support', location: 'Location' };
+  const typeFr = TYPE_FR[(c.type as string)] ?? (c.type as string);
+  const designation = `Contrat ${typeFr}${c.nom ? ` - ${c.nom as string}` : ''} - ${periodeLabel}`;
+
+  await admin.from('invoice_lines').insert({
+    invoice_id:       (inv as { id: string }).id,
+    sort_order:       0,
+    reference:        (c.numero as string | null) ?? '',
+    type:             'service',
+    designation,
+    quantity:         1,
+    unit_price:       totalHT,
+    discount_percent: 0,
+    vat_rate:         20,
+  });
+
+  revalidatePath(PATH);
+  return { number };
+}
