@@ -23,6 +23,12 @@ export interface InvoiceLine {
   total_ht:         number;  // computed client-side
 }
 
+export interface RelanceEntry {
+  date:     string;
+  email:    string;
+  sent_by:  string;
+}
+
 export interface Invoice {
   id:            string;
   number:        string;
@@ -41,6 +47,9 @@ export interface Invoice {
   total_ttc:     number;
   created_at:    string;
   client_nom?:   string;
+  relance_n1:    RelanceEntry | null;
+  relance_n2:    RelanceEntry | null;
+  relance_n3:    RelanceEntry | null;
 }
 
 export type InvoiceInput = {
@@ -337,6 +346,7 @@ export async function getInvoices(tenantId: string): Promise<Invoice[]> {
       id, number, type, quote_id, quote_number, client_id, company_id,
       date_facture, date_echeance, status, conditions, notes,
       total_ht, total_tva, total_ttc, created_at,
+      relance_n1, relance_n2, relance_n3,
       clients(nom)
     `)
     .eq('tenant_id', tenantId)
@@ -365,6 +375,9 @@ export async function getInvoices(tenantId: string): Promise<Invoice[]> {
       total_ttc:     inv.total_ttc     as number,
       created_at:    inv.created_at    as string,
       client_nom:    (inv.clients as unknown as { nom: string } | null)?.nom ?? '—',
+      relance_n1:    (inv.relance_n1 as RelanceEntry | null) ?? null,
+      relance_n2:    (inv.relance_n2 as RelanceEntry | null) ?? null,
+      relance_n3:    (inv.relance_n3 as RelanceEntry | null) ?? null,
     };
   });
 }

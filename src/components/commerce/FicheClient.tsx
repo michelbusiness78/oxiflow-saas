@@ -4,20 +4,32 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { fmtEur, fmtDate } from '@/lib/format';
 
+import type { RelanceEntry } from '@/app/actions/invoices';
+
 interface Client  { id: string; nom: string; email: string; tel: string; adresse: string; cp: string; ville: string; }
 interface Dossier { id: string; nom: string; statut: string; pct_avancement: number; montant_ht: number | null; date_fin_prevue: string | null; }
 interface Devis   { id: string; num: string; statut: string; montant_ttc: number; date: string; }
 interface Facture { id: string; num: string; statut: string; montant_ttc: number; date: string; echeance: string; }
 interface Contrat { id: string; type: string; montant_mensuel: number | null; actif: boolean; date_debut: string; date_fin: string | null; }
 interface SAV     { id: string; titre: string | null; priorite: string; statut: string; date_ouverture: string; }
+interface RelanceHistorique {
+  invoice_id:    string;
+  number:        string;
+  montant_ttc:   number;
+  date_echeance: string;
+  relance_n1:    RelanceEntry | null;
+  relance_n2:    RelanceEntry | null;
+  relance_n3:    RelanceEntry | null;
+}
 
 interface FicheClientProps {
-  clients:  Client[];
-  dossiers: (Dossier & { client_id: string })[];
-  devis:    (Devis   & { client_id: string })[];
-  factures: (Facture & { client_id: string })[];
-  contrats: (Contrat & { client_id: string })[];
-  savs:     (SAV     & { client_id: string })[];
+  clients:   Client[];
+  dossiers:  (Dossier & { client_id: string })[];
+  devis:     (Devis   & { client_id: string })[];
+  factures:  (Facture & { client_id: string })[];
+  contrats:  (Contrat & { client_id: string })[];
+  savs:      (SAV     & { client_id: string })[];
+  relances?: (RelanceHistorique & { client_id: string })[];
 }
 
 // ─── Section Card ─────────────────────────────────────────────────────────────
@@ -56,15 +68,17 @@ function Section({ title, count, children }: { title: string; count: number; chi
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function FicheClient({ clients, dossiers, devis, factures, contrats, savs }: FicheClientProps) {
+export function FicheClient({ clients, dossiers, devis, factures, contrats, savs, relances = [] }: FicheClientProps) {
   const [selectedId, setSelectedId] = useState<string>('');
 
-  const client   = clients.find((c) => c.id === selectedId);
-  const cDossiers = dossiers.filter((d) => d.client_id === selectedId);
-  const cDevis    = devis.filter((d)    => d.client_id === selectedId);
-  const cFactures = factures.filter((f) => f.client_id === selectedId);
-  const cContrats = contrats.filter((c) => c.client_id === selectedId);
-  const cSAVs     = savs.filter((s)    => s.client_id === selectedId);
+  const client    = clients.find((c) => c.id === selectedId);
+  const cDossiers = dossiers.filter((d)  => d.client_id === selectedId);
+  const cDevis    = devis.filter((d)     => d.client_id === selectedId);
+  const cFactures = factures.filter((f)  => f.client_id === selectedId);
+  const cContrats = contrats.filter((c)  => c.client_id === selectedId);
+  const cSAVs     = savs.filter((s)     => s.client_id === selectedId);
+  const cRelances = relances.filter((r)  => r.client_id === selectedId);
+  const hasN3     = cRelances.some((r)   => r.relance_n3 !== null);
 
   function dossierVariant(s: string): 'muted' | 'info' | 'success' | 'danger' {
     const map: Record<string, 'muted' | 'info' | 'success' | 'danger'> = {
@@ -140,13 +154,14 @@ export function FicheClient({ clients, dossiers, devis, factures, contrats, savs
             </div>
 
             {/* Synthèse chiffres */}
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="mt-4 grid grid-cols-3 sm:grid-cols-6 gap-3">
               {[
                 { label: 'Dossiers', value: String(cDossiers.length), color: 'text-blue-600' },
                 { label: 'Devis',    value: String(cDevis.length),    color: 'text-slate-800'    },
                 { label: 'Factures', value: String(cFactures.length), color: 'text-slate-800'    },
                 { label: 'Contrats', value: String(cContrats.length), color: 'text-oxi-success' },
                 { label: 'Tickets',  value: String(cSAVs.length),     color: cSAVs.some((s) => s.statut === 'ouvert') ? 'text-oxi-danger' : 'text-slate-800' },
+                { label: 'Relances', value: String(cRelances.length), color: cRelances.length > 0 ? 'text-amber-600' : 'text-slate-800' },
               ].map((m) => (
                 <div key={m.label} className="rounded-lg bg-white p-2 text-center">
                   <p className={`text-xl font-bold ${m.color}`}>{m.value}</p>
@@ -223,6 +238,54 @@ export function FicheClient({ clients, dossiers, devis, factures, contrats, savs
               ))}
             </div>
           </Section>
+
+          {/* Relances */}
+          {cRelances.length > 0 && (
+            <>
+              {hasN3 && (
+                <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                  <span className="text-lg">🔴</span>
+                  <p className="text-sm font-semibold text-red-800">
+                    Ce client a des factures en 3e niveau de relance — situation critique.
+                  </p>
+                </div>
+              )}
+              <Section title="Historique relances" count={cRelances.length}>
+                <div className="space-y-3">
+                  {cRelances.map((r) => (
+                    <div key={r.invoice_id} className="rounded-lg border border-slate-200 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-sm font-semibold text-slate-700">{r.number}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm text-slate-800">{fmtEur(r.montant_ttc)}</span>
+                          <span className="text-xs text-slate-400">éch. {fmtDate(r.date_echeance)}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        {([1, 2, 3] as const).map((n) => {
+                          const entry = n === 1 ? r.relance_n1 : n === 2 ? r.relance_n2 : r.relance_n3;
+                          if (!entry) return null;
+                          const cls = n === 1
+                            ? 'bg-amber-50 border-amber-200 text-amber-800'
+                            : n === 2
+                            ? 'bg-orange-50 border-orange-200 text-orange-800'
+                            : 'bg-red-50 border-red-200 text-red-800';
+                          return (
+                            <div key={n} className={`flex items-center gap-3 rounded-lg border px-3 py-1.5 text-xs ${cls}`}>
+                              <span className="font-bold">N{n}</span>
+                              <span>{fmtDate(entry.date)}</span>
+                              <span className="flex-1 truncate text-slate-500">→ {entry.email}</span>
+                              <span className="text-slate-400">{entry.sent_by}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            </>
+          )}
 
           {/* Contrats */}
           <Section title="Contrats" count={cContrats.length}>

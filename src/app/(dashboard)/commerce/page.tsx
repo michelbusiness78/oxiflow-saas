@@ -233,6 +233,18 @@ export default async function CommercePage({ searchParams }: PageProps) {
               date_fin:        c.date_fin,
             }))}
             savs={savs}
+            relances={invoices
+              .filter((f) => f.relance_n1 || f.relance_n2 || f.relance_n3)
+              .map((f) => ({
+                client_id:     f.client_id,
+                invoice_id:    f.id,
+                number:        f.number,
+                montant_ttc:   f.total_ttc,
+                date_echeance: f.date_echeance,
+                relance_n1:    f.relance_n1,
+                relance_n2:    f.relance_n2,
+                relance_n3:    f.relance_n3,
+              }))}
           />
         )}
 
@@ -255,6 +267,8 @@ export default async function CommercePage({ searchParams }: PageProps) {
             clients={clients}
             catalogue={catalogue}
             companies={companies}
+            nomSociete={companies[0]?.name ?? ''}
+            telSociete={companies[0]?.phone ?? ''}
           />
         )}
 

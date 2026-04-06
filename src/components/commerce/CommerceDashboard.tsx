@@ -1,5 +1,5 @@
 import { fmtEur, fmtDate } from '@/lib/format';
-import type { CommerceDashboardData, QuoteStatutDash } from '@/app/actions/commerce';
+import type { CommerceDashboardData, QuoteStatutDash, RelanceFactureDash } from '@/app/actions/commerce';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,7 +65,13 @@ interface Props {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export function CommerceDashboard({ data, userName }: Props) {
-  const { kpis, quotesRecentes, alertesRelance, users } = data;
+  const { kpis, quotesRecentes, alertesRelance, alertesRelanceFactures, users } = data;
+
+  const NIVEAU_META = {
+    1: { icon: '⏰', cls: 'bg-amber-100 text-amber-700'   },
+    2: { icon: '⚠',  cls: 'bg-orange-100 text-orange-700' },
+    3: { icon: '🔴', cls: 'bg-red-100 text-red-700'       },
+  } as const;
 
   const prenom = userName.split(' ')[0] || userName;
   const today  = new Intl.DateTimeFormat('fr-FR', {
@@ -141,11 +147,41 @@ export function CommerceDashboard({ data, userName }: Props) {
         </div>
       </div>
 
-      {/* ── Alertes relance ── */}
+      {/* ── Relances factures ── */}
+      {alertesRelanceFactures.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-red-800">
+            🔔 Relances factures à effectuer ({alertesRelanceFactures.length})
+          </p>
+          <div className="space-y-1.5">
+            {alertesRelanceFactures.map((f) => {
+              const meta = NIVEAU_META[f.niveauPending];
+              return (
+                <a
+                  key={f.id}
+                  href="/commerce?tab=factures&filter=retard"
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-white px-3 py-2 text-xs hover:bg-slate-50 transition-colors"
+                >
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${meta.cls}`}>
+                    {meta.icon} N{f.niveauPending}
+                  </span>
+                  <span className="font-mono text-[var(--text3)]">{f.number}</span>
+                  <span className="font-semibold text-[var(--text)]">{f.client_nom}</span>
+                  <span className="flex-1" />
+                  <span className="font-mono font-bold text-[var(--text)]">{fmtEur(f.montant_ttc)}</span>
+                  <span className={`rounded font-bold px-1.5 py-0.5 ${meta.cls}`}>J+{f.joursRetard}</span>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Alertes relance devis ── */}
       {alertesRelance.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="mb-2 text-sm font-semibold text-amber-800">
-            ⏰ Relances à effectuer ({alertesRelance.length})
+            ⏰ Devis sans réponse ({alertesRelance.length})
           </p>
           <div className="space-y-1.5">
             {alertesRelance.map((q) => {

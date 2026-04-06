@@ -77,6 +77,16 @@ export interface CommerceDashboardQuote {
   created_at:          string;
 }
 
+export interface RelanceFactureDash {
+  id:            string;
+  number:        string;
+  client_nom:    string;
+  montant_ttc:   number;
+  date_echeance: string;
+  joursRetard:   number;
+  niveauPending: 1 | 2 | 3;
+}
+
 export interface CommerceDashboardData {
   kpis: {
     caDevisTotal:     number;
@@ -89,9 +99,10 @@ export interface CommerceDashboardData {
     facturesEnRetard: number;
     devisEnAttente:   number;
   };
-  quotesRecentes: CommerceDashboardQuote[];
-  alertesRelance: CommerceDashboardQuote[];
-  users:          { id: string; name: string }[];
+  quotesRecentes:         CommerceDashboardQuote[];
+  alertesRelance:         CommerceDashboardQuote[];
+  alertesRelanceFactures: RelanceFactureDash[];
+  users:                  { id: string; name: string }[];
 }
 
 export async function getDashboardCommerce(tenantId: string): Promise<CommerceDashboardData> {
@@ -107,7 +118,7 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
       .order('created_at', { ascending: false }),
     admin
       .from('invoices')
-      .select('id, status, total_ttc, date_echeance')
+      .select('id, number, status, total_ttc, date_echeance, relance_n1, relance_n2, relance_n3, clients(nom)')
       .eq('tenant_id', tenantId),
     admin
       .from('users')
@@ -147,6 +158,32 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
     created_at:          q.created_at,
   });
 
+  // ── Relances factures ──
+  const now = Date.now();
+  const alertesRelanceFactures: RelanceFactureDash[] = [];
+  for (const inv of enRetard) {
+    const jours = Math.max(0, Math.floor((now - new Date(inv.date_echeance as string).getTime()) / 86_400_000));
+    if (jours < 5) continue;
+    const n1 = inv.relance_n1 ?? null;
+    const n2 = inv.relance_n2 ?? null;
+    const n3 = inv.relance_n3 ?? null;
+    let niveauPending: 1 | 2 | 3 | null = null;
+    if      (jours >= 30 && !n3) niveauPending = 3;
+    else if (jours >= 15 && !n2) niveauPending = 2;
+    else if (jours >= 5  && !n1) niveauPending = 1;
+    if (niveauPending === null) continue;
+    const clientNom = (inv.clients as unknown as { nom: string } | null)?.nom ?? '—';
+    alertesRelanceFactures.push({
+      id:            inv.id            as string,
+      number:        inv.number        as string,
+      client_nom:    clientNom,
+      montant_ttc:   inv.total_ttc     as number,
+      date_echeance: inv.date_echeance as string,
+      joursRetard:   jours,
+      niveauPending,
+    });
+  }
+
   return {
     kpis: {
       caDevisTotal:     accepted.reduce((s, q) => s + (q.montant_ttc ?? 0), 0),
@@ -159,8 +196,9 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
       facturesEnRetard: enRetard.length,
       devisEnAttente:   envoyes.length,
     },
-    quotesRecentes: quotes.slice(0, 10).map(toQuote),
-    alertesRelance: envoyes.filter((q) => q.created_at < sevenAgo).map(toQuote),
+    quotesRecentes:         quotes.slice(0, 10).map(toQuote),
+    alertesRelance:         envoyes.filter((q) => q.created_at < sevenAgo).map(toQuote),
+    alertesRelanceFactures: alertesRelanceFactures.sort((a, b) => b.joursRetard - a.joursRetard).slice(0, 10),
     users,
   };
 }
