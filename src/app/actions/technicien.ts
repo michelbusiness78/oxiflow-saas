@@ -145,7 +145,6 @@ export async function updateInterventionStatus(
 
   const patch: Record<string, unknown> = {
     status:     newStatus,
-    statut:     newStatus,
     updated_at: new Date().toISOString(),
   };
 
