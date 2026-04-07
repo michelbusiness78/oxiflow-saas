@@ -276,7 +276,7 @@ export async function getDashboardDirigeant(
 
   // ── Sociétés + objectifs ─────────────────────────────────────────────────────
   const [companiesRes, objectivesRes] = await Promise.allSettled([
-    admin.from('companies').select('id, nom, color').eq('tenant_id', tenantId).order('nom'),
+    admin.from('companies').select('id, name, color').eq('tenant_id', tenantId).order('name'),
     admin.from('company_objectives')
       .select('company_id, monthly_target, annual_target')
       .eq('tenant_id', tenantId)
@@ -330,7 +330,7 @@ export async function getDashboardDirigeant(
 
     return {
       id:         cid,
-      nom:        c.nom as string,
+      nom:        c.name as string,
       color:      (c.color as string | null) ?? PALETTE[i % PALETTE.length],
       caMois,
       avoirs,
