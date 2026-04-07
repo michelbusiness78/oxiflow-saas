@@ -252,10 +252,13 @@ export function MesTaches({ initialTasks, tenantId, userId, condensed = false }:
     const id = editing.id;
     setTasks((prev) => prev.map((t) => t.id === id ? {
       ...t,
-      name:     form.name.trim(),
-      note:     form.note?.trim() || null,
-      due:      form.due || null,
-      priority: form.priority,
+      name:            form.name.trim(),
+      note:            form.note?.trim() || null,
+      due:             form.due || null,
+      priority:        form.priority,
+      reminder_date:   form.reminder_date || null,
+      reminder_time:   form.reminder_time || null,
+      reminder_active: !!(form.reminder_date && form.reminder_time),
     } : t));
     startTransition(async () => {
       await updatePersonalTask(id, userId, {
