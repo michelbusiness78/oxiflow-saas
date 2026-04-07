@@ -29,11 +29,15 @@ export interface RelanceEntry {
   sent_by:  string;
 }
 
+export type EcheancierStatut = 'En attente' | 'Encaissé' | 'Retard';
+
 export interface EcheancierEntry {
-  date:    string;
-  montant: number;
-  libelle: string;
-  paye:    boolean;
+  date:     string;
+  montant:  number;
+  statut:   EcheancierStatut;
+  // Legacy fields kept for backward compat with stored JSON
+  libelle?: string;
+  paye?:    boolean;
 }
 
 export interface Invoice {
@@ -465,6 +469,23 @@ export async function setAvoirRefAction(
     .from('invoices')
     .update({ avoir_ref: avoirNumber, updated_at: new Date().toISOString() })
     .eq('id', sourceInvoiceId);
+  if (error) return { error: translateSupabaseError(error.message) };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+// ─── saveEcheancierAction ─────────────────────────────────────────────────────
+
+export async function saveEcheancierAction(
+  invoiceId: string,
+  echeancier: EcheancierEntry[],
+): Promise<{ success?: true; error?: string }> {
+  const { admin, tenant_id } = await getAuthContext();
+  const { error } = await admin
+    .from('invoices')
+    .update({ echeancier, updated_at: new Date().toISOString() })
+    .eq('id', invoiceId)
+    .eq('tenant_id', tenant_id);
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };

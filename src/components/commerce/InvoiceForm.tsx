@@ -10,12 +10,14 @@ import {
   changeInvoiceStatusAction,
   createAvoirAction,
   setAvoirRefAction,
+  saveEcheancierAction,
   getInvoiceLines,
   type Invoice,
   type InvoiceLine,
   type InvoiceStatus,
   type InvoiceInput,
   type EcheancierEntry,
+  type EcheancierStatut,
 } from '@/app/actions/invoices';
 import { fmtEur, fmtDate, todayISO, addDays } from '@/lib/format';
 import type { CatalogueItem } from '@/app/actions/catalogue';
@@ -151,17 +153,19 @@ function LigneRow({
           onChange={(e) => update({ unit_price: +e.target.value || 0 })}
           className={numCls} placeholder="0,00" />
       </td>
-      <td className={cellCls} style={{ width: '70px' }}>
+      <td className={cellCls} style={{ width: '72px', minWidth: '72px' }}>
         <select value={ligne.vat_rate} disabled={readonly}
           onChange={(e) => update({ vat_rate: +e.target.value })}
-          className={`${txtCls} pr-1`}>
+          className={`${txtCls} pr-1`}
+          style={{ minWidth: '66px' }}>
           {TVA_OPTIONS.map((t) => <option key={t} value={t}>{t} %</option>)}
         </select>
       </td>
-      <td className={cellCls} style={{ width: '65px' }}>
+      <td className={cellCls} style={{ width: '72px', minWidth: '72px' }}>
         <input type="number" value={ligne.discount_percent} min={0} max={100} step="any" disabled={readonly}
           onChange={(e) => update({ discount_percent: +e.target.value || 0 })}
-          className={numCls} placeholder="0" />
+          className={numCls} placeholder="0"
+          style={{ minWidth: '64px' }} />
       </td>
       <td className={cellCls} style={{ width: '90px' }}>
         <div className="py-1.5 px-2 text-right text-xs font-semibold text-slate-700">
@@ -216,8 +220,11 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
   const [avoirModal, setAvoirModal] = useState(false);
   const [avoirMode,  setAvoirMode]  = useState<'total' | 'partiel'>('total');
   const [avoirMt,    setAvoirMt]    = useState('');
-  const [avoirBusy,  setAvoirBusy]  = useState(false);
-  const [echeancier, setEcheancier] = useState<EcheancierEntry[]>([]);
+  const [avoirBusy,       setAvoirBusy]       = useState(false);
+  const [echeancier,      setEcheancier]      = useState<EcheancierEntry[]>([]);
+  const [echeancierModal, setEcheancierModal] = useState(false);
+  const [modalEch,        setModalEch]        = useState<EcheancierEntry[]>([]);
+  const [echBusy,         setEchBusy]         = useState(false);
 
   // localStatus prend le dessus sur la prop (qui ne change pas après action serveur)
   const status   = localStatus ?? ((editing?.status ?? 'brouillon') as InvoiceStatus);
@@ -385,6 +392,42 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
     onClose();
   }
 
+  // ── Écheancier modal ──
+  function openEcheancierModal() {
+    setModalEch(echeancier.length > 0 ? echeancier : []);
+    setEcheancierModal(true);
+  }
+
+  function addModalEntry() {
+    const restant = (editing?.total_ttc ?? 0) - modalEch.reduce((s, e) => s + e.montant, 0);
+    setModalEch((prev) => [...prev, {
+      date:   addDays(editing?.date_echeance ?? todayISO(), 0),
+      montant: Math.max(0, +restant.toFixed(2)),
+      statut: 'En attente',
+    }]);
+  }
+
+  function handleVentilation() {
+    const ttc = editing?.total_ttc ?? 0;
+    const acompte = +(ttc * 0.3).toFixed(2);
+    const solde   = +(ttc - acompte).toFixed(2);
+    setModalEch([
+      { date: todayISO(),                 montant: acompte, statut: 'En attente' },
+      { date: addDays(todayISO(), 30),    montant: solde,   statut: 'En attente' },
+    ]);
+  }
+
+  async function handleSaveEcheancier() {
+    if (!editing) return;
+    setEchBusy(true);
+    const res = await saveEcheancierAction(editing.id, modalEch);
+    setEchBusy(false);
+    if (res.error) { setError(res.error); return; }
+    setEcheancier(modalEch);
+    setEcheancierModal(false);
+    router.refresh();
+  }
+
   // ── Émettre l'avoir ──
   async function handleEmettre() {
     if (!editing) return;
@@ -427,6 +470,13 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
                 <button type="button" disabled={statusBusy} onClick={handleEmettre}
                   className="rounded-full border border-violet-300 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-50 transition-colors">
                   📤 Émettre l'avoir
+                </button>
+              )}
+
+              {!isAvoir && (status === 'emise' || status === 'en_retard') && (
+                <button type="button" onClick={openEcheancierModal}
+                  className="rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100 transition-colors">
+                  📅 Échéancier
                 </button>
               )}
 
@@ -679,50 +729,46 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
             </div>
           </div>
 
-          {/* ══ Échéancier ══ */}
-          {!isAvoir && (
+          {/* ══ Échéancier (brouillon uniquement — emise utilise le bouton modal) ══ */}
+          {!isAvoir && status === 'brouillon' && (
             <div className={sectionCls}>
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Échéancier de paiement
                 </h3>
-                {!readonly && (
-                  <button type="button"
-                    onClick={() => setEcheancier((prev) => [...prev, {
-                      date: addDays(dateFact, 30), montant: 0, libelle: '', paye: false,
-                    }])}
-                    className="flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    Ajouter une échéance
-                  </button>
-                )}
+                <button type="button"
+                  onClick={() => setEcheancier((prev) => [...prev, {
+                    date: addDays(dateFact, 30), montant: 0, statut: 'En attente' as EcheancierStatut,
+                  }])}
+                  className="flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Ajouter une échéance
+                </button>
               </div>
               {echeancier.length === 0 ? (
                 <p className="text-xs text-slate-400 italic">Aucun échéancier — paiement en une fois à l&apos;échéance.</p>
               ) : (
                 <div className="space-y-2">
-                  {echeancier.map((ech, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <input type="date" value={ech.date} disabled={readonly}
-                        onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, date: e.target.value } : x))}
-                        className={`${inputCls} flex-1 min-w-0`} />
-                      <input type="number" value={ech.montant} min={0} step="any" disabled={readonly}
-                        placeholder="Montant"
-                        onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, montant: +e.target.value || 0 } : x))}
-                        className={`${inputCls} w-28 text-right`} />
-                      <input type="text" value={ech.libelle} disabled={readonly}
-                        placeholder="Libellé"
-                        onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, libelle: e.target.value } : x))}
-                        className={`${inputCls} flex-1 min-w-0`} />
-                      <label className="flex items-center gap-1 text-xs text-slate-600 shrink-0 cursor-pointer">
-                        <input type="checkbox" checked={ech.paye} disabled={readonly}
-                          onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, paye: e.target.checked } : x))}
-                          className="rounded" />
-                        Payé
-                      </label>
-                      {!readonly && (
+                  {echeancier.map((ech, idx) => {
+                    const st: EcheancierStatut = ech.statut ?? (ech.paye ? 'Encaissé' : 'En attente');
+                    return (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input type="date" value={ech.date}
+                          onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, date: e.target.value } : x))}
+                          className={`${inputCls} flex-1 min-w-0`} />
+                        <input type="number" value={ech.montant} min={0} step="any"
+                          placeholder="Montant"
+                          onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, montant: +e.target.value || 0 } : x))}
+                          className={`${inputCls} w-28 text-right`} />
+                        <select value={st}
+                          onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, statut: e.target.value as EcheancierStatut, paye: e.target.value === 'Encaissé' } : x))}
+                          className={`${inputCls} w-32`}>
+                          <option>En attente</option>
+                          <option>Encaissé</option>
+                          <option>Retard</option>
+                        </select>
                         <button type="button"
                           onClick={() => setEcheancier((prev) => prev.filter((_, i) => i !== idx))}
                           className="rounded p-1 text-slate-300 hover:text-red-500 transition-colors shrink-0">
@@ -730,16 +776,13 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                           </svg>
                         </button>
-                      )}
-                    </div>
-                  ))}
-                  {/* Résumé */}
-                  {echeancier.length > 0 && (
-                    <div className="flex justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
-                      <span>Total planifié : {fmtEur(echeancier.reduce((s, e) => s + e.montant, 0))}</span>
-                      <span>Payé : {fmtEur(echeancier.filter((e) => e.paye).reduce((s, e) => s + e.montant, 0))}</span>
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })}
+                  <div className="flex justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+                    <span>Total planifié : {fmtEur(echeancier.reduce((s, e) => s + e.montant, 0))}</span>
+                    <span className="text-green-600">Encaissé : {fmtEur(echeancier.filter((e) => (e.statut ?? (e.paye ? 'Encaissé' : '')) === 'Encaissé').reduce((s, e) => s + e.montant, 0))}</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -801,6 +844,111 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
         </div>
       </form>
       {/* ── Modal avoir ── */}
+      {/* ── Modal Échéancier ── */}
+      {echeancierModal && editing && (() => {
+        const encaisse = modalEch.filter((e) => (e.statut ?? (e.paye ? 'Encaissé' : '')) === 'Encaissé').reduce((s, e) => s + e.montant, 0);
+        const restant  = +(editing.total_ttc - encaisse).toFixed(2);
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setEcheancierModal(false)} />
+            <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
+
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                <h3 className="text-base font-bold text-slate-800">📅 Échéancier de paiement</h3>
+                <button type="button" onClick={() => setEcheancierModal(false)}
+                  className="rounded-full p-1 text-slate-400 hover:text-slate-600 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* KPIs */}
+              <div className="grid grid-cols-3 gap-4 border-b border-slate-100 px-6 py-4">
+                <div className="text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Total TTC</p>
+                  <p className="mt-1 text-lg font-extrabold text-slate-800">{fmtEur(editing.total_ttc)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Encaissé</p>
+                  <p className="mt-1 text-lg font-extrabold text-green-600">{fmtEur(encaisse)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Restant</p>
+                  <p className={`mt-1 text-lg font-extrabold ${restant > 0 ? 'text-orange-500' : 'text-green-600'}`}>{fmtEur(restant)}</p>
+                </div>
+              </div>
+
+              {/* Entries */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+                {modalEch.length === 0 && (
+                  <p className="text-sm text-slate-400 italic py-2">Aucune échéance définie.</p>
+                )}
+                {modalEch.map((ech, idx) => {
+                  const st: EcheancierStatut = ech.statut ?? (ech.paye ? 'Encaissé' : 'En attente');
+                  return (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input type="date" value={ech.date}
+                        onChange={(e) => setModalEch((prev) => prev.map((x, i) => i === idx ? { ...x, date: e.target.value } : x))}
+                        className={`${inputCls} flex-1`} />
+                      <input type="number" value={ech.montant} min={0} step="0.01"
+                        onChange={(e) => setModalEch((prev) => prev.map((x, i) => i === idx ? { ...x, montant: +e.target.value || 0 } : x))}
+                        className={`${inputCls} w-28 text-right`} />
+                      <select value={st}
+                        onChange={(e) => setModalEch((prev) => prev.map((x, i) => i === idx ? { ...x, statut: e.target.value as EcheancierStatut } : x))}
+                        className={`${inputCls} w-32`}>
+                        <option>En attente</option>
+                        <option>Encaissé</option>
+                        <option>Retard</option>
+                      </select>
+                      <button type="button"
+                        onClick={() => setModalEch((prev) => prev.filter((_, i) => i !== idx))}
+                        className="shrink-0 rounded p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4" aria-hidden>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {/* Ventilation rapide */}
+                {restant > 0 && (
+                  <div className="pt-2 border-t border-slate-100">
+                    <button type="button" onClick={handleVentilation}
+                      className="w-full rounded-lg border border-dashed border-blue-300 bg-blue-50 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
+                      ⚡ Créer acompte 30 % + solde 70 %
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center gap-2 border-t border-slate-200 px-6 py-4">
+                <button type="button" onClick={addModalEntry}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Ajouter une échéance
+                </button>
+                <div className="ml-auto flex gap-2">
+                  <button type="button" onClick={() => setEcheancierModal(false)}
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    Annuler
+                  </button>
+                  <button type="button" disabled={echBusy} onClick={handleSaveEcheancier}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                    {echBusy ? 'Enregistrement…' : 'Enregistrer'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {avoirModal && editing && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setAvoirModal(false)} />

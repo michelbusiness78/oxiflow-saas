@@ -187,17 +187,19 @@ function LigneRow({
           onChange={(e) => update({ prix_unitaire: +e.target.value || 0 })}
           className={numCls} placeholder="0,00" />
       </td>
-      <td className={cellCls} style={{ width: '82px' }}>
+      <td className={cellCls} style={{ width: '82px', minWidth: '82px' }}>
         <select value={ligne.tva} disabled={readonly}
           onChange={(e) => update({ tva: +e.target.value })}
-          className={`${txtCls} pr-1`}>
+          className={`${txtCls} pr-1`}
+          style={{ minWidth: '70px' }}>
           {TVA_OPTIONS.map((t) => <option key={t} value={t}>{t} %</option>)}
         </select>
       </td>
-      <td className={cellCls} style={{ width: '78px' }}>
+      <td className={cellCls} style={{ width: '78px', minWidth: '78px' }}>
         <input type="number" value={ligne.remise_pct} min={0} max={100} step="any" disabled={readonly}
           onChange={(e) => update({ remise_pct: +e.target.value || 0 })}
-          className={numCls} placeholder="0" />
+          className={numCls} placeholder="0"
+          style={{ minWidth: '70px' }} />
       </td>
       <td className={cellCls} style={{ width: '90px' }}>
         <div className="py-1.5 px-2 text-right text-xs font-semibold text-slate-700">
@@ -473,7 +475,21 @@ export function QuoteForm({
     setStatusBusy(true);
     const res = await changeQuoteStatutAction(editing.id, s);
     setStatusBusy(false);
-    if (res.error) setError(res.error);
+    if (res.error) { setError(res.error); return; }
+
+    // Auto-open mailto when transitioning to "envoyé"
+    if (s === 'envoye') {
+      const clientEmail = clients.find((c) => c.id === (editing.client_id ?? ''))?.email ?? '';
+      if (clientEmail) {
+        const subject = encodeURIComponent(`Devis ${editing.number}${editing.objet ? ` — ${editing.objet}` : ''}`);
+        const body    = encodeURIComponent(
+          `Bonjour,\n\nVeuillez trouver ci-joint notre devis ${editing.number}` +
+          (editing.objet ? ` relatif à : ${editing.objet}` : '') +
+          `.\n\nMontant TTC : ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(editing.montant_ttc)}\n\nNous restons à votre disposition pour toute question.\n\nCordialement,`
+        );
+        window.open(`mailto:${clientEmail}?subject=${subject}&body=${body}`, '_blank');
+      }
+    }
   }
 
   // ── Créer le projet ──
