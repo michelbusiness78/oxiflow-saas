@@ -388,8 +388,30 @@ export async function saveInvoiceAction(
     updated_at:    new Date().toISOString(),
   };
 
+  // Helper : réessayer sans echeancier si la colonne n'existe pas encore
+  async function upsert(payload: Record<string, unknown>, existingId?: string) {
+    if (existingId) {
+      const { error } = await admin.from('invoices').update(payload).eq('id', existingId);
+      if (error && (error.message.includes('echeancier') || error.code === '42703')) {
+        const { echeancier: _ech, ...withoutEch } = payload;
+        void _ech;
+        const { error: e2 } = await admin.from('invoices').update(withoutEch).eq('id', existingId);
+        return { error: e2 };
+      }
+      return { error };
+    }
+    const { data, error } = await admin.from('invoices').insert(payload).select('id').single();
+    if (error && (error.message.includes('echeancier') || error.code === '42703')) {
+      const { echeancier: _ech, ...withoutEch } = payload;
+      void _ech;
+      const { data: d2, error: e2 } = await admin.from('invoices').insert(withoutEch).select('id').single();
+      return { data: d2, error: e2 };
+    }
+    return { data, error };
+  }
+
   if (id) {
-    const { error } = await admin.from('invoices').update(common).eq('id', id);
+    const { error } = await upsert(common, id);
     if (error) return { error: translateSupabaseError(error.message) };
     await admin.from('invoice_lines').delete().eq('invoice_id', id);
     if (input.lines.length > 0) {
@@ -403,13 +425,9 @@ export async function saveInvoiceAction(
   }
 
   const number = await nextInvoiceNumber(admin, tenant_id);
-  const { data, error } = await admin
-    .from('invoices')
-    .insert({ tenant_id, number, type: 'facture', ...common })
-    .select('id')
-    .single();
+  const { data, error } = await upsert({ tenant_id, number, type: 'facture', ...common }) as { data: { id: string } | null; error: { message: string } | null };
 
-  if (error) return { error: translateSupabaseError(error.message) };
+  if (error || !data) return { error: translateSupabaseError(error?.message ?? 'Erreur création facture') };
 
   if (input.lines.length > 0) {
     await admin.from('invoice_lines').insert(
@@ -485,7 +503,8 @@ export async function getInvoices(tenantId: string): Promise<Invoice[]> {
   const admin = await createAdminClient();
   const today = new Date().toISOString().split('T')[0];
 
-  const { data } = await admin
+  // Essayer la requête complète (avec nouvelles colonnes post-migration)
+  const { data, error } = await admin
     .from('invoices')
     .select(`
       id, number, type, quote_id, quote_number, client_id, company_id,
@@ -498,38 +517,69 @@ export async function getInvoices(tenantId: string): Promise<Invoice[]> {
     .eq('tenant_id', tenantId)
     .order('date_facture', { ascending: false });
 
-  return (data ?? []).map((inv) => {
-    let status = inv.status as InvoiceStatus;
-    if (status === 'emise' && inv.date_echeance && (inv.date_echeance as string) < today) {
-      status = 'en_retard';
+  // Si erreur "column does not exist" → migrations non exécutées → fallback sans nouvelles colonnes
+  if (error) {
+    console.error('[getInvoices] Erreur requête complète:', error.message);
+
+    const isColumnMissing = error.message.includes('column') || error.code === '42703';
+    if (isColumnMissing) {
+      console.warn('[getInvoices] Colonnes manquantes — fallback sans avoir_*/echeancier. Exécuter les migrations SQL.');
     }
-    return {
-      id:            inv.id            as string,
-      number:        inv.number        as string,
-      type:          inv.type          as string,
-      quote_id:      inv.quote_id      as string | null,
-      quote_number:  inv.quote_number  as string | null,
-      client_id:     inv.client_id     as string,
-      company_id:    inv.company_id    as string | null,
-      date_facture:  inv.date_facture  as string,
-      date_echeance: inv.date_echeance as string,
-      status,
-      conditions:    inv.conditions    as string | null,
-      notes:         inv.notes         as string | null,
-      total_ht:      inv.total_ht      as number,
-      total_tva:     inv.total_tva     as number,
-      total_ttc:     inv.total_ttc     as number,
-      created_at:    inv.created_at    as string,
-      client_nom:    (inv.clients as unknown as { nom: string } | null)?.nom ?? '—',
-      relance_n1:    (inv.relance_n1 as RelanceEntry | null) ?? null,
-      relance_n2:    (inv.relance_n2 as RelanceEntry | null) ?? null,
-      relance_n3:    (inv.relance_n3 as RelanceEntry | null) ?? null,
-      avoir_de:      (inv.avoir_de     as string | null) ?? null,
-      avoir_de_id:   (inv.avoir_de_id  as string | null) ?? null,
-      avoir_ref:     (inv.avoir_ref    as string | null) ?? null,
-      echeancier:    (inv.echeancier   as EcheancierEntry[] | null) ?? [],
-    };
-  });
+
+    const { data: fallback, error: fbErr } = await admin
+      .from('invoices')
+      .select(`
+        id, number, type, quote_id, quote_number, client_id, company_id,
+        date_facture, date_echeance, status, conditions, notes,
+        total_ht, total_tva, total_ttc, created_at,
+        relance_n1, relance_n2, relance_n3,
+        clients(nom)
+      `)
+      .eq('tenant_id', tenantId)
+      .order('date_facture', { ascending: false });
+
+    if (fbErr) {
+      console.error('[getInvoices] Erreur fallback:', fbErr.message);
+      return [];
+    }
+
+    return (fallback ?? []).map((inv) => mapInvoiceRow(inv, today, false));
+  }
+
+  return (data ?? []).map((inv) => mapInvoiceRow(inv, today, true));
+}
+
+function mapInvoiceRow(inv: Record<string, unknown>, today: string, hasNewCols: boolean): Invoice {
+  let status = inv.status as InvoiceStatus;
+  if (status === 'emise' && inv.date_echeance && (inv.date_echeance as string) < today) {
+    status = 'en_retard';
+  }
+  return {
+    id:            inv.id            as string,
+    number:        inv.number        as string,
+    type:          (inv.type         as string) ?? 'facture',
+    quote_id:      inv.quote_id      as string | null,
+    quote_number:  inv.quote_number  as string | null,
+    client_id:     inv.client_id     as string,
+    company_id:    inv.company_id    as string | null,
+    date_facture:  inv.date_facture  as string,
+    date_echeance: inv.date_echeance as string,
+    status,
+    conditions:    inv.conditions    as string | null,
+    notes:         inv.notes         as string | null,
+    total_ht:      inv.total_ht      as number,
+    total_tva:     inv.total_tva     as number,
+    total_ttc:     inv.total_ttc     as number,
+    created_at:    inv.created_at    as string,
+    client_nom:    (inv.clients as unknown as { nom: string } | null)?.nom ?? '—',
+    relance_n1:    (inv.relance_n1 as RelanceEntry | null) ?? null,
+    relance_n2:    (inv.relance_n2 as RelanceEntry | null) ?? null,
+    relance_n3:    (inv.relance_n3 as RelanceEntry | null) ?? null,
+    avoir_de:      hasNewCols ? ((inv.avoir_de    as string | null) ?? null) : null,
+    avoir_de_id:   hasNewCols ? ((inv.avoir_de_id as string | null) ?? null) : null,
+    avoir_ref:     hasNewCols ? ((inv.avoir_ref   as string | null) ?? null) : null,
+    echeancier:    hasNewCols ? ((inv.echeancier  as EcheancierEntry[] | null) ?? []) : [],
+  };
 }
 
 // ─── getInvoiceLines ──────────────────────────────────────────────────────────
