@@ -388,30 +388,8 @@ export async function saveInvoiceAction(
     updated_at:    new Date().toISOString(),
   };
 
-  // Helper : réessayer sans echeancier si la colonne n'existe pas encore
-  async function upsert(payload: Record<string, unknown>, existingId?: string) {
-    if (existingId) {
-      const { error } = await admin.from('invoices').update(payload).eq('id', existingId);
-      if (error && (error.message.includes('echeancier') || error.code === '42703')) {
-        const { echeancier: _ech, ...withoutEch } = payload;
-        void _ech;
-        const { error: e2 } = await admin.from('invoices').update(withoutEch).eq('id', existingId);
-        return { error: e2 };
-      }
-      return { error };
-    }
-    const { data, error } = await admin.from('invoices').insert(payload).select('id').single();
-    if (error && (error.message.includes('echeancier') || error.code === '42703')) {
-      const { echeancier: _ech, ...withoutEch } = payload;
-      void _ech;
-      const { data: d2, error: e2 } = await admin.from('invoices').insert(withoutEch).select('id').single();
-      return { data: d2, error: e2 };
-    }
-    return { data, error };
-  }
-
   if (id) {
-    const { error } = await upsert(common, id);
+    const { error } = await admin.from('invoices').update(common).eq('id', id);
     if (error) return { error: translateSupabaseError(error.message) };
     await admin.from('invoice_lines').delete().eq('invoice_id', id);
     if (input.lines.length > 0) {
@@ -425,18 +403,22 @@ export async function saveInvoiceAction(
   }
 
   const number = await nextInvoiceNumber(admin, tenant_id);
-  const { data, error } = await upsert({ tenant_id, number, type: 'facture', ...common }) as { data: { id: string } | null; error: { message: string } | null };
+  const { data, error } = await admin
+    .from('invoices')
+    .insert({ tenant_id, number, type: 'facture', ...common })
+    .select('id')
+    .single();
 
   if (error || !data) return { error: translateSupabaseError(error?.message ?? 'Erreur création facture') };
 
   if (input.lines.length > 0) {
     await admin.from('invoice_lines').insert(
-      input.lines.map((l, i) => ({ invoice_id: data.id, ...l, sort_order: i })),
+      input.lines.map((l, i) => ({ invoice_id: (data as { id: string }).id, ...l, sort_order: i })),
     );
   }
 
   revalidatePath(PATH);
-  return { success: true, id: data.id };
+  return { success: true, id: (data as { id: string }).id };
 }
 
 // ─── deleteInvoiceAction ──────────────────────────────────────────────────────
@@ -500,10 +482,9 @@ export async function changeInvoiceStatusAction(
 // ─── getInvoices ─────────────────────────────────────────────────────────────
 
 export async function getInvoices(tenantId: string): Promise<Invoice[]> {
-  const admin = await createAdminClient();
+  const admin = createAdminClient();
   const today = new Date().toISOString().split('T')[0];
 
-  // Essayer la requête complète (avec nouvelles colonnes post-migration)
   const { data, error } = await admin
     .from('invoices')
     .select(`
@@ -517,75 +498,50 @@ export async function getInvoices(tenantId: string): Promise<Invoice[]> {
     .eq('tenant_id', tenantId)
     .order('date_facture', { ascending: false });
 
-  // Si erreur "column does not exist" → migrations non exécutées → fallback sans nouvelles colonnes
   if (error) {
-    console.error('[getInvoices] Erreur requête complète:', error.message);
-
-    const isColumnMissing = error.message.includes('column') || error.code === '42703';
-    if (isColumnMissing) {
-      console.warn('[getInvoices] Colonnes manquantes — fallback sans avoir_*/echeancier. Exécuter les migrations SQL.');
-    }
-
-    const { data: fallback, error: fbErr } = await admin
-      .from('invoices')
-      .select(`
-        id, number, type, quote_id, quote_number, client_id, company_id,
-        date_facture, date_echeance, status, conditions, notes,
-        total_ht, total_tva, total_ttc, created_at,
-        relance_n1, relance_n2, relance_n3,
-        clients(nom)
-      `)
-      .eq('tenant_id', tenantId)
-      .order('date_facture', { ascending: false });
-
-    if (fbErr) {
-      console.error('[getInvoices] Erreur fallback:', fbErr.message);
-      return [];
-    }
-
-    return (fallback ?? []).map((inv) => mapInvoiceRow(inv, today, false));
+    console.error('[getInvoices]', error.message);
+    return [];
   }
 
-  return (data ?? []).map((inv) => mapInvoiceRow(inv, today, true));
-}
-
-function mapInvoiceRow(inv: Record<string, unknown>, today: string, hasNewCols: boolean): Invoice {
-  let status = inv.status as InvoiceStatus;
-  if (status === 'emise' && inv.date_echeance && (inv.date_echeance as string) < today) {
-    status = 'en_retard';
-  }
-  return {
-    id:            inv.id            as string,
-    number:        inv.number        as string,
-    type:          (inv.type         as string) ?? 'facture',
-    quote_id:      inv.quote_id      as string | null,
-    quote_number:  inv.quote_number  as string | null,
-    client_id:     inv.client_id     as string,
-    company_id:    inv.company_id    as string | null,
-    date_facture:  inv.date_facture  as string,
-    date_echeance: inv.date_echeance as string,
-    status,
-    conditions:    inv.conditions    as string | null,
-    notes:         inv.notes         as string | null,
-    total_ht:      inv.total_ht      as number,
-    total_tva:     inv.total_tva     as number,
-    total_ttc:     inv.total_ttc     as number,
-    created_at:    inv.created_at    as string,
-    client_nom:    (inv.clients as unknown as { nom: string } | null)?.nom ?? '—',
-    relance_n1:    (inv.relance_n1 as RelanceEntry | null) ?? null,
-    relance_n2:    (inv.relance_n2 as RelanceEntry | null) ?? null,
-    relance_n3:    (inv.relance_n3 as RelanceEntry | null) ?? null,
-    avoir_de:      hasNewCols ? ((inv.avoir_de    as string | null) ?? null) : null,
-    avoir_de_id:   hasNewCols ? ((inv.avoir_de_id as string | null) ?? null) : null,
-    avoir_ref:     hasNewCols ? ((inv.avoir_ref   as string | null) ?? null) : null,
-    echeancier:    hasNewCols ? ((inv.echeancier  as EcheancierEntry[] | null) ?? []) : [],
-  };
+  return (data ?? []).map((inv) => {
+    const row = inv as Record<string, unknown>;
+    let status = row.status as InvoiceStatus;
+    if (status === 'emise' && row.date_echeance && (row.date_echeance as string) < today) {
+      status = 'en_retard';
+    }
+    return {
+      id:            row.id            as string,
+      number:        row.number        as string,
+      type:          (row.type         as string) ?? 'facture',
+      quote_id:      row.quote_id      as string | null,
+      quote_number:  row.quote_number  as string | null,
+      client_id:     row.client_id     as string,
+      company_id:    row.company_id    as string | null,
+      date_facture:  row.date_facture  as string,
+      date_echeance: row.date_echeance as string,
+      status,
+      conditions:    row.conditions    as string | null,
+      notes:         row.notes         as string | null,
+      total_ht:      row.total_ht      as number,
+      total_tva:     row.total_tva     as number,
+      total_ttc:     row.total_ttc     as number,
+      created_at:    row.created_at    as string,
+      client_nom:    (row.clients as unknown as { nom: string } | null)?.nom ?? '—',
+      relance_n1:    (row.relance_n1 as RelanceEntry | null) ?? null,
+      relance_n2:    (row.relance_n2 as RelanceEntry | null) ?? null,
+      relance_n3:    (row.relance_n3 as RelanceEntry | null) ?? null,
+      avoir_de:      (row.avoir_de    as string | null) ?? null,
+      avoir_de_id:   (row.avoir_de_id as string | null) ?? null,
+      avoir_ref:     (row.avoir_ref   as string | null) ?? null,
+      echeancier:    (row.echeancier  as EcheancierEntry[] | null) ?? [],
+    };
+  });
 }
 
 // ─── getInvoiceLines ──────────────────────────────────────────────────────────
 
 export async function getInvoiceLines(invoiceId: string): Promise<InvoiceLine[]> {
-  const admin = await createAdminClient();
+  const admin = createAdminClient();
   const { data } = await admin
     .from('invoice_lines')
     .select('sort_order, reference, type, designation, quantity, unit_price, discount_percent, vat_rate')
