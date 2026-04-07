@@ -28,6 +28,12 @@ interface Props {
   userRole: string;
 }
 
+interface VoiceData {
+  companies:   { id: string; name: string }[];
+  clients:     { id: string; name: string }[];
+  technicians: { id: string; name: string }[];
+}
+
 // ── Inactivity timers ────────────────────────────────────────────────────────
 
 const WARN_MS  = 2 * 60 * 1000;
@@ -46,6 +52,7 @@ export function VoiceAgent({ userName, userRole }: Props) {
   const [interimText,     setInterimText]     = useState('');
   const [inactivityWarn,  setInactivityWarn]  = useState(false);
   const [speechSupported, setSpeechSupported] = useState(true);
+  const voiceDataRef = useRef<VoiceData | null>(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const statusRef          = useRef<AgentStatus>('idle');
@@ -200,10 +207,14 @@ export function VoiceAgent({ userName, userRole }: Props) {
   async function sendToAgent(text: string) {
     safeSetStatus('thinking');
 
+    const vd = voiceDataRef.current;
     const context: AgentContext = {
-      module:   getModuleLabel(pathname),
-      role:     userRole,
+      module:      getModuleLabel(pathname),
+      role:        userRole,
       userName,
+      companies:   vd?.companies,
+      clients:     vd?.clients,
+      technicians: vd?.technicians,
     };
 
     try {
@@ -284,6 +295,14 @@ export function VoiceAgent({ userName, userRole }: Props) {
     historyRef.current = [];
     resetInactivity();
     setTimeout(() => startListening(), 400); // small delay for panel animation
+
+    // Fetch live context (companies / clients / technicians) from Supabase
+    if (!voiceDataRef.current) {
+      fetch('/api/voice-data')
+        .then((r) => r.json())
+        .then((data: VoiceData) => { voiceDataRef.current = data; })
+        .catch(() => { /* silently ignore — system prompt will omit live data */ });
+    }
   }
 
   function handleClose() {

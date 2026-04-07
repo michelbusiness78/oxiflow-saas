@@ -836,5 +836,275 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ result: `${data.length} projet(s) actif(s) : ${lines.join(' | ')}.` });
   }
 
+  // ── creer_ticket_sav ─────────────────────────────────────────────────────
+  if (tool === 'creer_ticket_sav') {
+    const clientNomInput = String(input.client_nom ?? '').trim();
+    const titre          = String(input.titre ?? '').trim();
+    if (!clientNomInput) return NextResponse.json({ result: 'Nom du client obligatoire.' });
+    if (!titre)          return NextResponse.json({ result: 'Titre du ticket obligatoire.' });
+
+    const found = await findClient(admin, tenantId, clientNomInput);
+    if (!found) return NextResponse.json({ result: `Client "${clientNomInput}" introuvable.` });
+    if ('multiple' in found) return NextResponse.json({ result: `Plusieurs clients : ${found.multiple}. Précisez.` });
+
+    const priorite = (['faible', 'normale', 'haute', 'urgente'].includes(String(input.priorite)))
+      ? String(input.priorite) : 'normale';
+
+    const { error } = await admin.from('sav_tickets').insert({
+      tenant_id:      tenantId,
+      client_id:      found.id,
+      titre,
+      description:    input.description ? String(input.description) : null,
+      priorite,
+      statut:         'ouvert',
+      date_ouverture: new Date().toISOString().split('T')[0],
+      created_by:     user.id,
+    });
+
+    if (error) return NextResponse.json({ result: `Erreur création ticket : ${error.message}` });
+    return NextResponse.json({ result: `Ticket SAV "${titre}" créé pour ${found.nom} (priorité ${priorite}).` });
+  }
+
+  // ── creer_projet (standalone) ─────────────────────────────────────────────
+  if (tool === 'creer_projet') {
+    const clientNomInput = String(input.client_nom ?? '').trim();
+    const nom            = String(input.nom ?? '').trim();
+    if (!clientNomInput) return NextResponse.json({ result: 'Nom du client obligatoire.' });
+    if (!nom)            return NextResponse.json({ result: 'Nom du projet obligatoire.' });
+
+    const found = await findClient(admin, tenantId, clientNomInput);
+    if (!found) return NextResponse.json({ result: `Client "${clientNomInput}" introuvable.` });
+    if ('multiple' in found) return NextResponse.json({ result: `Plusieurs clients : ${found.multiple}. Précisez.` });
+
+    const montant_ttc = input.montant_ttc ? Number(input.montant_ttc) : null;
+    const deadline    = input.deadline    ? String(input.deadline)    : null;
+
+    const { error } = await admin.from('projects').insert({
+      tenant_id:   tenantId,
+      name:        nom,
+      description: input.description ? String(input.description) : null,
+      client_id:   found.id,
+      amount_ttc:  montant_ttc,
+      deadline,
+      status:      'nouveau',
+    });
+
+    if (error) return NextResponse.json({ result: `Erreur création projet : ${error.message}` });
+    const montantStr = montant_ttc ? ` — ${fmtEur(montant_ttc)}` : '';
+    return NextResponse.json({ result: `Projet "${nom}" créé pour ${found.nom}${montantStr}.` });
+  }
+
+  // ── creer_contrat ─────────────────────────────────────────────────────────
+  if (tool === 'creer_contrat') {
+    const clientNomInput = String(input.client_nom ?? '').trim();
+    const nom            = String(input.nom ?? '').trim();
+    const type           = String(input.type ?? 'maintenance');
+    if (!clientNomInput) return NextResponse.json({ result: 'Nom du client obligatoire.' });
+    if (!nom)            return NextResponse.json({ result: 'Nom du contrat obligatoire.' });
+
+    const found = await findClient(admin, tenantId, clientNomInput);
+    if (!found) return NextResponse.json({ result: `Client "${clientNomInput}" introuvable.` });
+    if ('multiple' in found) return NextResponse.json({ result: `Plusieurs clients : ${found.multiple}. Précisez.` });
+
+    const montant_mensuel = input.montant_mensuel ? Number(input.montant_mensuel) : null;
+    const date_debut      = input.date_debut ? String(input.date_debut) : new Date().toISOString().split('T')[0];
+    const date_fin        = input.date_fin   ? String(input.date_fin)   : null;
+
+    const { error } = await admin.from('contrats').insert({
+      tenant_id:       tenantId,
+      client_id:       found.id,
+      nom,
+      type,
+      montant_mensuel,
+      date_debut,
+      date_fin,
+      statut:          'actif',
+      actif:           true,
+    });
+
+    if (error) return NextResponse.json({ result: `Erreur création contrat : ${error.message}` });
+    const montantStr = montant_mensuel ? ` à ${fmtEur(montant_mensuel)}/mois` : '';
+    return NextResponse.json({ result: `Contrat "${nom}" (${type})${montantStr} créé pour ${found.nom}.` });
+  }
+
+  // ── creer_avoir ───────────────────────────────────────────────────────────
+  if (tool === 'creer_avoir') {
+    type SourceInvoice = { id: string; number: string; client_id: string; total_ht: number; total_tva: number; total_ttc: number };
+    let sourceInvoice: SourceInvoice | null = null;
+
+    if (input.numero_facture) {
+      const { data } = await admin
+        .from('invoices')
+        .select('id, number, client_id, total_ht, total_tva, total_ttc')
+        .eq('tenant_id', tenantId)
+        .eq('number', String(input.numero_facture))
+        .single();
+      sourceInvoice = data as unknown as SourceInvoice | null;
+    } else if (input.client_nom) {
+      const found = await findClient(admin, tenantId, String(input.client_nom));
+      if (!found) return NextResponse.json({ result: `Client "${input.client_nom}" introuvable.` });
+      if ('multiple' in found) return NextResponse.json({ result: `Plusieurs clients : ${found.multiple}. Précisez.` });
+      const { data } = await admin
+        .from('invoices')
+        .select('id, number, client_id, total_ht, total_tva, total_ttc')
+        .eq('tenant_id', tenantId)
+        .eq('client_id', found.id)
+        .not('status', 'eq', 'brouillon')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      sourceInvoice = data as unknown as SourceInvoice | null;
+    }
+
+    if (!sourceInvoice) return NextResponse.json({ result: 'Facture source introuvable.' });
+
+    // Vérifier qu'un avoir non brouillon n'existe pas déjà
+    const { data: existingAvoir } = await admin
+      .from('invoices')
+      .select('id, number, status')
+      .eq('tenant_id', tenantId)
+      .eq('avoir_de_id', sourceInvoice.id)
+      .neq('status', 'brouillon')
+      .maybeSingle();
+
+    if (existingAvoir) {
+      return NextResponse.json({ result: `Un avoir ${existingAvoir.number} existe déjà pour cette facture.` });
+    }
+
+    // Numéro avoir
+    const avoirPrefix = `AV-${(userName ?? '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'OXI'}-${year}-`;
+    const { count: avCount } = await admin
+      .from('invoices')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .like('number', `${avoirPrefix}%`);
+    const avoirNumber = `${avoirPrefix}${nextSeq(avCount ?? 0)}`;
+
+    const { error } = await admin.from('invoices').insert({
+      tenant_id:    tenantId,
+      number:       avoirNumber,
+      type:         'avoir',
+      avoir_de_id:  sourceInvoice.id,
+      client_id:    sourceInvoice.client_id,
+      date_facture: new Date().toISOString().split('T')[0],
+      status:       'brouillon',
+      total_ht:     -Math.abs(sourceInvoice.total_ht),
+      total_tva:    -Math.abs(sourceInvoice.total_tva),
+      total_ttc:    -Math.abs(sourceInvoice.total_ttc),
+      notes:        input.motif ? String(input.motif) : null,
+    });
+
+    if (error) return NextResponse.json({ result: `Erreur création avoir : ${error.message}` });
+    return NextResponse.json({ result: `Avoir ${avoirNumber} créé en brouillon sur la facture ${sourceInvoice.number} (${fmtEur(Math.abs(sourceInvoice.total_ttc))}).` });
+  }
+
+  // ── cloturer_intervention ─────────────────────────────────────────────────
+  if (tool === 'cloturer_intervention') {
+    const clientNomInput    = String(input.client_nom ?? '').trim();
+    const interventionTitre = input.intervention_titre ? String(input.intervention_titre).trim() : null;
+    const compteRendu       = input.compte_rendu ? String(input.compte_rendu) : null;
+    if (!clientNomInput) return NextResponse.json({ result: 'Nom du client obligatoire.' });
+
+    const found = await findClient(admin, tenantId, clientNomInput);
+    if (!found) return NextResponse.json({ result: `Client "${clientNomInput}" introuvable.` });
+    if ('multiple' in found) return NextResponse.json({ result: `Plusieurs clients : ${found.multiple}. Précisez.` });
+
+    let query = admin
+      .from('interventions')
+      .select('id, title, status')
+      .eq('tenant_id', tenantId)
+      .eq('client_id', found.id)
+      .in('status', ['planifiee', 'en_cours'])
+      .order('date_start', { ascending: false })
+      .limit(1);
+
+    if (interventionTitre) {
+      query = admin
+        .from('interventions')
+        .select('id, title, status')
+        .eq('tenant_id', tenantId)
+        .eq('client_id', found.id)
+        .ilike('title', `%${interventionTitre}%`)
+        .in('status', ['planifiee', 'en_cours'])
+        .order('date_start', { ascending: false })
+        .limit(1);
+    }
+
+    const { data: interv } = await query.single();
+    if (!interv) return NextResponse.json({ result: `Aucune intervention active trouvée pour ${found.nom}.` });
+
+    const updateData: Record<string, unknown> = {
+      status:     'terminee',
+      date_end:   new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (compteRendu) updateData.notes = compteRendu;
+
+    const { error } = await admin
+      .from('interventions')
+      .update(updateData)
+      .eq('id', interv.id as string);
+
+    if (error) return NextResponse.json({ result: `Erreur clôture : ${error.message}` });
+    return NextResponse.json({ result: `Intervention "${interv.title}" clôturée pour ${found.nom}.` });
+  }
+
+  // ── creer_ndf ─────────────────────────────────────────────────────────────
+  if (tool === 'creer_ndf') {
+    const titre   = String(input.titre ?? '').trim();
+    const montant = Number(input.montant ?? 0);
+    if (!titre)     return NextResponse.json({ result: 'Titre de la note de frais obligatoire.' });
+    if (montant <= 0) return NextResponse.json({ result: 'Montant invalide.' });
+
+    const categorie = (['deplacement', 'repas', 'hebergement', 'fournitures', 'autre'].includes(String(input.categorie)))
+      ? String(input.categorie) : 'autre';
+    const date = input.date ? String(input.date) : new Date().toISOString().split('T')[0];
+
+    const { error } = await admin.from('expense_reports').insert({
+      tenant_id:   tenantId,
+      user_id:     user.id,
+      titre,
+      montant_ttc: montant,
+      categorie,
+      date,
+      notes:       input.notes ? String(input.notes) : null,
+      statut:      'brouillon',
+    });
+
+    if (error) return NextResponse.json({ result: `Erreur création NDF : ${error.message}` });
+    return NextResponse.json({ result: `Note de frais "${titre}" de ${fmtEur(montant)} créée (${categorie}).` });
+  }
+
+  // ── creer_conge ───────────────────────────────────────────────────────────
+  if (tool === 'creer_conge') {
+    const type       = String(input.type ?? 'conge_paye');
+    const date_debut = String(input.date_debut ?? '');
+    const date_fin   = String(input.date_fin   ?? '');
+    if (!date_debut || !date_fin) return NextResponse.json({ result: 'Dates de début et fin obligatoires.' });
+
+    const TYPE_FR: Record<string, string> = {
+      conge_paye: 'congé payé',
+      rtt:        'RTT',
+      maladie:    'arrêt maladie',
+      formation:  'formation',
+      autre:      'absence',
+    };
+
+    const { error } = await admin.from('leave_requests').insert({
+      tenant_id:  tenantId,
+      user_id:    user.id,
+      type,
+      date_debut,
+      date_fin,
+      notes:      input.notes ? String(input.notes) : null,
+      statut:     'en_attente',
+    });
+
+    if (error) return NextResponse.json({ result: `Erreur création congé : ${error.message}` });
+    const debutFr = new Date(date_debut + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    const finFr   = new Date(date_fin   + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    return NextResponse.json({ result: `Demande de ${TYPE_FR[type] ?? type} du ${debutFr} au ${finFr} créée (en attente de validation).` });
+  }
+
   return NextResponse.json({ error: 'Outil inconnu.' }, { status: 400 });
 }
