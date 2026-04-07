@@ -12,13 +12,14 @@ import { marquerRelanceAction }        from '@/app/actions/relances';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<InvoiceStatus, { label: string; cls: string }> = {
-  brouillon: { label: 'Brouillon', cls: 'bg-slate-100 text-slate-600'  },
-  emise:     { label: 'Émise',     cls: 'bg-blue-100 text-blue-700'    },
-  payee:     { label: 'Payée',     cls: 'bg-green-100 text-green-700'  },
-  en_retard: { label: 'En retard', cls: 'bg-red-100 text-red-600'      },
+  brouillon: { label: 'Brouillon', cls: 'bg-slate-100 text-slate-600'   },
+  emise:     { label: 'Émise',     cls: 'bg-blue-100 text-blue-700'     },
+  payee:     { label: 'Payée',     cls: 'bg-green-100 text-green-700'   },
+  en_retard: { label: 'En retard', cls: 'bg-red-100 text-red-600'       },
+  partielle: { label: 'Partielle', cls: 'bg-orange-100 text-orange-700' },
 };
 
-const FILTERS: Array<InvoiceStatus | 'tous' | 'avoirs'> = ['tous', 'brouillon', 'emise', 'payee', 'en_retard', 'avoirs'];
+const FILTERS: Array<InvoiceStatus | 'tous' | 'avoirs'> = ['tous', 'brouillon', 'emise', 'payee', 'partielle', 'en_retard', 'avoirs'];
 
 const NIVEAU_META: Record<RelanceNiveau, { icon: string; cls: string; label: string }> = {
   1: { icon: '⏰', cls: 'bg-amber-100 text-amber-700',  label: 'Relance 1' },
@@ -227,7 +228,7 @@ function RelancePanel({
 function resolveFilter(raw?: string): InvoiceStatus | 'tous' | 'avoirs' {
   if (!raw) return 'tous';
   if (raw === 'retard') return 'en_retard';
-  const valid: Array<InvoiceStatus | 'tous' | 'avoirs'> = ['tous', 'brouillon', 'emise', 'payee', 'en_retard', 'avoirs'];
+  const valid: Array<InvoiceStatus | 'tous' | 'avoirs'> = ['tous', 'brouillon', 'emise', 'payee', 'partielle', 'en_retard', 'avoirs'];
   return valid.includes(raw as InvoiceStatus | 'tous' | 'avoirs')
     ? (raw as InvoiceStatus | 'tous' | 'avoirs')
     : 'tous';

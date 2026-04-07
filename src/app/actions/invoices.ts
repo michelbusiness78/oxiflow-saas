@@ -9,7 +9,7 @@ const PATH = '/commerce';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type InvoiceStatus = 'brouillon' | 'emise' | 'payee' | 'en_retard';
+export type InvoiceStatus = 'brouillon' | 'emise' | 'payee' | 'en_retard' | 'partielle';
 
 export interface InvoiceLine {
   sort_order:       number;
@@ -479,16 +479,47 @@ export async function setAvoirRefAction(
 export async function saveEcheancierAction(
   invoiceId: string,
   echeancier: EcheancierEntry[],
-): Promise<{ success?: true; error?: string }> {
+): Promise<{ success?: true; newStatus?: InvoiceStatus; error?: string }> {
   const { admin, tenant_id } = await getAuthContext();
+
+  const { data: facture } = await admin
+    .from('invoices')
+    .select('total_ttc, status, type')
+    .eq('id', invoiceId)
+    .eq('tenant_id', tenant_id)
+    .single();
+
+  if (!facture) return { error: 'Facture introuvable.' };
+
+  const isAvoir = facture.type === 'avoir';
+  const currentStatus = facture.status as InvoiceStatus;
+
+  let newStatus: InvoiceStatus = currentStatus;
+  if (!isAvoir) {
+    const totalTTC      = facture.total_ttc as number;
+    const totalEncaisse = echeancier
+      .filter((e) => e.statut === 'Encaissé')
+      .reduce((sum, e) => sum + e.montant, 0);
+
+    if (totalEncaisse >= totalTTC) {
+      newStatus = 'payee';
+    } else if (totalEncaisse > 0) {
+      newStatus = 'partielle';
+    } else {
+      // rien encaissé → garder le statut actuel
+      newStatus = currentStatus;
+    }
+  }
+
   const { error } = await admin
     .from('invoices')
-    .update({ echeancier, updated_at: new Date().toISOString() })
+    .update({ echeancier, status: newStatus, updated_at: new Date().toISOString() })
     .eq('id', invoiceId)
     .eq('tenant_id', tenant_id);
+
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
-  return { success: true };
+  return { success: true, newStatus };
 }
 
 // ─── changeInvoiceStatusAction ────────────────────────────────────────────────
@@ -510,7 +541,9 @@ export async function changeInvoiceStatusAction(
   const current = inv.status as InvoiceStatus;
   const allowed: Partial<Record<InvoiceStatus, InvoiceStatus[]>> = {
     brouillon: ['emise'],
-    emise:     ['payee', 'en_retard', 'brouillon'],
+    emise:     ['payee', 'en_retard', 'brouillon', 'partielle'],
+    en_retard: ['payee', 'partielle', 'emise'],
+    partielle: ['payee', 'en_retard', 'emise'],
   };
 
   if (!allowed[current]?.includes(newStatus)) {

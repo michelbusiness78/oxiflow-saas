@@ -29,10 +29,11 @@ function uid(): string {
 }
 
 const STATUS_META: Record<InvoiceStatus, { label: string; cls: string }> = {
-  brouillon: { label: 'Brouillon',  cls: 'bg-slate-100 text-slate-600' },
-  emise:     { label: 'Émise',      cls: 'bg-blue-100 text-blue-700'   },
-  payee:     { label: 'Payée',      cls: 'bg-green-100 text-green-700' },
-  en_retard: { label: 'En retard',  cls: 'bg-red-100 text-red-600'     },
+  brouillon: { label: 'Brouillon',  cls: 'bg-slate-100 text-slate-600'    },
+  emise:     { label: 'Émise',      cls: 'bg-blue-100 text-blue-700'      },
+  payee:     { label: 'Payée',      cls: 'bg-green-100 text-green-700'    },
+  en_retard: { label: 'En retard',  cls: 'bg-red-100 text-red-600'        },
+  partielle: { label: 'Partielle',  cls: 'bg-orange-100 text-orange-700'  },
 };
 
 const TYPE_OPTIONS = [
@@ -425,6 +426,7 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
     if (res.error) { setError(res.error); return; }
     setEcheancier(modalEch);
     setEcheancierModal(false);
+    if (res.newStatus) setLocalStatus(res.newStatus);
     router.refresh();
   }
 

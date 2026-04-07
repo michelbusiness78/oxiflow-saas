@@ -284,6 +284,7 @@ const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
   emise:     'Émise',
   payee:     'Payée',
   en_retard: 'En retard',
+  partielle: 'Partielle',
 };
 
 export function QuoteForm({
