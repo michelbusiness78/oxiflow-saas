@@ -115,6 +115,62 @@ export async function getMyInterventions(
   })) as unknown as PlanningIntervention[];
 }
 
+// ── Toutes les interventions du tenant (base matériel commune) ───────────────
+
+export async function getAllTenantInterventions(tenantId: string): Promise<PlanningIntervention[]> {
+  const admin = createAdminClient();
+
+  const { data } = await admin
+    .from('interventions')
+    .select(`
+      id, title, date_start, date_end, status, type_intervention,
+      tech_user_id, tech_name,
+      client_name, client_address, client_city,
+      materials_installed,
+      clients (nom, adresse, ville)
+    `)
+    .eq('tenant_id', tenantId)
+    .order('date_start', { ascending: false });
+
+  return (data ?? []).map((i) => ({
+    id:                  i.id as string,
+    title:               i.title as string,
+    date_start:          i.date_start as string,
+    date_end:            (i.date_end as string | null) ?? null,
+    status:              i.status as string,
+    nature:              null,
+    hours_planned:       null,
+    is_new:              false,
+    client_id:           null,
+    tech_user_id:        (i.tech_user_id as string | null) ?? null,
+    tech_name:           (i.tech_name as string | null) ?? null,
+    project_id:          null,
+    client_name:         (i.client_name as string | null) ?? null,
+    client_address:      (i.client_address as string | null) ?? null,
+    client_city:         (i.client_city as string | null) ?? null,
+    client_phone:        null,
+    affair_number:       null,
+    type_intervention:   (i.type_intervention as string | null) ?? null,
+    urgency:             null,
+    under_contract:      null,
+    hour_start:          null,
+    hour_end:            null,
+    timer_elapsed:       null,
+    observations:        null,
+    checklist:           [],
+    materials_installed: (i.materials_installed as MaterialItem[] | null) ?? [],
+    photos:              null,
+    report_sent:         false,
+    report_sent_at:      null,
+    report_sent_to:      null,
+    signature_data:      null,
+    signature_name:      null,
+    signature_date:      null,
+    clients:             (i.clients as unknown as { nom: string; adresse: string | null; cp: string | null; ville: string | null; tel: string | null } | null) ?? null,
+    projects:            null,
+  }));
+}
+
 // ── Marquer une intervention comme lue (is_new = false) ───────────────────────
 
 export async function markInterventionRead(

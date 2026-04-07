@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { TechnicienAccueil }       from './TechnicienAccueil';
 import { TechnicienInterventions } from './TechnicienInterventions';
+import { TechnicienDossier }       from './TechnicienDossier';
+import { TechnicienMateriel }      from './TechnicienMateriel';
 import { InterventionDetailPanel } from './InterventionDetailPanel';
 import { MesTaches }               from '@/components/shared/MesTaches';
 import type { PlanningIntervention } from '@/app/actions/technicien';
@@ -124,44 +126,20 @@ export function TechnicienApp({ currentUser, tenantId, initialInterventions, ini
 
       case 'materiel':
         return (
-          <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-            <span className="text-5xl mb-4">📦</span>
-            <p className="text-base font-semibold text-slate-700">Base matériel</p>
-            <p className="mt-1 text-sm text-slate-400">Bientôt disponible</p>
-          </div>
+          <TechnicienMateriel
+            tenantId={tenantId}
+            currentUserId={currentUser.id}
+          />
         );
 
-      case 'dossier': {
-        const totalMaterials = interventions.reduce(
-          (acc, i) => acc + (i.materials_installed?.length ?? 0), 0,
-        );
+      case 'dossier':
         return (
-          <div className="space-y-4 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Dossier technique
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Interventions', value: interventions.length,                                           color: 'text-[#2563eb]', bg: 'bg-blue-50'   },
-                { label: 'Terminées',     value: interventions.filter((i) => i.status === 'terminee').length,   color: 'text-[#16a34a]', bg: 'bg-green-50'  },
-                { label: 'En cours',      value: interventions.filter((i) => i.status === 'en_cours').length,   color: 'text-[#d97706]', bg: 'bg-orange-50' },
-                { label: 'Matériels',     value: totalMaterials,                                                 color: 'text-[#64748b]', bg: 'bg-slate-50'  },
-              ].map((k) => (
-                <div key={k.label} className="rounded-xl border border-[#dde3f0] bg-white p-4 shadow-sm">
-                  <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
-                  <p className="text-xs text-[#5a6382] uppercase tracking-wider mt-1 font-semibold">{k.label}</p>
-                </div>
-              ))}
-            </div>
-            <button
-              disabled
-              className="w-full mt-2 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-400 cursor-not-allowed"
-            >
-              📄 Export PDF — Bientôt disponible
-            </button>
-          </div>
+          <TechnicienDossier
+            interventions={interventions}
+            currentUser={currentUser}
+            tenantId={tenantId}
+          />
         );
-      }
 
       case 'historique': {
         const done = [...interventions]
