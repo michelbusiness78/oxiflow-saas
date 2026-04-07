@@ -8,15 +8,18 @@ import { revalidatePath }    from 'next/cache';
 export type TaskPriority = 'urgente' | 'haute' | 'normale' | 'basse';
 
 export interface PersonalTask {
-  id:         string;
-  name:       string;
-  note:       string | null;
-  done:       boolean;
-  due:        string | null;
-  priority:   TaskPriority;
-  user_id:    string;
-  tenant_id:  string;
-  created_at: string;
+  id:             string;
+  name:           string;
+  note:           string | null;
+  done:           boolean;
+  due:            string | null;
+  priority:       TaskPriority;
+  user_id:        string;
+  tenant_id:      string;
+  created_at:     string;
+  reminder_date:  string | null;
+  reminder_time:  string | null;
+  reminder_active: boolean;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -42,24 +45,27 @@ export async function getPersonalTasks(
   const admin = createAdminClient();
   const { data } = await admin
     .from('project_tasks')
-    .select('id, name, note, done, due, priority, user_id, tenant_id, created_at')
+    .select('id, name, note, done, due, priority, user_id, tenant_id, created_at, reminder_date, reminder_time, reminder_active')
     .eq('tenant_id', tenantId)
     .eq('user_id', userId)
     .eq('is_personal', true)
     .order('done',     { ascending: true })
-    .order('priority', { ascending: false })  // urgente > haute > normale > basse alphabetically but we re-sort client-side
+    .order('priority', { ascending: false })  // re-sorted client-side
     .order('due',      { ascending: true, nullsFirst: false });
 
   return (data ?? []).map((t) => ({
-    id:         t.id,
-    name:       t.name,
-    note:       (t.note as string | null) ?? null,
-    done:       t.done ?? false,
-    due:        (t.due as string | null) ?? null,
-    priority:   ((t.priority as string) ?? 'normale') as TaskPriority,
-    user_id:    t.user_id as string,
-    tenant_id:  t.tenant_id as string,
-    created_at: t.created_at as string,
+    id:              t.id,
+    name:            t.name,
+    note:            (t.note as string | null) ?? null,
+    done:            t.done ?? false,
+    due:             (t.due as string | null) ?? null,
+    priority:        ((t.priority as string) ?? 'normale') as TaskPriority,
+    user_id:         t.user_id as string,
+    tenant_id:       t.tenant_id as string,
+    created_at:      t.created_at as string,
+    reminder_date:   (t.reminder_date as string | null) ?? null,
+    reminder_time:   (t.reminder_time as string | null) ?? null,
+    reminder_active: (t.reminder_active as boolean) ?? false,
   }));
 }
 

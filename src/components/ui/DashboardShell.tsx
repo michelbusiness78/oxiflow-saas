@@ -7,6 +7,7 @@ import { NavIcon } from './NavIcon';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { VoiceAgent } from '@/components/voice/VoiceAgent';
 import { ProjectNotificationBanner } from './ProjectNotificationBanner';
+import { ReminderBanner }            from '@/components/shared/ReminderBanner';
 import { usePathname } from 'next/navigation';
 import { navModules } from '@/lib/theme';
 import type { ProjectNotifData } from '@/app/actions/projects';
@@ -96,6 +97,7 @@ export function DashboardShell({
 
         <main className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 md:pb-6">
           <div className="mx-auto w-full max-w-screen-xl">
+            <ReminderBanner />
             {notifications && notifications.length > 0 && (
               <ProjectNotificationBanner initialNotifications={notifications} />
             )}

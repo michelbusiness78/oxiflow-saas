@@ -226,15 +226,18 @@ export function MesTaches({ initialTasks, tenantId, userId, condensed = false }:
       });
       if (!result.error && result.id) {
         const newTask: PersonalTask = {
-          id:         result.id,
-          name:       form.name.trim(),
-          note:       form.note?.trim() || null,
-          done:       false,
-          due:        form.due || null,
-          priority:   form.priority,
-          user_id:    userId,
-          tenant_id:  tenantId,
-          created_at: new Date().toISOString(),
+          id:              result.id,
+          name:            form.name.trim(),
+          note:            form.note?.trim() || null,
+          done:            false,
+          due:             form.due || null,
+          priority:        form.priority,
+          user_id:         userId,
+          tenant_id:       tenantId,
+          created_at:      new Date().toISOString(),
+          reminder_date:   form.reminder_date || null,
+          reminder_time:   form.reminder_time || null,
+          reminder_active: !!(form.reminder_date && form.reminder_time),
         };
         setTasks((prev) => [newTask, ...prev]);
       }
@@ -412,8 +415,8 @@ export function MesTaches({ initialTasks, tenantId, userId, condensed = false }:
                       note:          task.note ?? '',
                       due:           task.due ?? '',
                       priority:      task.priority,
-                      reminder_date: '',
-                      reminder_time: '',
+                      reminder_date: task.reminder_date ?? '',
+                      reminder_time: task.reminder_time ?? '',
                     }}
                     onSave={handleUpdate}
                     onCancel={() => setEditing(null)}
@@ -460,6 +463,12 @@ export function MesTaches({ initialTasks, tenantId, userId, condensed = false }:
                       {badge && (
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.cls}`}>
                           📅 {badge.label}
+                        </span>
+                      )}
+                      {task.reminder_active && task.reminder_date && (
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-purple-100 text-purple-700"
+                          title={`Rappel le ${task.reminder_date}${task.reminder_time ? ` à ${task.reminder_time}` : ''}`}>
+                          🔔 {task.reminder_date}{task.reminder_time ? ` ${task.reminder_time}` : ''}
                         </span>
                       )}
                     </div>

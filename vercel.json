@@ -1,6 +1,13 @@
 {
-  "crons": [{
-    "path": "/api/cron/trial-reminder",
-    "schedule": "0 9 * * *"
-  }]
+  "crons": [
+    {
+      "path": "/api/cron/trial-reminder",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }
+
