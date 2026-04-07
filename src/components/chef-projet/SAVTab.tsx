@@ -39,11 +39,12 @@ interface UserRef    { id: string; name: string; }
 interface ContratRef { id: string; type: string; nom: string | null; numero: string | null; client_id: string; actif: boolean; }
 
 interface Props {
-  tickets:     SAVTicketFull[];
-  clients:     Client[];
-  projects:    ProjectRef[];
-  techniciens: UserRef[];
-  contrats?:   ContratRef[];
+  tickets:       SAVTicketFull[];
+  clients:       Client[];
+  projects:      ProjectRef[];
+  techniciens:   UserRef[];
+  contrats?:     ContratRef[];
+  defaultFilter?: string;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ const STATUT_TRANSITIONS: Partial<Record<SAVInput['statut'], { next: SAVInput['s
   resolu:   { next: 'cloture',  label: 'Clôturer',          cls: 'bg-slate-100 text-slate-600 hover:bg-slate-200' },
 };
 
-const FILTER_KEYS = ['tous', 'ouvert', 'en_cours', 'resolu', 'cloture'] as const;
+const FILTER_KEYS = ['tous', 'ouvert', 'en_cours', 'resolu', 'cloture', 'urgent'] as const;
 type FilterKey = (typeof FILTER_KEYS)[number];
 
 const inputCls = 'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200';
@@ -441,14 +442,23 @@ function TicketDetail({ ticket, techniciens, open, onClose, onEdit }: DetailProp
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export function SAVTab({ tickets, clients, projects, techniciens, contrats }: Props) {
-  const [filter,         setFilter]         = useState<FilterKey>('tous');
+function resolveSavFilter(raw?: string): FilterKey {
+  if (!raw) return 'tous';
+  return (FILTER_KEYS as readonly string[]).includes(raw) ? (raw as FilterKey) : 'tous';
+}
+
+export function SAVTab({ tickets, clients, projects, techniciens, contrats, defaultFilter }: Props) {
+  const [filter,         setFilter]         = useState<FilterKey>(() => resolveSavFilter(defaultFilter));
   const [formOpen,       setFormOpen]       = useState(false);
   const [formKey,        setFormKey]        = useState(0);   // force reset du formulaire
   const [editingTicket,  setEditingTicket]  = useState<SAVTicketFull | null>(null);
   const [detailTicket,   setDetailTicket]   = useState<SAVTicketFull | null>(null);
 
-  const filtered = filter === 'tous' ? tickets : tickets.filter((t) => t.statut === filter);
+  const filtered = filter === 'tous'
+    ? tickets
+    : filter === 'urgent'
+      ? tickets.filter((t) => t.priorite === 'urgente')
+      : tickets.filter((t) => t.statut === filter);
 
   const counts = {
     tous:     tickets.length,
@@ -456,6 +466,7 @@ export function SAVTab({ tickets, clients, projects, techniciens, contrats }: Pr
     en_cours: tickets.filter((t) => t.statut === 'en_cours').length,
     resolu:   tickets.filter((t) => t.statut === 'resolu').length,
     cloture:  tickets.filter((t) => t.statut === 'cloture').length,
+    urgent:   tickets.filter((t) => t.priorite === 'urgente').length,
   };
 
   function openCreate() {
@@ -512,8 +523,14 @@ export function SAVTab({ tickets, clients, projects, techniciens, contrats }: Pr
       {/* Filtres */}
       <div className="flex flex-wrap gap-1.5">
         {FILTER_KEYS.map((k) => {
-          const sMeta = k !== 'tous' ? STATUT_META[k as SAVInput['statut']] : null;
+          const sMeta = (k !== 'tous' && k !== 'urgent') ? STATUT_META[k as SAVInput['statut']] : null;
           const active = filter === k;
+          const chipLabel = k === 'tous' ? 'Tous' : k === 'urgent' ? 'Urgents' : sMeta!.label;
+          const activeCls = k === 'tous'
+            ? 'bg-slate-800 text-white'
+            : k === 'urgent'
+              ? 'bg-red-100 text-red-700'
+              : `${sMeta!.bg} ${sMeta!.text}`;
           return (
             <button
               key={k}
@@ -522,11 +539,11 @@ export function SAVTab({ tickets, clients, projects, techniciens, contrats }: Pr
               className={[
                 'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
                 active
-                  ? (k === 'tous' ? 'bg-slate-800 text-white' : `${sMeta!.bg} ${sMeta!.text}`)
+                  ? activeCls
                   : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50',
               ].join(' ')}
             >
-              {k === 'tous' ? 'Tous' : sMeta!.label}
+              {chipLabel}
               <span className="ml-1.5 opacity-70">{counts[k]}</span>
             </button>
           );

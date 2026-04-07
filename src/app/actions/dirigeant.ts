@@ -406,7 +406,7 @@ export async function getDashboardDirigeant(
     alertes.push({
       type: 'facture', id: f.id as string,
       label: `Facture ${f.number as string} en retard — ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(f.total_ttc as number)}`,
-      severity: 'red', href: '/commerce?tab=factures',
+      severity: 'red', href: '/commerce?tab=factures&filter=retard',
     });
   }
 
@@ -422,7 +422,7 @@ export async function getDashboardDirigeant(
     alertes.push({
       type: 'projet', id: p.id as string,
       label: `Projet "${p.name as string}" en retard`,
-      severity: 'orange', href: '/chef-projet',
+      severity: 'orange', href: `/chef-projet?tab=projets&project=${p.id as string}`,
     });
   }
 
@@ -430,7 +430,7 @@ export async function getDashboardDirigeant(
     alertes.push({
       type: 'sav', id: 'sav-urgents',
       label: `${savUrgents} ticket${savUrgents > 1 ? 's' : ''} SAV urgent${savUrgents > 1 ? 's' : ''}`,
-      severity: 'red', href: '/chef-projet',
+      severity: 'red', href: '/chef-projet?tab=sav&filter=urgent',
     });
   }
 
@@ -444,7 +444,7 @@ export async function getDashboardDirigeant(
       : 0;
     priorites.push({
       type: 'facture', id: f.id as string, titre: `Facture ${f.number ?? ''}`,
-      echeance, lien: '/commerce?tab=factures', projetNom: null,
+      echeance, lien: '/commerce?tab=factures&filter=retard', projetNom: null,
       montant: (f.total_ttc as number | null), joursRetard: jours,
     });
   }

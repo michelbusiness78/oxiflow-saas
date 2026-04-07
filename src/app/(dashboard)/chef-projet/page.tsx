@@ -22,7 +22,7 @@ import type { SAVTicketFull }       from '@/components/chef-projet/SAVTab';
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 interface PageProps {
-  searchParams: Promise<{ project?: string; tab?: string }>;
+  searchParams: Promise<{ project?: string; tab?: string; filter?: string }>;
 }
 
 export default async function ChefProjetPage({ searchParams }: PageProps) {
@@ -35,9 +35,10 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
   const userName  = profileRes.data?.name      ?? user.email ?? 'Chef de projet';
   const tenantId  = profileRes.data?.tenant_id ?? null;
 
-  const params    = await searchParams;
-  const projectId = params?.project;
-  const activeTab = params?.tab ?? 'dashboard';
+  const params      = await searchParams;
+  const projectId   = params?.project;
+  const activeTab   = params?.tab    ?? 'dashboard';
+  const tabFilter   = params?.filter ?? undefined;
 
   // ── Vue détail projet (?project=ID) ───────────────────────────────────────────
 
@@ -285,6 +286,7 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
               projects={projectsForSAV}
               techniciens={technicienRefs}
               contrats={contratsForSAV}
+              defaultFilter={tabFilter}
             />
           )}
 

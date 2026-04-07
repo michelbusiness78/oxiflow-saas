@@ -48,12 +48,14 @@ function niveauPending(inv: Invoice): { niveau: RelanceNiveau; jours: number } |
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface InvoiceListProps {
-  invoices:  Invoice[];
-  clients:   { id: string; nom: string; email?: string | null }[];
-  catalogue: CatalogueItem[];
-  companies?: { id: string; name: string }[];
-  nomSociete?: string;
-  telSociete?: string;
+  invoices:      Invoice[];
+  clients:       { id: string; nom: string; email?: string | null }[];
+  catalogue:     CatalogueItem[];
+  companies?:    { id: string; name: string }[];
+  nomSociete?:   string;
+  telSociete?:   string;
+  defaultFilter?: string;
+  defaultCompany?: string;
 }
 
 // ─── Relance SlideOver ────────────────────────────────────────────────────────
@@ -222,10 +224,19 @@ function RelancePanel({
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export function InvoiceList({ invoices, clients, catalogue, companies = [], nomSociete = '', telSociete = '' }: InvoiceListProps) {
+function resolveFilter(raw?: string): InvoiceStatus | 'tous' | 'avoirs' {
+  if (!raw) return 'tous';
+  if (raw === 'retard') return 'en_retard';
+  const valid: Array<InvoiceStatus | 'tous' | 'avoirs'> = ['tous', 'brouillon', 'emise', 'payee', 'en_retard', 'avoirs'];
+  return valid.includes(raw as InvoiceStatus | 'tous' | 'avoirs')
+    ? (raw as InvoiceStatus | 'tous' | 'avoirs')
+    : 'tous';
+}
+
+export function InvoiceList({ invoices, clients, catalogue, companies = [], nomSociete = '', telSociete = '', defaultFilter, defaultCompany }: InvoiceListProps) {
   const [formOpen,     setFormOpen]     = useState(false);
   const [editing,      setEditing]      = useState<Invoice | null>(null);
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'tous' | 'avoirs'>('tous');
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'tous' | 'avoirs'>(() => resolveFilter(defaultFilter));
   const [search,       setSearch]       = useState('');
   const [relancingInv, setRelancingInv] = useState<Invoice | null>(null);
 
@@ -248,6 +259,7 @@ export function InvoiceList({ invoices, clients, catalogue, companies = [], nomS
   const filtered = useMemo(() => {
     const q = normalize(search.trim());
     return invoices.filter((inv) => {
+      if (defaultCompany && inv.company_id !== defaultCompany) return false;
       if (statusFilter === 'avoirs') {
         if (inv.type !== 'avoir') return false;
       } else if (statusFilter !== 'tous') {
@@ -264,7 +276,7 @@ export function InvoiceList({ invoices, clients, catalogue, companies = [], nomS
       )) return false;
       return true;
     });
-  }, [invoices, statusFilter, search]);
+  }, [invoices, statusFilter, search, defaultCompany]);
 
   // Lookup client email
   const clientMap = useMemo(() => {

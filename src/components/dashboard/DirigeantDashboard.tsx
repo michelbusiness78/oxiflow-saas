@@ -195,7 +195,7 @@ export function DirigeantDashboard({ data }: Props) {
                 ? Math.min(100, Math.round((s.caNet / s.objectif) * 100))
                 : null;
               return (
-                <a key={s.id} href="/commerce?tab=factures"
+                <a key={s.id} href={`/commerce?tab=factures&company=${s.id}`}
                   className="flex flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
                   style={{ boxShadow: 'var(--shadow)' }}>
                   {/* Icône météo */}
@@ -281,7 +281,7 @@ export function DirigeantDashboard({ data }: Props) {
           sub={`${kpis.enRetardFactures} facture${kpis.enRetardFactures !== 1 ? 's' : ''} · ${kpis.enRetardTaches} tâche${kpis.enRetardTaches !== 1 ? 's' : ''}`}
           badge={kpis.enRetardFactures + kpis.enRetardTaches > 0 ? '⚠' : undefined}
           badgeColor="bg-red-100 text-red-600"
-          href="/commerce?tab=factures"
+          href="/commerce?tab=factures&filter=retard"
         />
       </div>
 
@@ -296,7 +296,8 @@ export function DirigeantDashboard({ data }: Props) {
             {societeAvecObjectif.map((s) => {
               const pctAnn = s.pctAnnuel ?? 0;
               return (
-                <div key={s.id}>
+                <a key={s.id} href={`/commerce?tab=factures&company=${s.id}`}
+                  className="block rounded-lg px-1 py-1 -mx-1 transition-colors hover:bg-[var(--bg)] cursor-pointer">
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
@@ -321,7 +322,7 @@ export function DirigeantDashboard({ data }: Props) {
                       Ce mois : {fmtEur(s.caNet)} / {fmtEur(s.objectif)} ({s.pct} %)
                     </p>
                   )}
-                </div>
+                </a>
               );
             })}
           </div>
@@ -340,18 +341,21 @@ export function DirigeantDashboard({ data }: Props) {
           <div className="space-y-3">
             {/* 3 compteurs */}
             <div className="flex gap-3">
-              <div className="flex-1 text-center rounded-lg bg-red-50 py-3">
+              <a href="/chef-projet?tab=sav&filter=ouvert"
+                className="flex-1 text-center rounded-lg bg-red-50 py-3 transition-colors hover:bg-red-100 cursor-pointer">
                 <p className="text-[22px] font-extrabold text-red-600" style={{ letterSpacing: '-0.04em' }}>{sav.ouverts}</p>
-                <p className="text-[10px] text-[var(--text3)]">Ouverts</p>
-              </div>
-              <div className="flex-1 text-center rounded-lg bg-amber-50 py-3">
+                <p className="text-[10px] text-[var(--text3)]">Ouverts →</p>
+              </a>
+              <a href="/chef-projet?tab=sav&filter=en_cours"
+                className="flex-1 text-center rounded-lg bg-amber-50 py-3 transition-colors hover:bg-amber-100 cursor-pointer">
                 <p className="text-[22px] font-extrabold text-amber-600" style={{ letterSpacing: '-0.04em' }}>{sav.enCours}</p>
-                <p className="text-[10px] text-[var(--text3)]">En cours</p>
-              </div>
-              <div className="flex-1 text-center rounded-lg bg-green-50 py-3">
+                <p className="text-[10px] text-[var(--text3)]">En cours →</p>
+              </a>
+              <a href="/chef-projet?tab=sav&filter=cloture"
+                className="flex-1 text-center rounded-lg bg-green-50 py-3 transition-colors hover:bg-green-100 cursor-pointer">
                 <p className="text-[22px] font-extrabold text-green-600" style={{ letterSpacing: '-0.04em' }}>{sav.cloturesCeMois}</p>
-                <p className="text-[10px] text-[var(--text3)]">Clôturés / mois</p>
-              </div>
+                <p className="text-[10px] text-[var(--text3)]">Clôturés / mois →</p>
+              </a>
             </div>
 
             {/* Délai moyen + taux sous contrat */}
@@ -378,12 +382,13 @@ export function DirigeantDashboard({ data }: Props) {
 
             {/* Urgents */}
             {sav.urgents > 0 && (
-              <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+              <a href="/chef-projet?tab=sav&filter=urgent"
+                className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 transition-colors hover:bg-red-100 cursor-pointer">
                 <span className="text-red-600 font-bold">⚠</span>
                 <span className="text-sm font-semibold text-red-700">
-                  {sav.urgents} ticket{sav.urgents > 1 ? 's' : ''} urgent{sav.urgents > 1 ? 's' : ''} en attente
+                  {sav.urgents} ticket{sav.urgents > 1 ? 's' : ''} urgent{sav.urgents > 1 ? 's' : ''} en attente →
                 </span>
-              </div>
+              </a>
             )}
           </div>
         )}

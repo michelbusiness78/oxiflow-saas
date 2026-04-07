@@ -135,12 +135,14 @@ async function fetchCommerceData() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; from_devis?: string }>;
+  searchParams: Promise<{ tab?: string; from_devis?: string; filter?: string; company?: string }>;
 }
 
 export default async function CommercePage({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const tab    = params?.tab ?? 'dashboard';
+  const params  = await searchParams;
+  const tab     = params?.tab     ?? 'dashboard';
+  const filter  = params?.filter  ?? undefined;
+  const company = params?.company ?? undefined;
 
   // ── Tableau de bord (onglet par défaut) ─────────────────────────────────────
   if (tab === 'dashboard') {
@@ -269,6 +271,8 @@ export default async function CommercePage({ searchParams }: PageProps) {
             companies={companies}
             nomSociete={companies[0]?.name ?? ''}
             telSociete={companies[0]?.phone ?? ''}
+            defaultFilter={filter}
+            defaultCompany={company}
           />
         )}
 
