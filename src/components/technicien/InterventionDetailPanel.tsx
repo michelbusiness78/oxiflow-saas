@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { SlideOver }        from '@/components/ui/SlideOver';
 import { SignatureCanvas }  from './SignatureCanvas';
 import type { SignatureCanvasHandle } from './SignatureCanvas';
@@ -17,6 +18,12 @@ import {
 import type { PlanningIntervention, ChecklistItem, MaterialItem } from '@/app/actions/technicien';
 import type { InterventionWithSignature } from '@/lib/intervention-pdf';
 import { getTenantInfoForPdf } from '@/app/actions/users-management';
+import {
+  uploadDocumentAction,
+  getDocumentUrlAction,
+  deleteDocumentAction,
+} from '@/app/actions/documents';
+import type { DocumentEntry } from '@/app/actions/documents';
 
 // ── Types & helpers ───────────────────────────────────────────────────────────
 
@@ -104,6 +111,30 @@ function AccordionSection({
   );
 }
 
+// ── Helpers documents ─────────────────────────────────────────────────────────
+
+function getFileIcon(ext: string): string {
+  const t = ext.toLowerCase();
+  if (['cfg', 'xml', 'json', 'yaml', 'yml', 'ini', 'conf'].includes(t)) return '⚙️';
+  if (t === 'pdf') return '📕';
+  if (['xlsx', 'xls', 'csv', 'ods'].includes(t)) return '📊';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(t)) return '🖼️';
+  if (['txt', 'log', 'md', 'docx', 'doc', 'rtf'].includes(t)) return '📄';
+  return '📁';
+}
+
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
+}
+
+function fmtShortDate(iso: string): string {
+  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso));
+}
+
+const MAX_DOC_SIZE = 5 * 1024 * 1024; // 5 Mo
+
 // ── Helper : URL → base64 data URL pour jsPDF ────────────────────────────────
 
 async function fetchImageAsBase64(url: string): Promise<string | null> {
@@ -136,6 +167,7 @@ interface Props {
 export function InterventionDetailPanel({
   intervention, onClose, onStatusChange, onSaveProgress,
 }: Props) {
+  const router = useRouter();
   const [isPendingStatus, startStatusTransition] = useTransition();
   const [isSaving,        setIsSaving]           = useState(false);
   const [isSendingReport, setIsSendingReport]    = useState(false);
@@ -158,9 +190,16 @@ export function InterventionDetailPanel({
   const [fullscreenPhoto,  setFullscreenPhoto]  = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
+  // Documents
+  const [localDocs,      setLocalDocs]      = useState<DocumentEntry[]>([]);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [docDescription, setDocDescription] = useState('');
+  const [deletingDocId,  setDeletingDocId]  = useState<string | null>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+
   // État local des sections accordéon
   const [open, setOpen] = useState({
-    infos: true, pointage: false, checklist: false, materiaux: false, photos: false, rapport: false,
+    infos: true, pointage: false, checklist: false, materiaux: false, photos: false, documents: false, rapport: false,
   });
 
   // État local du contenu éditable
@@ -178,11 +217,14 @@ export function InterventionDetailPanel({
     setLocalChecklist(iv.checklist          ?? []);
     setLocalMaterials(iv.materials_installed ?? []);
     setLocalObservations(iv.observations    ?? '');
+    setLocalDocs(iv.documents               ?? []);
     setReportSent(iv.report_sent            ?? false);
     setReportSuccess('');
     setError('');
     setShowMatForm(false);
-    setOpen({ infos: true, pointage: false, checklist: false, materiaux: false, photos: false, rapport: false });
+    setDocDescription('');
+    setDeletingDocId(null);
+    setOpen({ infos: true, pointage: false, checklist: false, materiaux: false, photos: false, documents: false, rapport: false });
 
     // Photos existantes
     const existingPhotos = iv.photos ?? [];
@@ -294,6 +336,49 @@ export function InterventionDetailPanel({
     setIsSaving(false);
     if (res.error) { setError(res.error); return; }
     onSaveProgress(iv.id, updates);
+  }
+
+  async function handleDocUpload(file: File) {
+    if (file.size > MAX_DOC_SIZE) { setError(`Fichier trop volumineux (max 5 Mo) : ${file.name}`); return; }
+    setIsUploadingDoc(true);
+    setError('');
+    const base64: string = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+    const res = await uploadDocumentAction(
+      iv.id,
+      { name: file.name, mimeType: file.type || 'application/octet-stream', size: file.size, base64 },
+      docDescription || undefined,
+    );
+    setIsUploadingDoc(false);
+    if (res.error) { setError(`Erreur upload : ${res.error}`); return; }
+    if (res.doc) {
+      setLocalDocs((prev) => [...prev, res.doc!]);
+      setDocDescription('');
+    }
+  }
+
+  function handleDocInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    files.forEach((f) => handleDocUpload(f));
+    e.target.value = '';
+  }
+
+  async function handleDocDownload(doc: DocumentEntry) {
+    const url = await getDocumentUrlAction(doc.storage_path);
+    if (url) window.open(url, '_blank');
+    else setError('Impossible de récupérer le lien du document.');
+  }
+
+  async function handleDocDelete(doc: DocumentEntry) {
+    if (!confirm(`Supprimer "${doc.name}" ?`)) return;
+    setDeletingDocId(doc.id);
+    const res = await deleteDocumentAction(iv.id, doc.id);
+    setDeletingDocId(null);
+    if (res.error) { setError(res.error); return; }
+    setLocalDocs((prev) => prev.filter((d) => d.id !== doc.id));
   }
 
   async function handlePhotosChange(newPhotos: PhotoEntry[]) {
@@ -555,6 +640,15 @@ export function InterventionDetailPanel({
                   📞 Appeler
                 </a>
               )}
+              {iv.client_id && (
+                <button
+                  type="button"
+                  onClick={() => { onClose(); router.push(`/commerce?tab=clients&id=${iv.client_id}`); }}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  👤 Fiche Client
+                </button>
+              )}
             </div>
 
             {iv.observations && (
@@ -774,7 +868,105 @@ export function InterventionDetailPanel({
           />
         </AccordionSection>
 
-        {/* ── Section 6 : Rapport & Signature client ──────────────────────── */}
+        {/* ── Section 6 : Documents ─────────────────────────────────────── */}
+        <AccordionSection
+          title="Documents"
+          badge={
+            localDocs.length > 0 ? (
+              <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
+                📁 {localDocs.length}
+              </span>
+            ) : undefined
+          }
+          isOpen={open.documents}
+          onToggle={() => toggleSection('documents')}
+        >
+          <div className="space-y-3">
+            {/* Description optionnelle */}
+            <input
+              type="text"
+              value={docDescription}
+              onChange={(e) => setDocDescription(e.target.value)}
+              placeholder="Description (optionnelle)"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+
+            {/* Zone drag & drop / clic */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => docInputRef.current?.click()}
+              onKeyDown={(e) => e.key === 'Enter' && docInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                Array.from(e.dataTransfer.files).forEach((f) => handleDocUpload(f));
+              }}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 py-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors min-h-[80px]"
+            >
+              {isUploadingDoc ? (
+                <p className="text-sm text-blue-600 animate-pulse">Envoi en cours…</p>
+              ) : (
+                <>
+                  <span className="text-2xl">📎</span>
+                  <p className="text-xs font-semibold text-slate-600">Glissez des fichiers ici<br/>ou appuyez pour sélectionner</p>
+                  <p className="text-[10px] text-slate-400">PDF, configs, plans, Excel… (max 5 Mo)</p>
+                </>
+              )}
+            </div>
+            <input
+              ref={docInputRef}
+              type="file"
+              accept="*/*"
+              multiple
+              className="hidden"
+              onChange={handleDocInputChange}
+            />
+
+            {/* Liste des documents */}
+            {localDocs.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">Aucun document attaché.</p>
+            ) : (
+              <div className="space-y-2">
+                {localDocs.map((doc) => (
+                  <div key={doc.id} className="flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3">
+                    <span className="text-xl shrink-0 mt-0.5">{getFileIcon(doc.type)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{doc.name}</p>
+                      {doc.description && (
+                        <p className="text-xs italic text-slate-400 truncate">{doc.description}</p>
+                      )}
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {fmtSize(doc.size)} · {fmtShortDate(doc.uploaded_at)} · {doc.uploaded_by}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleDocDownload(doc)}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors text-sm"
+                        title="Télécharger"
+                      >
+                        ⬇
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDocDelete(doc)}
+                        disabled={deletingDocId === doc.id}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 disabled:opacity-50 transition-colors text-sm"
+                        title="Supprimer"
+                      >
+                        {deletingDocId === doc.id ? '…' : '✕'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </AccordionSection>
+
+        {/* ── Section 7 : Rapport & Signature client ──────────────────────── */}
         <AccordionSection
           title="Rapport & Signature client"
           badge={

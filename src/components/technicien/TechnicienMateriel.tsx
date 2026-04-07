@@ -1,8 +1,14 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { getAllTenantInterventions } from '@/app/actions/technicien';
 import type { MaterialItem } from '@/app/actions/technicien';
+import {
+  uploadDocumentAction,
+  getDocumentUrlAction,
+  deleteDocumentAction,
+} from '@/app/actions/documents';
+import type { DocumentEntry } from '@/app/actions/documents';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -15,7 +21,26 @@ interface ExtendedMaterial extends MaterialItem {
   clientName:        string;
   clientAddress:     string;
   typeIntervention:  string;
+  ivDocuments:       DocumentEntry[];
 }
+
+function getFileIcon(ext: string): string {
+  const t = ext.toLowerCase();
+  if (['cfg', 'xml', 'json', 'yaml', 'yml', 'ini', 'conf'].includes(t)) return '⚙️';
+  if (t === 'pdf') return '📕';
+  if (['xlsx', 'xls', 'csv', 'ods'].includes(t)) return '📊';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(t)) return '🖼️';
+  if (['txt', 'log', 'md', 'docx', 'doc', 'rtf'].includes(t)) return '📄';
+  return '📁';
+}
+
+function fmtFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
+}
+
+const MAX_DOC_SIZE = 5 * 1024 * 1024;
 
 interface Props {
   tenantId:      string;
@@ -44,6 +69,13 @@ export function TechnicienMateriel({ tenantId, currentUserId }: Props) {
   const [myOnly,     setMyOnly]     = useState(false);
   const [selected,   setSelected]   = useState<ExtendedMaterial | null>(null);
 
+  // Documents du panneau détail
+  const [panelDocs,       setPanelDocs]       = useState<DocumentEntry[]>([]);
+  const [isUploadingDoc,  setIsUploadingDoc]  = useState(false);
+  const [deletingDocId,   setDeletingDocId]   = useState<string | null>(null);
+  const [docError,        setDocError]        = useState<string | null>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+
   // Chargement des matériels (toutes interventions du tenant)
   useEffect(() => {
     getAllTenantInterventions(tenantId).then((interventions) => {
@@ -62,6 +94,7 @@ export function TechnicienMateriel({ tenantId, currentUserId }: Props) {
             clientAddress:     [iv.client_address ?? iv.clients?.adresse, iv.client_city ?? iv.clients?.ville]
                                  .filter(Boolean).join(', ') || 'N/A',
             typeIntervention:  iv.type_intervention ?? 'N/A',
+            ivDocuments:       iv.documents ?? [],
           });
         }
       }
@@ -101,7 +134,59 @@ export function TechnicienMateriel({ tenantId, currentUserId }: Props) {
     });
   }, [allItems, search, filterType, myOnly, currentUserId]);
 
-  const handleSelect = useCallback((m: ExtendedMaterial) => setSelected(m), []);
+  const handleSelect = useCallback((m: ExtendedMaterial) => {
+    setSelected(m);
+    setPanelDocs(m.ivDocuments);
+    setDocError(null);
+  }, []);
+
+  async function handleDocUpload(file: File) {
+    if (!selected) return;
+    if (file.size > MAX_DOC_SIZE) { setDocError(`Fichier trop volumineux (max 5 Mo) : ${file.name}`); return; }
+    setIsUploadingDoc(true);
+    setDocError(null);
+    const base64: string = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+    const res = await uploadDocumentAction(
+      selected.interventionId,
+      { name: file.name, mimeType: file.type || 'application/octet-stream', size: file.size, base64 },
+    );
+    setIsUploadingDoc(false);
+    if (res.error) { setDocError(`Erreur : ${res.error}`); return; }
+    if (res.doc) {
+      setPanelDocs((prev) => [...prev, res.doc!]);
+      // Mettre à jour la liste locale
+      setAllItems((prev) => prev.map((m) =>
+        m.interventionId === selected.interventionId
+          ? { ...m, ivDocuments: [...m.ivDocuments, res.doc!] }
+          : m,
+      ));
+    }
+  }
+
+  async function handleDocDownload(doc: DocumentEntry) {
+    const url = await getDocumentUrlAction(doc.storage_path);
+    if (url) window.open(url, '_blank');
+    else setDocError('Impossible de récupérer le lien.');
+  }
+
+  async function handleDocDelete(doc: DocumentEntry) {
+    if (!selected) return;
+    if (!confirm(`Supprimer "${doc.name}" ?`)) return;
+    setDeletingDocId(doc.id);
+    const res = await deleteDocumentAction(selected.interventionId, doc.id);
+    setDeletingDocId(null);
+    if (res.error) { setDocError(res.error); return; }
+    setPanelDocs((prev) => prev.filter((d) => d.id !== doc.id));
+    setAllItems((prev) => prev.map((m) =>
+      m.interventionId === selected.interventionId
+        ? { ...m, ivDocuments: m.ivDocuments.filter((d) => d.id !== doc.id) }
+        : m,
+    ));
+  }
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -301,6 +386,62 @@ export function TechnicienMateriel({ tenantId, currentUserId }: Props) {
                 <DetailRow label="Technicien"  value={selected.techName}               />
                 <DetailRow label="Type"        value={selected.typeIntervention}        />
                 <DetailRow label="Intervention" value={selected.interventionTitle}      />
+              </div>
+
+              {/* Documents liés */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  Documents liés ({panelDocs.length})
+                </p>
+
+                {/* Zone upload */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => docInputRef.current?.click()}
+                  onKeyDown={(e) => e.key === 'Enter' && docInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); Array.from(e.dataTransfer.files).forEach((f) => handleDocUpload(f)); }}
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors min-h-[56px]"
+                >
+                  {isUploadingDoc
+                    ? <p className="text-xs text-blue-600 animate-pulse">Envoi en cours…</p>
+                    : <p className="text-xs font-semibold text-slate-500">📎 Ajouter un document (max 5 Mo)</p>
+                  }
+                </div>
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  accept="*/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => { Array.from(e.target.files ?? []).forEach((f) => handleDocUpload(f)); e.target.value = ''; }}
+                />
+
+                {docError && (
+                  <p className="text-xs text-red-600 rounded-lg bg-red-50 px-3 py-2 border border-red-200">{docError}</p>
+                )}
+
+                {panelDocs.length === 0
+                  ? <p className="text-xs italic text-slate-400">Aucun document attaché à cette intervention.</p>
+                  : panelDocs.map((doc) => (
+                    <div key={doc.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5">
+                      <span className="text-lg shrink-0">{getFileIcon(doc.type)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-800 truncate">{doc.name}</p>
+                        <p className="text-[10px] text-slate-400">{fmtFileSize(doc.size)} · {doc.uploaded_by}</p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button type="button" onClick={() => handleDocDownload(doc)}
+                          className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors text-xs" title="Télécharger">⬇</button>
+                        <button type="button" onClick={() => handleDocDelete(doc)} disabled={deletingDocId === doc.id}
+                          className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 disabled:opacity-50 transition-colors text-xs" title="Supprimer">
+                          {deletingDocId === doc.id ? '…' : '✕'}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                }
               </div>
             </div>
 

@@ -70,6 +70,8 @@ export interface PlanningIntervention {
   signature_data:      string | null;
   signature_name:      string | null;
   signature_date:      string | null;
+  // Documents
+  documents:           import('@/app/actions/documents').DocumentEntry[];
   // Joints (fallback si dénorm absent)
   clients:  { nom: string; adresse: string | null; cp: string | null; ville: string | null; tel: string | null } | null;
   projects: { name: string; affair_number: string | null } | null;
@@ -94,6 +96,7 @@ export async function getMyInterventions(
       observations, checklist, materials_installed, photos,
       report_sent, report_sent_at, report_sent_to,
       signature_data, signature_name, signature_date,
+      documents,
       clients ( nom, adresse, cp, ville, tel ),
       projects ( name, affair_number )
     `)
@@ -112,6 +115,7 @@ export async function getMyInterventions(
     signature_data:      (i.signature_data      as string  | null) ?? null,
     signature_name:      (i.signature_name      as string  | null) ?? null,
     signature_date:      (i.signature_date      as string  | null) ?? null,
+    documents:           (i.documents           as import('@/app/actions/documents').DocumentEntry[] | null) ?? [],
   })) as unknown as PlanningIntervention[];
 }
 
@@ -126,7 +130,7 @@ export async function getAllTenantInterventions(tenantId: string): Promise<Plann
       id, title, date_start, date_end, status, type_intervention,
       tech_user_id, tech_name,
       client_name, client_address, client_city,
-      materials_installed,
+      materials_installed, documents,
       clients (nom, adresse, ville)
     `)
     .eq('tenant_id', tenantId)
@@ -166,6 +170,7 @@ export async function getAllTenantInterventions(tenantId: string): Promise<Plann
     signature_data:      null,
     signature_name:      null,
     signature_date:      null,
+    documents:           (i.documents as import('@/app/actions/documents').DocumentEntry[] | null) ?? [],
     clients:             (i.clients as unknown as { nom: string; adresse: string | null; cp: string | null; ville: string | null; tel: string | null } | null) ?? null,
     projects:            null,
   }));
