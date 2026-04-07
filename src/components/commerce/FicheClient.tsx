@@ -23,13 +23,14 @@ interface RelanceHistorique {
 }
 
 interface FicheClientProps {
-  clients:   Client[];
-  dossiers:  (Dossier & { client_id: string })[];
-  devis:     (Devis   & { client_id: string })[];
-  factures:  (Facture & { client_id: string })[];
-  contrats:  (Contrat & { client_id: string })[];
-  savs:      (SAV     & { client_id: string })[];
-  relances?: (RelanceHistorique & { client_id: string })[];
+  clients:            Client[];
+  dossiers:           (Dossier & { client_id: string })[];
+  devis:              (Devis   & { client_id: string })[];
+  factures:           (Facture & { client_id: string })[];
+  contrats:           (Contrat & { client_id: string })[];
+  savs:               (SAV     & { client_id: string })[];
+  relances?:          (RelanceHistorique & { client_id: string })[];
+  initialSelectedId?: string;
 }
 
 // ─── Section Card ─────────────────────────────────────────────────────────────
@@ -68,8 +69,8 @@ function Section({ title, count, children }: { title: string; count: number; chi
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function FicheClient({ clients, dossiers, devis, factures, contrats, savs, relances = [] }: FicheClientProps) {
-  const [selectedId, setSelectedId] = useState<string>('');
+export function FicheClient({ clients, dossiers, devis, factures, contrats, savs, relances = [], initialSelectedId }: FicheClientProps) {
+  const [selectedId, setSelectedId] = useState<string>(initialSelectedId ?? '');
 
   const client    = clients.find((c) => c.id === selectedId);
   const cDossiers = dossiers.filter((d)  => d.client_id === selectedId);

@@ -158,7 +158,15 @@ export async function createAvoirAction(
 
   if (invErr || !inv) return { error: 'Facture introuvable.' };
   if ((inv.type as string) === 'avoir') return { error: 'Impossible de créer un avoir sur un avoir.' };
-  if (inv.avoir_ref) return { error: `Un avoir existe déjà (${inv.avoir_ref}).` };
+
+  // Vérifie si un avoir non-brouillon existe déjà sur cette facture
+  const { data: existingAvoir } = await admin
+    .from('invoices')
+    .select('id, number, status')
+    .eq('avoir_de_id', invoiceId)
+    .neq('status', 'brouillon')
+    .maybeSingle();
+  if (existingAvoir) return { error: `Un avoir existe déjà (${existingAvoir.number as string}).` };
 
   const number = await nextAvoirNumber(admin, tenant_id);
   const today  = new Date().toISOString().split('T')[0];
@@ -188,7 +196,7 @@ export async function createAvoirAction(
       company_id:    inv.company_id,
       date_facture:  today,
       date_echeance: today,
-      status:        'emise',
+      status:        'brouillon',
       total_ht:      totalHT,
       total_tva:     totalTVA,
       total_ttc:     totalTTC,
@@ -234,12 +242,6 @@ export async function createAvoirAction(
       vat_rate:         20,
     });
   }
-
-  // Mettre à jour la facture d'origine avec la référence de l'avoir
-  await admin
-    .from('invoices')
-    .update({ avoir_ref: number, updated_at: new Date().toISOString() })
-    .eq('id', invoiceId);
 
   revalidatePath(PATH);
   return { success: true, avoir: { id: avoir.id as string, number } };
@@ -428,7 +430,7 @@ export async function deleteInvoiceAction(invoiceId: string): Promise<{ success?
 
   const { data: inv } = await admin
     .from('invoices')
-    .select('status')
+    .select('status, type, avoir_de_id')
     .eq('id', invoiceId)
     .single();
 
@@ -438,6 +440,31 @@ export async function deleteInvoiceAction(invoiceId: string): Promise<{ success?
   }
 
   const { error } = await admin.from('invoices').delete().eq('id', invoiceId);
+  if (error) return { error: translateSupabaseError(error.message) };
+
+  // Si c'était un avoir en brouillon, effacer avoir_ref sur la facture source
+  if ((inv.type as string) === 'avoir' && inv.avoir_de_id) {
+    await admin
+      .from('invoices')
+      .update({ avoir_ref: null, updated_at: new Date().toISOString() })
+      .eq('id', inv.avoir_de_id as string);
+  }
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+// ─── setAvoirRefAction ────────────────────────────────────────────────────────
+
+export async function setAvoirRefAction(
+  sourceInvoiceId: string,
+  avoirNumber: string,
+): Promise<{ success?: true; error?: string }> {
+  const { admin } = await getAuthContext();
+  const { error } = await admin
+    .from('invoices')
+    .update({ avoir_ref: avoirNumber, updated_at: new Date().toISOString() })
+    .eq('id', sourceInvoiceId);
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
   return { success: true };

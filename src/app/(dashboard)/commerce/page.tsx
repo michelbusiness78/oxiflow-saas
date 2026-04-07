@@ -2,13 +2,12 @@ import { redirect } from 'next/navigation';
 import { Suspense }  from 'react';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { Tabs, type TabItem }  from '@/components/ui/Tabs';
-import { ClientList }          from '@/components/commerce/ClientList';
+import { ClientsTab }          from '@/components/commerce/ClientsTab';
 import { QuoteList }           from '@/components/commerce/QuoteList';
 import { ContratList }         from '@/components/commerce/ContratList';
 import { CatalogueList }       from '@/components/commerce/CatalogueList';
 import { CommerceDashboard }   from '@/components/commerce/CommerceDashboard';
 import { InvoiceList }         from '@/components/commerce/InvoiceList';
-import { FicheClient }         from '@/components/commerce/FicheClient';
 import { getDashboardCommerce } from '@/app/actions/commerce';
 import { getInvoices }         from '@/app/actions/invoices';
 import { getCompanies }        from '@/app/actions/companies';
@@ -162,13 +161,12 @@ export default async function CommercePage({ searchParams }: PageProps) {
     const dashData   = await getDashboardCommerce(tenantId);
 
     const tabs: TabItem[] = [
-      { key: 'dashboard',     label: 'Tableau de bord'                            },
-      { key: 'clients',       label: 'Clients'                                     },
-      { key: 'fiche-client',  label: 'Fiche Client'                                },
-      { key: 'catalogue',     label: 'Catalogue'                                   },
-      { key: 'devis',         label: 'Devis',     count: dashData.kpis.totalDevis  },
-      { key: 'factures',      label: 'Factures'                                    },
-      { key: 'contrats',      label: 'Contrats'                                    },
+      { key: 'dashboard', label: 'Tableau de bord'                           },
+      { key: 'clients',   label: 'Clients'                                    },
+      { key: 'catalogue', label: 'Catalogue'                                  },
+      { key: 'devis',     label: 'Devis',     count: dashData.kpis.totalDevis },
+      { key: 'factures',  label: 'Factures'                                   },
+      { key: 'contrats',  label: 'Contrats'                                   },
     ];
 
     return (
@@ -186,13 +184,12 @@ export default async function CommercePage({ searchParams }: PageProps) {
     await fetchCommerceData();
 
   const tabs: TabItem[] = [
-    { key: 'dashboard',     label: 'Tableau de bord'                              },
-    { key: 'clients',       label: 'Clients',      count: clients.length          },
-    { key: 'fiche-client',  label: 'Fiche Client'                                 },
-    { key: 'catalogue',     label: 'Catalogue',    count: catalogue.length        },
-    { key: 'devis',         label: 'Devis',        count: quotes.length           },
-    { key: 'factures',      label: 'Factures',     count: invoices.length         },
-    { key: 'contrats',      label: 'Contrats',     count: contrats.length         },
+    { key: 'dashboard', label: 'Tableau de bord'                           },
+    { key: 'clients',   label: 'Clients',   count: clients.length          },
+    { key: 'catalogue', label: 'Catalogue', count: catalogue.length        },
+    { key: 'devis',     label: 'Devis',     count: quotes.length           },
+    { key: 'factures',  label: 'Factures',  count: invoices.length         },
+    { key: 'contrats',  label: 'Contrats',  count: contrats.length         },
   ];
 
   return (
@@ -202,10 +199,8 @@ export default async function CommercePage({ searchParams }: PageProps) {
       </Suspense>
 
       <div className="space-y-4">
-        {tab === 'clients'      && <ClientList clients={clients} />}
-
-        {tab === 'fiche-client' && (
-          <FicheClient
+        {tab === 'clients' && (
+          <ClientsTab
             clients={clients}
             dossiers={dossiers}
             devis={quotes.filter((q) => q.client_id).map((q) => ({

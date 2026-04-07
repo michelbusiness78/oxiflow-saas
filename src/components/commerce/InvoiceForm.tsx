@@ -9,6 +9,7 @@ import {
   deleteInvoiceAction,
   changeInvoiceStatusAction,
   createAvoirAction,
+  setAvoirRefAction,
   getInvoiceLines,
   type Invoice,
   type InvoiceLine,
@@ -220,7 +221,7 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
 
   // localStatus prend le dessus sur la prop (qui ne change pas après action serveur)
   const status   = localStatus ?? ((editing?.status ?? 'brouillon') as InvoiceStatus);
-  const readonly = status !== 'brouillon' || (editing?.type === 'avoir');
+  const readonly = status !== 'brouillon';
 
   // ── Sync state ──
   useEffect(() => {
@@ -320,7 +321,7 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
       quote_number:  editing?.quote_number ?? null,
       date_facture:  dateFact,
       date_echeance: dateEch,
-      status:        'brouillon',
+      status:        isAvoir ? status : 'brouillon',
       conditions,
       notes,
       lines: validLines.map((l, i) => ({
@@ -384,6 +385,21 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
     onClose();
   }
 
+  // ── Émettre l'avoir ──
+  async function handleEmettre() {
+    if (!editing) return;
+    setStatusBusy(true);
+    const res = await changeInvoiceStatusAction(editing.id, 'emise');
+    if (res.error) { setError(res.error); setStatusBusy(false); return; }
+    // Stamper avoir_ref sur la facture source
+    if (editing.avoir_de_id) {
+      await setAvoirRefAction(editing.avoir_de_id, editing.number);
+    }
+    setStatusBusy(false);
+    setLocalStatus('emise');
+    router.refresh();
+  }
+
   const isAvoir  = editing?.type === 'avoir';
   const title    = isAvoir
     ? `Avoir ${editing!.number}`
@@ -399,12 +415,19 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
               {isAvoir ? (
                 <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
-                  Avoir
+                  Avoir — {status === 'brouillon' ? 'Brouillon' : status === 'emise' ? 'Émis' : 'Payé'}
                 </span>
               ) : (
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[status].cls}`}>
                   {STATUS_META[status].label}
                 </span>
+              )}
+
+              {isAvoir && status === 'brouillon' && (
+                <button type="button" disabled={statusBusy} onClick={handleEmettre}
+                  className="rounded-full border border-violet-300 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-50 transition-colors">
+                  📤 Émettre l'avoir
+                </button>
               )}
 
               {!isAvoir && status === 'brouillon' && (

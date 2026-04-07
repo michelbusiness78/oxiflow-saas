@@ -21,20 +21,26 @@ export interface Client {
 }
 
 interface ClientListProps {
-  clients: Client[];
+  clients:      Client[];
+  onOpenFiche?: (id: string) => void;
 }
+
+type SortKey = 'nom' | 'contact' | 'ville';
 
 function normalize(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
 }
 
-export function ClientList({ clients }: ClientListProps) {
+export function ClientList({ clients, onOpenFiche }: ClientListProps) {
   const [search,   setSearch]   = useState('');
+  const [sortKey,  setSortKey]  = useState<SortKey>('nom');
+  const [sortAsc,  setSortAsc]  = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing,  setEditing]  = useState<ClientFormClient | null>(null);
 
   function openCreate() { setEditing(null); setFormOpen(true); }
-  function openEdit(c: Client) {
+  function openEdit(e: React.MouseEvent, c: Client) {
+    e.stopPropagation();
     setEditing({
       id:                   c.id,
       nom:                  c.nom            ?? '',
@@ -53,31 +59,40 @@ export function ClientList({ clients }: ClientListProps) {
     setFormOpen(true);
   }
 
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortAsc((v) => !v);
+    else { setSortKey(key); setSortAsc(true); }
+  }
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return clients;
-    const q = normalize(search.trim());
-    return clients.filter((c) =>
-      normalize(c.nom     ?? '').includes(q) ||
-      normalize(c.contact ?? '').includes(q) ||
-      normalize(c.ville   ?? '').includes(q)
-    );
-  }, [clients, search]);
+    let list = clients;
+    if (search.trim()) {
+      const q = normalize(search.trim());
+      list = list.filter((c) =>
+        normalize(c.nom     ?? '').includes(q) ||
+        normalize(c.contact ?? '').includes(q) ||
+        normalize(c.ville   ?? '').includes(q)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const av = normalize(a[sortKey] ?? '');
+      const bv = normalize(b[sortKey] ?? '');
+      return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }, [clients, search, sortKey, sortAsc]);
+
+  function SortIcon({ col }: { col: SortKey }) {
+    if (sortKey !== col) return <span className="ml-1 text-slate-300">↕</span>;
+    return <span className="ml-1 text-blue-500">{sortAsc ? '↑' : '↓'}</span>;
+  }
 
   return (
     <>
       {/* Toolbar */}
       <div className="flex items-center gap-3">
-        {/* Barre de recherche */}
         <div className="relative flex-1">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-            aria-hidden
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <input
@@ -99,14 +114,7 @@ export function ClientList({ clients }: ClientListProps) {
         </button>
       </div>
 
-      {/* Compteur */}
-      {search && (
-        <p className="text-sm text-slate-500">
-          {filtered.length} résultat{filtered.length !== 1 ? 's' : ''} pour « {search} »
-        </p>
-      )}
-
-      {/* Grille de cartes */}
+      {/* Table */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 py-16 text-center">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="mb-3 h-10 w-10 text-slate-300" aria-hidden>
@@ -117,63 +125,67 @@ export function ClientList({ clients }: ClientListProps) {
           ) : (
             <>
               <p className="text-sm font-medium text-slate-600">Aucun client pour l'instant</p>
-              <button
-                onClick={openCreate}
-                className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-              >
+              <button onClick={openCreate} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
                 Ajouter votre premier client
               </button>
             </>
           )}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => openEdit(c)}
-              className="group text-left rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            >
-              {/* Nom + badge actif */}
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold text-slate-800 leading-snug group-hover:text-blue-700 transition-colors">
-                  {c.nom}
-                </p>
-                {!c.actif && (
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">
-                    Inactif
-                  </span>
-                )}
-              </div>
-
-              {/* Contact */}
-              {c.contact && (
-                <p className="mt-1 text-sm text-slate-500">{c.contact}</p>
-              )}
-
-              {/* Ville */}
-              {(c.cp || c.ville) && (
-                <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-3.5 w-3.5 shrink-0" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                  </svg>
-                  {[c.cp, c.ville].filter(Boolean).join(' ')}
-                </p>
-              )}
-
-              {/* Téléphone */}
-              {c.tel && (
-                <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-3.5 w-3.5 shrink-0" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
-                  </svg>
-                  {c.tel}
-                </p>
-              )}
-            </button>
-          ))}
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <th className="cursor-pointer px-4 py-3 hover:text-slate-800 transition-colors" onClick={() => toggleSort('nom')}>
+                  Nom <SortIcon col="nom" />
+                </th>
+                <th className="hidden cursor-pointer px-4 py-3 hover:text-slate-800 transition-colors sm:table-cell" onClick={() => toggleSort('contact')}>
+                  Contact <SortIcon col="contact" />
+                </th>
+                <th className="hidden cursor-pointer px-4 py-3 hover:text-slate-800 transition-colors md:table-cell" onClick={() => toggleSort('ville')}>
+                  Ville <SortIcon col="ville" />
+                </th>
+                <th className="hidden px-4 py-3 lg:table-cell">Téléphone</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((c) => (
+                <tr
+                  key={c.id}
+                  onClick={() => onOpenFiche?.(c.id)}
+                  className={`transition-colors hover:bg-slate-50 ${onOpenFiche ? 'cursor-pointer' : ''}`}
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-800">{c.nom}</span>
+                      {!c.actif && (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">Inactif</span>
+                      )}
+                    </div>
+                    {c.email && <p className="text-xs text-slate-400 mt-0.5">{c.email}</p>}
+                  </td>
+                  <td className="hidden px-4 py-3 text-slate-600 sm:table-cell">{c.contact || '—'}</td>
+                  <td className="hidden px-4 py-3 text-slate-600 md:table-cell">{[c.cp, c.ville].filter(Boolean).join(' ') || '—'}</td>
+                  <td className="hidden px-4 py-3 text-slate-600 lg:table-cell">{c.tel || '—'}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={(e) => openEdit(e, c)}
+                      className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                    >
+                      Modifier
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {search && (
+            <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
+              {filtered.length} résultat{filtered.length !== 1 ? 's' : ''} pour « {search} »
+            </p>
+          )}
         </div>
       )}
 
