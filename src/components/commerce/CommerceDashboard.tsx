@@ -65,7 +65,7 @@ interface Props {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export function CommerceDashboard({ data, userName }: Props) {
-  const { kpis, quotesRecentes, alertesRelance, alertesRelanceFactures, users, topProduits } = data;
+  const { kpis, quotesRecentes, alertesRelance, alertesRelanceFactures, users, topProduits, companies } = data;
 
   const NIVEAU_META = {
     1: { icon: '⏰', cls: 'bg-amber-100 text-amber-700'   },
@@ -126,24 +126,42 @@ export function CommerceDashboard({ data, userName }: Props) {
         />
       </div>
 
-      {/* ── CA par société (table companies absente → total unique) ── */}
+      {/* ── CA par société (devis acceptés) ── */}
       <div>
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[var(--text2)]">
           CA par société (devis acceptés)
         </p>
-        <div
-          className="flex items-center gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3"
-          style={{ boxShadow: 'var(--shadow)' }}
-        >
-          <span className="w-36 shrink-0 text-sm font-semibold text-[var(--text)]">
-            Société par défaut
-          </span>
-          <div className="flex-1 h-2 rounded-full bg-[var(--bg4)] overflow-hidden">
-            <div className="h-full rounded-full bg-[var(--blue)]" style={{ width: '100%' }} />
-          </div>
-          <span className="shrink-0 font-mono text-sm font-bold text-[var(--text)]">
-            {fmtEur(kpis.caDevisTotal)}
-          </span>
+        <div className="space-y-2">
+          {companies.length === 0 ? (
+            <div
+              className="flex items-center gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3"
+              style={{ boxShadow: 'var(--shadow)' }}
+            >
+              <span className="w-36 shrink-0 text-sm font-semibold text-[var(--text)]">Total</span>
+              <div className="flex-1 h-2 rounded-full bg-[var(--bg4)] overflow-hidden">
+                <div className="h-full rounded-full bg-[var(--blue)]" style={{ width: '100%' }} />
+              </div>
+              <span className="shrink-0 font-mono text-sm font-bold text-[var(--text)]">
+                {fmtEur(kpis.caDevisTotal)}
+              </span>
+            </div>
+          ) : (
+            companies.map((co) => (
+              <div
+                key={co.id}
+                className="flex items-center gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3"
+                style={{ boxShadow: 'var(--shadow)' }}
+              >
+                <span className="w-36 shrink-0 text-sm font-semibold text-[var(--text)] truncate">{co.name}</span>
+                <div className="flex-1 h-2 rounded-full bg-[var(--bg4)] overflow-hidden">
+                  <div className="h-full rounded-full bg-[var(--blue)]" style={{ width: '100%' }} />
+                </div>
+                <span className="shrink-0 font-mono text-sm font-bold text-[var(--text)]">
+                  {fmtEur(kpis.caDevisTotal)}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

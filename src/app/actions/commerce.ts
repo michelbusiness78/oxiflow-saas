@@ -112,6 +112,7 @@ export interface CommerceDashboardData {
   alertesRelanceFactures: RelanceFactureDash[];
   users:                  { id: string; name: string }[];
   topProduits:            TopProduit[];
+  companies:              { id: string; name: string }[];
 }
 
 export async function getDashboardCommerce(tenantId: string): Promise<CommerceDashboardData> {
@@ -119,7 +120,7 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
   const today       = new Date().toISOString().split('T')[0];
   const sevenAgo    = new Date(Date.now() - 7 * 86400_000).toISOString();
 
-  const [quotesRes, invoicesRes, usersRes] = await Promise.all([
+  const [quotesRes, invoicesRes, usersRes, companiesRes] = await Promise.all([
     admin
       .from('quotes')
       .select('id, number, affair_number, objet, statut, date, validity, montant_ttc, project_created, client_id, commercial_user_id, chef_projet_user_id, created_at, lignes, clients(nom)')
@@ -134,15 +135,23 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
       .select('id, name')
       .eq('tenant_id', tenantId)
       .order('name'),
+    admin
+      .from('companies')
+      .select('id, name')
+      .eq('tenant_id', tenantId)
+      .eq('active', true)
+      .order('name'),
   ]);
 
-  if (quotesRes.error)   console.error('[getDashboardCommerce] quotes error:',   quotesRes.error);
-  if (invoicesRes.error) console.error('[getDashboardCommerce] invoices error:', invoicesRes.error);
-  if (usersRes.error)    console.error('[getDashboardCommerce] users error:',    usersRes.error);
+  if (quotesRes.error)    console.error('[getDashboardCommerce] quotes error:',    quotesRes.error);
+  if (invoicesRes.error)  console.error('[getDashboardCommerce] invoices error:',  invoicesRes.error);
+  if (usersRes.error)     console.error('[getDashboardCommerce] users error:',     usersRes.error);
+  if (companiesRes.error) console.error('[getDashboardCommerce] companies error:', companiesRes.error);
 
-  const quotes   = quotesRes.data   ?? [];
-  const invoices = invoicesRes.data ?? [];
-  const users    = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
+  const quotes    = quotesRes.data   ?? [];
+  const invoices  = invoicesRes.data ?? [];
+  const users     = (usersRes.data ?? []).map((u) => ({ id: u.id, name: u.name as string }));
+  const companies = (companiesRes.data ?? []).map((c) => ({ id: c.id as string, name: c.name as string }));
 
   // ── KPIs ──
   const accepted   = quotes.filter((q) => q.statut === 'accepte');
@@ -227,6 +236,7 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
     alertesRelanceFactures: alertesRelanceFactures.sort((a, b) => b.joursRetard - a.joursRetard).slice(0, 10),
     users,
     topProduits,
+    companies,
   };
 }
 
