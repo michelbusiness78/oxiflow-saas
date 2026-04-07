@@ -1,13 +1,13 @@
 import { fmtEur } from '@/lib/format';
-import type { DirigeantDashboardData, PrioriteItem } from '@/app/actions/dirigeant';
+import type { DirigeantDashboardData, PrioriteItem, AlerteItem } from '@/app/actions/dirigeant';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const METEO_META = {
-  green:   { label: 'En forme',    dot: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50 border-green-200'  },
-  orange:  { label: 'Attention',   dot: 'bg-amber-500',  text: 'text-amber-700',  bg: 'bg-amber-50 border-amber-200'  },
-  red:     { label: 'En difficulté', dot: 'bg-red-500',  text: 'text-red-700',    bg: 'bg-red-50 border-red-200'      },
-  unknown: { label: 'Inconnu',     dot: 'bg-slate-400',  text: 'text-slate-600',  bg: 'bg-slate-50 border-slate-200'  },
+  green:   { label: 'En forme',      dot: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50 border-green-200'  },
+  orange:  { label: 'Attention',     dot: 'bg-amber-500',  text: 'text-amber-700',  bg: 'bg-amber-50 border-amber-200'  },
+  red:     { label: 'En difficulté', dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50 border-red-200'      },
+  unknown: { label: 'Inconnu',       dot: 'bg-slate-400',  text: 'text-slate-600',  bg: 'bg-slate-50 border-slate-200'  },
 };
 
 const PRIORITE_ICON: Record<PrioriteItem['type'], string> = {
@@ -15,9 +15,22 @@ const PRIORITE_ICON: Record<PrioriteItem['type'], string> = {
   devis:   '📋',
 };
 
+const ALERTE_ICON: Record<AlerteItem['type'], string> = {
+  facture: '💸',
+  contrat: '📄',
+  projet:  '📌',
+  sav:     '🔧',
+};
+
 function fmtVariation(pct: number | null): string {
   if (pct === null) return '—';
   return (pct >= 0 ? '+' : '') + pct + ' %';
+}
+
+function fmtDelai(h: number | null): string {
+  if (h === null) return '—';
+  if (h < 24) return `${h} h`;
+  return `${Math.round(h / 24)} j`;
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -79,7 +92,7 @@ interface Props {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export function DirigeantDashboard({ data }: Props) {
-  const { userName, kpis, meteoSocietes, meteoGlobal, caGlobalMois, sav, apiUsage, priorites, contratsARenouveler } = data;
+  const { userName, kpis, meteoSocietes, meteoGlobal, caGlobalMois, sav, apiUsage, priorites, alertes } = data;
 
   const prenom = userName.split(' ')[0] || userName;
   const today  = new Intl.DateTimeFormat('fr-FR', {
@@ -90,6 +103,12 @@ export function DirigeantDashboard({ data }: Props) {
   const apiPct    = apiUsage.tokenMax > 0
     ? Math.min(100, Math.round((apiUsage.tokensUsed / apiUsage.tokenMax) * 100))
     : 0;
+  const reqPct    = apiUsage.quota > 0
+    ? Math.min(100, Math.round((apiUsage.requests / apiUsage.quota) * 100))
+    : 0;
+
+  const redAlertes    = alertes.filter((a) => a.severity === 'red');
+  const orangeAlertes = alertes.filter((a) => a.severity === 'orange');
 
   return (
     <div className="space-y-6">
@@ -101,6 +120,39 @@ export function DirigeantDashboard({ data }: Props) {
         </h1>
         <p className="mt-0.5 text-sm capitalize text-[var(--text2)]">{today}</p>
       </div>
+
+      {/* ── Alertes critiques ── */}
+      {alertes.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--text2)]">
+            Alertes critiques
+          </p>
+          {redAlertes.map((a) => (
+            <a
+              key={`${a.type}-${a.id}`}
+              href={a.href}
+              className="flex items-center gap-3 rounded-[var(--radius)] border border-red-200 bg-red-50 px-4 py-3 transition-colors hover:bg-red-100"
+              style={{ boxShadow: 'var(--shadow)' }}
+            >
+              <span className="text-base">{ALERTE_ICON[a.type]}</span>
+              <span className="flex-1 min-w-0 text-sm font-semibold text-red-800 truncate">{a.label}</span>
+              <span className="shrink-0 text-xs font-semibold text-red-700">Voir →</span>
+            </a>
+          ))}
+          {orangeAlertes.map((a) => (
+            <a
+              key={`${a.type}-${a.id}`}
+              href={a.href}
+              className="flex items-center gap-3 rounded-[var(--radius)] border border-amber-200 bg-amber-50 px-4 py-3 transition-colors hover:bg-amber-100"
+              style={{ boxShadow: 'var(--shadow)' }}
+            >
+              <span className="text-base">{ALERTE_ICON[a.type]}</span>
+              <span className="flex-1 min-w-0 text-sm font-semibold text-amber-800 truncate">{a.label}</span>
+              <span className="shrink-0 text-xs font-semibold text-amber-700">Voir →</span>
+            </a>
+          ))}
+        </div>
+      )}
 
       {/* ── Météo sociétés ── */}
       <div>
@@ -121,37 +173,68 @@ export function DirigeantDashboard({ data }: Props) {
         ) : (
           <div className="space-y-2">
             {meteoSocietes.map((s) => {
-              const meta = METEO_META[s.meteo];
+              const meta    = METEO_META[s.meteo];
+              const barPct  = s.objectif && s.objectif > 0
+                ? Math.min(100, Math.round((s.caNet / s.objectif) * 100))
+                : null;
               return (
                 <div
                   key={s.id}
-                  className="flex items-center gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3"
+                  className="rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3"
                   style={{ boxShadow: 'var(--shadow)' }}
                 >
-                  <span
-                    className="h-3 w-3 shrink-0 rounded-full"
-                    style={{ backgroundColor: s.color }}
-                  />
-                  <span className="w-36 shrink-0 text-sm font-semibold text-[var(--text)]">
-                    {s.nom}
-                  </span>
-                  <div className="flex-1 h-2 rounded-full bg-[var(--bg4)] overflow-hidden">
-                    {s.objectif != null && s.objectif > 0 && (
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(100, Math.round((s.caMois / s.objectif) * 100))}%`,
-                          backgroundColor: s.color,
-                        }}
-                      />
+                  {/* Ligne principale */}
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: s.color }}
+                    />
+                    <span className="w-36 shrink-0 text-sm font-semibold text-[var(--text)]">
+                      {s.nom}
+                    </span>
+                    {/* Barre de progression */}
+                    <div className="flex-1 h-2 rounded-full bg-[var(--bg4)] overflow-hidden">
+                      {barPct !== null && (
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${barPct}%`, backgroundColor: s.color }}
+                        />
+                      )}
+                    </div>
+                    {/* CA net */}
+                    <span className="shrink-0 font-mono text-sm font-bold text-[var(--text)]">
+                      {fmtEur(s.caNet)}
+                    </span>
+                    {/* % objectif */}
+                    {s.pct !== null && (
+                      <span className={`shrink-0 text-xs font-bold ${meta.text}`}>
+                        {s.pct} %
+                      </span>
+                    )}
+                    {/* Variation M-1 */}
+                    {s.variation !== null && (
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        s.variation >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {fmtVariation(s.variation)}
+                      </span>
+                    )}
+                    {/* Météo label si pas d'objectif */}
+                    {s.pct === null && (
+                      <span className={`shrink-0 text-xs font-bold ${meta.text}`}>
+                        {meta.label}
+                      </span>
                     )}
                   </div>
-                  <span className="shrink-0 font-mono text-sm font-bold text-[var(--text)]">
-                    {fmtEur(s.caMois)}
-                  </span>
-                  <span className={`shrink-0 text-xs font-bold ${meta.text}`}>
-                    {meta.label}
-                  </span>
+                  {/* Objectif mensuel si présent */}
+                  {s.objectif != null && s.objectif > 0 && (
+                    <div className="mt-1 ml-6 flex items-center gap-2 text-[11px] text-[var(--text3)]">
+                      <span>Objectif : {fmtEur(s.objectif)}</span>
+                      {s.avoirs > 0 && (
+                        <span className="text-red-400">· Avoirs : -{fmtEur(s.avoirs)}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -213,25 +296,69 @@ export function DirigeantDashboard({ data }: Props) {
           {!sav.hasTable ? (
             <p className="text-sm text-[var(--text3)]">Module SAV non activé.</p>
           ) : (
-            <div className="flex gap-6">
-              <div className="text-center">
-                <p className="text-[22px] font-extrabold text-[var(--red)]" style={{ letterSpacing: '-0.04em' }}>
-                  {sav.ouverts}
-                </p>
-                <p className="text-[10px] text-[var(--text3)]">Ouverts</p>
+            <div className="space-y-3">
+              {/* 3 KPI */}
+              <div className="flex gap-4">
+                <div className="flex-1 text-center rounded-lg bg-red-50 py-2">
+                  <p className="text-[22px] font-extrabold text-[var(--red)]" style={{ letterSpacing: '-0.04em' }}>
+                    {sav.ouverts}
+                  </p>
+                  <p className="text-[10px] text-[var(--text3)]">Ouverts</p>
+                </div>
+                <div className="flex-1 text-center rounded-lg bg-amber-50 py-2">
+                  <p className="text-[22px] font-extrabold text-amber-600" style={{ letterSpacing: '-0.04em' }}>
+                    {sav.enCours}
+                  </p>
+                  <p className="text-[10px] text-[var(--text3)]">En cours</p>
+                </div>
+                <div className="flex-1 text-center rounded-lg bg-green-50 py-2">
+                  <p className="text-[22px] font-extrabold text-[var(--green)]" style={{ letterSpacing: '-0.04em' }}>
+                    {sav.cloturesCeMois}
+                  </p>
+                  <p className="text-[10px] text-[var(--text3)]">Clôturés / mois</p>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-[22px] font-extrabold text-[var(--amber)]" style={{ letterSpacing: '-0.04em' }}>
-                  {sav.enCours}
-                </p>
-                <p className="text-[10px] text-[var(--text3)]">En cours</p>
+
+              {/* Métriques secondaires */}
+              <div className="flex gap-3">
+                {/* Délai moyen */}
+                <div className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text3)] mb-0.5">
+                    Délai moyen
+                  </p>
+                  <p className="text-lg font-extrabold text-[var(--text)]" style={{ letterSpacing: '-0.04em' }}>
+                    {fmtDelai(sav.delaiMoyenHeures)}
+                  </p>
+                  <p className="text-[10px] text-[var(--text3)]">résolution</p>
+                </div>
+                {/* Taux sous contrat */}
+                <div className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text3)] mb-0.5">
+                    Sous contrat
+                  </p>
+                  <p className="text-lg font-extrabold text-[var(--blue)]" style={{ letterSpacing: '-0.04em' }}>
+                    {sav.tauxSousContrat !== null ? `${sav.tauxSousContrat} %` : '—'}
+                  </p>
+                  <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                    {sav.tauxSousContrat !== null && (
+                      <div
+                        className="h-full rounded-full bg-blue-500"
+                        style={{ width: `${sav.tauxSousContrat}%` }}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-[22px] font-extrabold text-[var(--green)]" style={{ letterSpacing: '-0.04em' }}>
-                  {sav.clotures}
-                </p>
-                <p className="text-[10px] text-[var(--text3)]">Clôturés</p>
-              </div>
+
+              {/* Urgents */}
+              {sav.urgents > 0 && (
+                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                  <span className="text-red-600 font-bold text-sm">⚠</span>
+                  <span className="text-sm font-semibold text-red-700">
+                    {sav.urgents} ticket{sav.urgents > 1 ? 's' : ''} urgent{sav.urgents > 1 ? 's' : ''} en attente
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -244,42 +371,46 @@ export function DirigeantDashboard({ data }: Props) {
           <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
             🔑 Usage API Claude
           </p>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-bold text-[var(--text2)]">{apiPct} %</span>
-            <span className="text-xs text-[var(--text3)]">
-              {apiUsage.tokensUsed.toLocaleString('fr-FR')} / {(apiUsage.tokenMax / 1000).toFixed(1)}k tokens
-              {' · '}
-              {new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date())}
-            </span>
+
+          {/* Tokens */}
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-bold text-[var(--text2)]">Tokens</span>
+              <span className="text-xs text-[var(--text3)]">
+                {apiUsage.tokensUsed.toLocaleString('fr-FR')} / {(apiUsage.tokenMax / 1000).toFixed(0)}k
+              </span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${apiPct >= 90 ? 'bg-red-500' : apiPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'}`}
+                style={{ width: `${apiPct}%` }}
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-[var(--text3)]">
+              {apiPct} % du quota tokens mensuel
+            </p>
           </div>
-          <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${apiPct}%`, backgroundColor: '#2563eb' }}
-            />
+
+          {/* Requêtes */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-bold text-[var(--text2)]">Requêtes</span>
+              <span className="text-xs text-[var(--text3)]">
+                {apiUsage.requests.toLocaleString('fr-FR')} / {apiUsage.quota.toLocaleString('fr-FR')}
+              </span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${reqPct >= 90 ? 'bg-red-500' : reqPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'}`}
+                style={{ width: `${reqPct}%` }}
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-[var(--text3)]">
+              {reqPct} % du quota requêtes mensuel ({new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date())})
+            </p>
           </div>
         </div>
       </div>
-
-      {/* ── Alerte contrats à renouveler ── */}
-      {contratsARenouveler > 0 && (
-        <a
-          href="/commerce?tab=contrats"
-          className="flex items-center gap-3 rounded-[var(--radius)] border border-amber-200 bg-amber-50 px-4 py-3 transition-colors hover:bg-amber-100"
-          style={{ boxShadow: 'var(--shadow)' }}
-        >
-          <span className="text-lg">⚠</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-amber-800">
-              {contratsARenouveler} contrat{contratsARenouveler > 1 ? 's' : ''} à renouveler
-            </p>
-            <p className="text-xs text-amber-700">
-              Contrat{contratsARenouveler > 1 ? 's' : ''} actif{contratsARenouveler > 1 ? 's' : ''} arrivant à échéance dans 30 jours ou déjà expirés
-            </p>
-          </div>
-          <span className="shrink-0 text-xs font-semibold text-amber-700">Voir →</span>
-        </a>
-      )}
 
       {/* ── Priorités du jour ── */}
       <div>

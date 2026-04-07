@@ -87,6 +87,14 @@ export interface RelanceFactureDash {
   niveauPending: 1 | 2 | 3;
 }
 
+export interface TopProduit {
+  key:         string;
+  designation: string;
+  reference:   string;
+  count:       number;
+  caTotal:     number;
+}
+
 export interface CommerceDashboardData {
   kpis: {
     caDevisTotal:     number;
@@ -103,6 +111,7 @@ export interface CommerceDashboardData {
   alertesRelance:         CommerceDashboardQuote[];
   alertesRelanceFactures: RelanceFactureDash[];
   users:                  { id: string; name: string }[];
+  topProduits:            TopProduit[];
 }
 
 export async function getDashboardCommerce(tenantId: string): Promise<CommerceDashboardData> {
@@ -113,7 +122,7 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
   const [quotesRes, invoicesRes, usersRes] = await Promise.all([
     admin
       .from('quotes')
-      .select('id, number, affair_number, objet, statut, date, validity, montant_ttc, project_created, client_id, commercial_user_id, chef_projet_user_id, created_at, clients(nom)')
+      .select('id, number, affair_number, objet, statut, date, validity, montant_ttc, project_created, client_id, commercial_user_id, chef_projet_user_id, created_at, lignes, clients(nom)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
     admin
@@ -158,6 +167,23 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
     created_at:          q.created_at,
   });
 
+  // ── Top produits ──
+  const prodMap = new Map<string, { designation: string; reference: string; count: number; caTotal: number }>();
+  for (const q of quotes) {
+    const lignes = (q.lignes as Array<{ reference?: string; designation: string; quantite: number; prix_unitaire: number; remise_pct: number }> | null) ?? [];
+    for (const l of lignes) {
+      if (!l.designation) continue;
+      const key  = l.reference ? `ref:${l.reference}` : `des:${l.designation.toLowerCase().trim()}`;
+      const ht   = +(l.quantite * l.prix_unitaire * (1 - (l.remise_pct ?? 0) / 100)).toFixed(2);
+      const prev = prodMap.get(key) ?? { designation: l.designation, reference: l.reference ?? '', count: 0, caTotal: 0 };
+      prodMap.set(key, { ...prev, count: prev.count + 1, caTotal: +(prev.caTotal + ht).toFixed(2) });
+    }
+  }
+  const topProduits: TopProduit[] = [...prodMap.entries()]
+    .map(([key, v]) => ({ key, ...v }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
   // ── Relances factures ──
   const now = Date.now();
   const alertesRelanceFactures: RelanceFactureDash[] = [];
@@ -200,6 +226,7 @@ export async function getDashboardCommerce(tenantId: string): Promise<CommerceDa
     alertesRelance:         envoyes.filter((q) => q.created_at < sevenAgo).map(toQuote),
     alertesRelanceFactures: alertesRelanceFactures.sort((a, b) => b.joursRetard - a.joursRetard).slice(0, 10),
     users,
+    topProduits,
   };
 }
 

@@ -8,11 +8,13 @@ import {
   saveInvoiceAction,
   deleteInvoiceAction,
   changeInvoiceStatusAction,
+  createAvoirAction,
   getInvoiceLines,
   type Invoice,
   type InvoiceLine,
   type InvoiceStatus,
   type InvoiceInput,
+  type EcheancierEntry,
 } from '@/app/actions/invoices';
 import { fmtEur, fmtDate, todayISO, addDays } from '@/lib/format';
 import type { CatalogueItem } from '@/app/actions/catalogue';
@@ -210,10 +212,15 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
   const [confirmDel, setConfirmDel] = useState(false);
   const [statusBusy, setStatusBusy] = useState(false);
   const [error,      setError]      = useState('');
+  const [avoirModal, setAvoirModal] = useState(false);
+  const [avoirMode,  setAvoirMode]  = useState<'total' | 'partiel'>('total');
+  const [avoirMt,    setAvoirMt]    = useState('');
+  const [avoirBusy,  setAvoirBusy]  = useState(false);
+  const [echeancier, setEcheancier] = useState<EcheancierEntry[]>([]);
 
   // localStatus prend le dessus sur la prop (qui ne change pas après action serveur)
   const status   = localStatus ?? ((editing?.status ?? 'brouillon') as InvoiceStatus);
-  const readonly = status !== 'brouillon';
+  const readonly = status !== 'brouillon' || (editing?.type === 'avoir');
 
   // ── Sync state ──
   useEffect(() => {
@@ -225,8 +232,12 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
     setDateEch(editing?.date_echeance ?? addDays(todayISO(), 30));
     setConditions(editing?.conditions ?? '');
     setNotes(editing?.notes ?? '');
+    setEcheancier(editing?.echeancier ?? []);
     setError('');
     setConfirmDel(false);
+    setAvoirModal(false);
+    setAvoirMode('total');
+    setAvoirMt('');
 
     if (editing) {
       setLoadingLines(true);
@@ -322,9 +333,10 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
         discount_percent: l.discount_percent,
         vat_rate:         l.vat_rate,
       })),
-      total_ht:  totals.totalHT,
-      total_tva: totals.tvaAmount,
-      total_ttc: totals.totalTTC,
+      total_ht:   totals.totalHT,
+      total_tva:  totals.tvaAmount,
+      total_ttc:  totals.totalTTC,
+      echeancier: echeancier.filter((e) => e.montant > 0),
     };
 
     setSaving(true); setError('');
@@ -355,7 +367,27 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
     router.refresh();
   }
 
-  const title = editing ? `Facture ${editing.number}` : 'Nouvelle facture';
+  // ── Avoir ──
+  async function handleAvoir() {
+    if (!editing) return;
+    setAvoirBusy(true);
+    const mt = avoirMode === 'partiel' ? parseFloat(avoirMt.replace(',', '.')) : undefined;
+    if (avoirMode === 'partiel' && (!mt || mt <= 0)) {
+      setError('Montant partiel invalide.');
+      setAvoirBusy(false);
+      return;
+    }
+    const res = await createAvoirAction(editing.id, avoirMode, mt);
+    setAvoirBusy(false);
+    if (res.error) { setError(res.error); return; }
+    setAvoirModal(false);
+    onClose();
+  }
+
+  const isAvoir  = editing?.type === 'avoir';
+  const title    = isAvoir
+    ? `Avoir ${editing!.number}`
+    : editing ? `Facture ${editing.number}` : 'Nouvelle facture';
 
   return (
     <SlideOver open={open} onClose={onClose} title={title} width="xl">
@@ -365,17 +397,23 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
           {/* ── Barre statut ── */}
           {editing && (
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[status].cls}`}>
-                {STATUS_META[status].label}
-              </span>
+              {isAvoir ? (
+                <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                  Avoir
+                </span>
+              ) : (
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[status].cls}`}>
+                  {STATUS_META[status].label}
+                </span>
+              )}
 
-              {status === 'brouillon' && (
+              {!isAvoir && status === 'brouillon' && (
                 <button type="button" disabled={statusBusy} onClick={() => handleStatus('emise')}
                   className="rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors">
                   → Émettre la facture
                 </button>
               )}
-              {status === 'emise' && (
+              {!isAvoir && status === 'emise' && (
                 <>
                   <button type="button" disabled={statusBusy} onClick={() => handleStatus('payee')}
                     className="rounded-full border border-green-300 bg-green-50 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50 transition-colors">
@@ -388,7 +426,31 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
                 </>
               )}
 
+              {/* Bouton créer un avoir (sur factures émises ou payées sans avoir) */}
+              {!isAvoir && (status === 'emise' || status === 'payee') && !editing.avoir_ref && (
+                <button type="button" onClick={() => setAvoirModal(true)}
+                  className="rounded-full border border-violet-300 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100 transition-colors">
+                  Créer un avoir
+                </button>
+              )}
+              {!isAvoir && editing.avoir_ref && (
+                <span className="rounded-full bg-violet-50 border border-violet-200 px-3 py-1 text-xs font-medium text-violet-600">
+                  Avoir : {editing.avoir_ref}
+                </span>
+              )}
+
               {readonly && <span className="ml-auto text-xs italic text-slate-400">Lecture seule</span>}
+            </div>
+          )}
+
+          {/* ── Bannière avoir ── */}
+          {isAvoir && editing?.avoir_de && (
+            <div className="mx-5 mt-4 flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-700">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4 shrink-0" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+              </svg>
+              Avoir sur la facture&nbsp;
+              <span className="font-mono font-semibold">{editing.avoir_de}</span>
             </div>
           )}
 
@@ -594,6 +656,72 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
             </div>
           </div>
 
+          {/* ══ Échéancier ══ */}
+          {!isAvoir && (
+            <div className={sectionCls}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Échéancier de paiement
+                </h3>
+                {!readonly && (
+                  <button type="button"
+                    onClick={() => setEcheancier((prev) => [...prev, {
+                      date: addDays(dateFact, 30), montant: 0, libelle: '', paye: false,
+                    }])}
+                    className="flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Ajouter une échéance
+                  </button>
+                )}
+              </div>
+              {echeancier.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">Aucun échéancier — paiement en une fois à l&apos;échéance.</p>
+              ) : (
+                <div className="space-y-2">
+                  {echeancier.map((ech, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input type="date" value={ech.date} disabled={readonly}
+                        onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, date: e.target.value } : x))}
+                        className={`${inputCls} flex-1 min-w-0`} />
+                      <input type="number" value={ech.montant} min={0} step="any" disabled={readonly}
+                        placeholder="Montant"
+                        onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, montant: +e.target.value || 0 } : x))}
+                        className={`${inputCls} w-28 text-right`} />
+                      <input type="text" value={ech.libelle} disabled={readonly}
+                        placeholder="Libellé"
+                        onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, libelle: e.target.value } : x))}
+                        className={`${inputCls} flex-1 min-w-0`} />
+                      <label className="flex items-center gap-1 text-xs text-slate-600 shrink-0 cursor-pointer">
+                        <input type="checkbox" checked={ech.paye} disabled={readonly}
+                          onChange={(e) => setEcheancier((prev) => prev.map((x, i) => i === idx ? { ...x, paye: e.target.checked } : x))}
+                          className="rounded" />
+                        Payé
+                      </label>
+                      {!readonly && (
+                        <button type="button"
+                          onClick={() => setEcheancier((prev) => prev.filter((_, i) => i !== idx))}
+                          className="rounded p-1 text-slate-300 hover:text-red-500 transition-colors shrink-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {/* Résumé */}
+                  {echeancier.length > 0 && (
+                    <div className="flex justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+                      <span>Total planifié : {fmtEur(echeancier.reduce((s, e) => s + e.montant, 0))}</span>
+                      <span>Payé : {fmtEur(echeancier.filter((e) => e.paye).reduce((s, e) => s + e.montant, 0))}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
 
         {/* Erreur */}
@@ -649,6 +777,54 @@ export function InvoiceForm({ open, onClose, editing, clients, catalogue, compan
           </div>
         </div>
       </form>
+      {/* ── Modal avoir ── */}
+      {avoirModal && editing && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setAvoirModal(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-800">Créer un avoir</h3>
+            <p className="text-sm text-slate-500">
+              Facture <span className="font-mono font-semibold">{editing.number}</span> — {fmtEur(editing.total_ttc)}
+            </p>
+
+            {/* Mode */}
+            <div className="flex gap-3">
+              {(['total', 'partiel'] as const).map((m) => (
+                <button key={m} type="button"
+                  onClick={() => setAvoirMode(m)}
+                  className={`flex-1 rounded-lg border py-2 text-sm font-semibold transition-colors ${
+                    avoirMode === m
+                      ? 'border-violet-400 bg-violet-50 text-violet-700'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}>
+                  {m === 'total' ? 'Avoir total' : 'Avoir partiel'}
+                </button>
+              ))}
+            </div>
+
+            {avoirMode === 'partiel' && (
+              <div>
+                <label className={labelCls}>Montant TTC de l&apos;avoir</label>
+                <input type="number" value={avoirMt} min={0} step="0.01"
+                  onChange={(e) => setAvoirMt(e.target.value)}
+                  placeholder="0,00"
+                  className={inputCls} />
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={() => setAvoirModal(false)}
+                className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                Annuler
+              </button>
+              <button type="button" disabled={avoirBusy} onClick={handleAvoir}
+                className="flex-1 rounded-lg bg-violet-600 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50 transition-colors">
+                {avoirBusy ? 'Création…' : 'Créer l\'avoir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </SlideOver>
   );
 }

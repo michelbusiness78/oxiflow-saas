@@ -476,6 +476,13 @@ export function CalendarView({
           messages={messages}
           culture="fr"
           eventPropGetter={eventStyleGetter}
+          dayPropGetter={(date: Date) => {
+            const dow = date.getDay();
+            if (dow === 0 || dow === 6) {
+              return { style: { backgroundColor: '#f8fafc', opacity: 0.6 } };
+            }
+            return {};
+          }}
           components={calComponents}
           onRangeChange={handleRangeChange}
           onSelectEvent={handleSelectEvent}

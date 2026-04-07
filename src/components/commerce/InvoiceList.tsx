@@ -18,7 +18,7 @@ const STATUS_META: Record<InvoiceStatus, { label: string; cls: string }> = {
   en_retard: { label: 'En retard', cls: 'bg-red-100 text-red-600'      },
 };
 
-const FILTERS: Array<InvoiceStatus | 'tous'> = ['tous', 'brouillon', 'emise', 'payee', 'en_retard'];
+const FILTERS: Array<InvoiceStatus | 'tous' | 'avoirs'> = ['tous', 'brouillon', 'emise', 'payee', 'en_retard', 'avoirs'];
 
 const NIVEAU_META: Record<RelanceNiveau, { icon: string; cls: string; label: string }> = {
   1: { icon: '⏰', cls: 'bg-amber-100 text-amber-700',  label: 'Relance 1' },
@@ -225,7 +225,7 @@ function RelancePanel({
 export function InvoiceList({ invoices, clients, catalogue, companies = [], nomSociete = '', telSociete = '' }: InvoiceListProps) {
   const [formOpen,     setFormOpen]     = useState(false);
   const [editing,      setEditing]      = useState<Invoice | null>(null);
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'tous'>('tous');
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'tous' | 'avoirs'>('tous');
   const [search,       setSearch]       = useState('');
   const [relancingInv, setRelancingInv] = useState<Invoice | null>(null);
 
@@ -234,9 +234,12 @@ export function InvoiceList({ invoices, clients, catalogue, companies = [], nomS
 
   // Compteurs par statut
   const counts = useMemo(() => {
-    const c: Partial<Record<InvoiceStatus | 'tous', number>> = { tous: invoices.length };
+    const c: Partial<Record<InvoiceStatus | 'tous' | 'avoirs', number>> = {
+      tous:   invoices.filter((i) => i.type !== 'avoir').length,
+      avoirs: invoices.filter((i) => i.type === 'avoir').length,
+    };
     for (const inv of invoices) {
-      c[inv.status] = (c[inv.status] ?? 0) + 1;
+      if (inv.type !== 'avoir') c[inv.status] = (c[inv.status] ?? 0) + 1;
     }
     return c;
   }, [invoices]);
@@ -245,7 +248,15 @@ export function InvoiceList({ invoices, clients, catalogue, companies = [], nomS
   const filtered = useMemo(() => {
     const q = normalize(search.trim());
     return invoices.filter((inv) => {
-      if (statusFilter !== 'tous' && inv.status !== statusFilter) return false;
+      if (statusFilter === 'avoirs') {
+        if (inv.type !== 'avoir') return false;
+      } else if (statusFilter !== 'tous') {
+        if (inv.type === 'avoir') return false;
+        if (inv.status !== statusFilter) return false;
+      } else {
+        // 'tous' = toutes les factures sauf les avoirs
+        if (inv.type === 'avoir') return false;
+      }
       if (q && !(
         normalize(inv.number).includes(q) ||
         normalize(inv.client_nom ?? '').includes(q) ||
@@ -294,6 +305,10 @@ export function InvoiceList({ invoices, clients, catalogue, companies = [], nomS
         {FILTERS.map((s) => {
           const count  = counts[s] ?? 0;
           const active = statusFilter === s;
+          const label  = s === 'tous' ? 'Toutes' : s === 'avoirs' ? 'Avoirs' : STATUS_META[s as InvoiceStatus].label;
+          const cls    = s === 'tous' ? 'bg-slate-800 text-white'
+            : s === 'avoirs' ? 'bg-violet-100 text-violet-700'
+            : STATUS_META[s as InvoiceStatus].cls;
           return (
             <button
               key={s}
@@ -301,13 +316,11 @@ export function InvoiceList({ invoices, clients, catalogue, companies = [], nomS
               className={[
                 'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
                 active
-                  ? s === 'tous'
-                    ? 'bg-slate-800 text-white'
-                    : STATUS_META[s as InvoiceStatus].cls + ' ring-2 ring-offset-1'
+                  ? cls + (s !== 'tous' ? ' ring-2 ring-offset-1' : '')
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
               ].join(' ')}
             >
-              {s === 'tous' ? 'Toutes' : STATUS_META[s as InvoiceStatus].label}
+              {label}
               {count > 0 && <span className="ml-1.5 rounded-full bg-black/10 px-1.5 text-xs">{count}</span>}
             </button>
           );
@@ -354,9 +367,19 @@ export function InvoiceList({ invoices, clients, catalogue, companies = [], nomS
                     {/* N° + badges */}
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-mono text-sm font-semibold text-slate-700 whitespace-nowrap">
+                        <span className={`font-mono text-sm font-semibold whitespace-nowrap ${inv.type === 'avoir' ? 'text-violet-700' : 'text-slate-700'}`}>
                           {inv.number}
                         </span>
+                        {inv.type === 'avoir' && inv.avoir_de && (
+                          <span className="rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 whitespace-nowrap">
+                            AV ← {inv.avoir_de}
+                          </span>
+                        )}
+                        {inv.avoir_ref && (
+                          <span className="rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 whitespace-nowrap">
+                            AV: {inv.avoir_ref}
+                          </span>
+                        )}
                         {inv.quote_number && (
                           <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 whitespace-nowrap">
                             ← {inv.quote_number}

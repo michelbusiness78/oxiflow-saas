@@ -65,7 +65,7 @@ interface Props {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export function CommerceDashboard({ data, userName }: Props) {
-  const { kpis, quotesRecentes, alertesRelance, alertesRelanceFactures, users } = data;
+  const { kpis, quotesRecentes, alertesRelance, alertesRelanceFactures, users, topProduits } = data;
 
   const NIVEAU_META = {
     1: { icon: '⏰', cls: 'bg-amber-100 text-amber-700'   },
@@ -288,6 +288,49 @@ export function CommerceDashboard({ data, userName }: Props) {
           )}
         </div>
       </div>
+
+      {/* ── Top produits ── */}
+      {topProduits.length > 0 && (
+        <div
+          className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
+          style={{ boxShadow: 'var(--shadow)' }}
+        >
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
+            Top 5 produits — par fréquence dans les devis
+          </p>
+          <div className="space-y-2">
+            {topProduits.map((p, idx) => {
+              const maxCount = topProduits[0].count;
+              const pct = maxCount > 0 ? Math.round((p.count / maxCount) * 100) : 0;
+              return (
+                <div key={p.key} className="flex items-center gap-3">
+                  <span className="w-4 shrink-0 text-[10px] font-bold text-[var(--text3)] tabular-nums">
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-xs font-semibold text-[var(--text)] truncate">{p.designation}</span>
+                      <span className="ml-2 shrink-0 text-xs text-[var(--text3)] tabular-nums">
+                        {p.count}×
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-[var(--bg4)] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-blue-500 transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-xs font-mono text-[var(--text3)]">
+                    {fmtEur(p.caTotal)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

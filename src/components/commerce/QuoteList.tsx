@@ -10,13 +10,14 @@ import type { Invoice }       from '@/app/actions/invoices';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUT_META: Record<QuoteStatut, { label: string; cls: string }> = {
-  brouillon: { label: 'Brouillon', cls: 'bg-slate-100 text-slate-600'   },
-  envoye:    { label: 'Envoyé',    cls: 'bg-blue-100 text-blue-700'     },
-  accepte:   { label: 'Accepté',  cls: 'bg-green-100 text-green-700'   },
-  refuse:    { label: 'Refusé',   cls: 'bg-red-100 text-red-600'       },
+  brouillon: { label: 'Brouillon', cls: 'bg-slate-100 text-slate-600'     },
+  envoye:    { label: 'Envoyé',    cls: 'bg-blue-100 text-blue-700'       },
+  accepte:   { label: 'Accepté',  cls: 'bg-green-100 text-green-700'     },
+  refuse:    { label: 'Refusé',   cls: 'bg-red-100 text-red-600'         },
+  facture:   { label: 'Facturé',  cls: 'bg-purple-100 text-purple-700'   },
 };
 
-const STATUTS: Array<QuoteStatut | 'tous'> = ['tous', 'brouillon', 'envoye', 'accepte', 'refuse'];
+const STATUTS: Array<QuoteStatut | 'tous'> = ['tous', 'brouillon', 'envoye', 'accepte', 'refuse', 'facture'];
 
 function normalize(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
@@ -209,6 +210,17 @@ export function QuoteList({ quotes, clients, catalogue, users, companies, curren
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
+                        {/* PDF */}
+                        <button
+                          type="button"
+                          onClick={() => window.open(`/api/pdf/devis/${q.id}`, '_blank')}
+                          className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-slate-700 transition-colors"
+                          title="PDF"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                          </svg>
+                        </button>
                         {/* Dupliquer */}
                         <button
                           type="button"

@@ -8,7 +8,7 @@ const PATH = '/commerce';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type QuoteStatut = 'brouillon' | 'envoye' | 'accepte' | 'refuse';
+export type QuoteStatut = 'brouillon' | 'envoye' | 'accepte' | 'refuse' | 'facture';
 
 export interface QuoteLigne {
   id:            string;
@@ -156,6 +156,65 @@ export async function changeQuoteStatutAction(id: string, statut: QuoteStatut) {
     .eq('id', id);
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);
+  return { success: true };
+}
+
+// ─── Modèles de devis ─────────────────────────────────────────────────────────
+
+export interface QuoteTemplate {
+  id:         string;
+  nom:        string;
+  objet:      string | null;
+  lignes:     QuoteLigne[];
+  conditions: string | null;
+  notes:      string | null;
+  created_at: string;
+}
+
+export async function saveQuoteTemplateAction(
+  nom: string,
+  quoteId: string,
+): Promise<{ success?: true; error?: string }> {
+  const { admin, tenant_id } = await getAuthContext();
+
+  const { data: q, error: qErr } = await admin
+    .from('quotes')
+    .select('objet, lignes, conditions, notes')
+    .eq('id', quoteId)
+    .single();
+
+  if (qErr || !q) return { error: 'Devis introuvable.' };
+
+  const { error } = await admin
+    .from('quote_templates')
+    .insert({ tenant_id, nom, objet: q.objet, lignes: q.lignes, conditions: q.conditions, notes: q.notes });
+
+  if (error) return { error: translateSupabaseError(error.message) };
+  return { success: true };
+}
+
+export async function getQuoteTemplatesAction(): Promise<QuoteTemplate[]> {
+  const { admin, tenant_id } = await getAuthContext();
+  const { data } = await admin
+    .from('quote_templates')
+    .select('id, nom, objet, lignes, conditions, notes, created_at')
+    .eq('tenant_id', tenant_id)
+    .order('nom');
+  return (data ?? []).map((t) => ({
+    id:         t.id         as string,
+    nom:        t.nom        as string,
+    objet:      (t.objet     as string | null) ?? null,
+    lignes:     (t.lignes    as QuoteLigne[]) ?? [],
+    conditions: (t.conditions as string | null) ?? null,
+    notes:      (t.notes     as string | null) ?? null,
+    created_at: t.created_at as string,
+  }));
+}
+
+export async function deleteQuoteTemplateAction(id: string): Promise<{ success?: true; error?: string }> {
+  const { admin } = await getAuthContext();
+  const { error } = await admin.from('quote_templates').delete().eq('id', id);
+  if (error) return { error: translateSupabaseError(error.message) };
   return { success: true };
 }
 

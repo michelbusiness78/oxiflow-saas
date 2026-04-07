@@ -7,10 +7,14 @@ import {
   saveQuoteAction,
   deleteQuoteAction,
   changeQuoteStatutAction,
+  saveQuoteTemplateAction,
+  getQuoteTemplatesAction,
+  deleteQuoteTemplateAction,
   type Quote,
   type QuoteInput,
   type QuoteLigne,
   type QuoteStatut,
+  type QuoteTemplate,
 } from '@/app/actions/quotes';
 import { createProjectFromQuote }  from '@/app/actions/projects';
 import { createInvoiceFromQuote }  from '@/app/actions/invoices';
@@ -38,10 +42,11 @@ function emptyLigne(): QuoteLigne {
 const TVA_OPTIONS = [0, 5.5, 10, 20];
 
 const STATUT_META: Record<QuoteStatut, { label: string; cls: string }> = {
-  brouillon: { label: 'Brouillon', cls: 'bg-slate-100 text-slate-600'   },
-  envoye:    { label: 'Envoyé',    cls: 'bg-blue-100 text-blue-700'     },
-  accepte:   { label: 'Accepté',  cls: 'bg-green-100 text-green-700'   },
-  refuse:    { label: 'Refusé',   cls: 'bg-red-100 text-red-600'       },
+  brouillon: { label: 'Brouillon', cls: 'bg-slate-100 text-slate-600'     },
+  envoye:    { label: 'Envoyé',    cls: 'bg-blue-100 text-blue-700'       },
+  accepte:   { label: 'Accepté',  cls: 'bg-green-100 text-green-700'     },
+  refuse:    { label: 'Refusé',   cls: 'bg-red-100 text-red-600'         },
+  facture:   { label: 'Facturé',  cls: 'bg-purple-100 text-purple-700'   },
 };
 
 // Transitions vers l'avant (progression)
@@ -88,7 +93,7 @@ interface QuoteFormProps {
   open:            boolean;
   onClose:         () => void;
   editing:         QuoteWithClient | null;
-  clients:         { id: string; nom: string }[];
+  clients:         { id: string; nom: string; email?: string | null }[];
   catalogue:       CatalogueItem[];
   users:           TenantUser[];
   companies:       { id: string; name: string; color?: string }[];
@@ -182,14 +187,14 @@ function LigneRow({
           onChange={(e) => update({ prix_unitaire: +e.target.value || 0 })}
           className={numCls} placeholder="0,00" />
       </td>
-      <td className={cellCls} style={{ width: '70px' }}>
+      <td className={cellCls} style={{ width: '82px' }}>
         <select value={ligne.tva} disabled={readonly}
           onChange={(e) => update({ tva: +e.target.value })}
           className={`${txtCls} pr-1`}>
           {TVA_OPTIONS.map((t) => <option key={t} value={t}>{t} %</option>)}
         </select>
       </td>
-      <td className={cellCls} style={{ width: '65px' }}>
+      <td className={cellCls} style={{ width: '78px' }}>
         <input type="number" value={ligne.remise_pct} min={0} max={100} step="any" disabled={readonly}
           onChange={(e) => update({ remise_pct: +e.target.value || 0 })}
           className={numCls} placeholder="0" />
@@ -308,6 +313,12 @@ export function QuoteForm({
 
   const [invoiceResult,   setInvoiceResult]   = useState<{ id: string; number: string; status: InvoiceStatus } | null>(null);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
+
+  // Modèles
+  const [templateModal,   setTemplateModal]   = useState<'save' | 'apply' | null>(null);
+  const [templateNom,     setTemplateNom]     = useState('');
+  const [templateBusy,    setTemplateBusy]    = useState(false);
+  const [templates,       setTemplates]       = useState<QuoteTemplate[]>([]);
 
   const statut   = editing?.statut ?? 'brouillon';
   const readonly = editing ? editing.statut !== 'brouillon' : false;
@@ -490,6 +501,40 @@ export function QuoteForm({
     setCreatingInvoice(false);
     if (res.error) { setError(res.error); return; }
     if (res.invoice) setInvoiceResult(res.invoice);
+  }
+
+  // ── Modèles ──
+  async function handleSaveTemplate() {
+    if (!editing || !templateNom.trim()) return;
+    setTemplateBusy(true);
+    const res = await saveQuoteTemplateAction(templateNom.trim(), editing.id);
+    setTemplateBusy(false);
+    if (res.error) { setError(res.error); return; }
+    setTemplateModal(null);
+    setTemplateNom('');
+  }
+
+  async function openApplyModal() {
+    setTemplateBusy(true);
+    const tpls = await getQuoteTemplatesAction();
+    setTemplates(tpls);
+    setTemplateBusy(false);
+    setTemplateModal('apply');
+  }
+
+  function applyTemplate(tpl: QuoteTemplate) {
+    if (tpl.objet)      setObjet(tpl.objet);
+    if (tpl.conditions) setConditions(tpl.conditions);
+    if (tpl.notes)      setNotes(tpl.notes);
+    if (tpl.lignes && tpl.lignes.length > 0) {
+      setLignes(tpl.lignes.map((l) => ({ ...l, id: uid() })));
+    }
+    setTemplateModal(null);
+  }
+
+  async function deleteTemplate(id: string) {
+    await deleteQuoteTemplateAction(id);
+    setTemplates((prev) => prev.filter((t) => t.id !== id));
   }
 
   const forwardTransitions = editing ? (FORWARD_TRANSITIONS[statut] ?? []) : [];
@@ -940,6 +985,39 @@ export function QuoteForm({
           )}
 
           <div className="ml-auto flex items-center gap-2">
+            {editing && (() => {
+              const clientEmail = clients.find((c) => c.id === (editing.client_id ?? ''))?.email ?? '';
+              const emailObjet  = encodeURIComponent(`Devis ${editing.number}${editing.objet ? ` — ${editing.objet}` : ''}`);
+              const emailCorps  = encodeURIComponent(
+                `Bonjour,\n\nVeuillez trouver ci-joint le devis ${editing.number}` +
+                (editing.objet ? ` concernant : ${editing.objet}` : '') +
+                `.\n\nMontant TTC : ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(editing.montant_ttc)}\n\nN'hésitez pas à nous contacter pour toute question.\n\nCordialement`
+              );
+              return (
+                <a
+                  href={`mailto:${clientEmail}?subject=${emailObjet}&body=${emailCorps}`}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                  title="Envoyer par email"
+                >
+                  📧 Email
+                </a>
+              );
+            })()}
+            {/* Modèles */}
+            {editing && !readonly && (
+              <button type="button" onClick={() => { setTemplateNom(''); setTemplateModal('save'); }}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                title="Sauver comme modèle">
+                💾 Modèle
+              </button>
+            )}
+            {!readonly && (
+              <button type="button" onClick={openApplyModal}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                title="Appliquer un modèle">
+                📋 Modèles
+              </button>
+            )}
             {editing && (
               <button
                 type="button"
@@ -962,6 +1040,75 @@ export function QuoteForm({
           </div>
         </div>
       </form>
+      {/* ── Modal sauver modèle ── */}
+      {templateModal === 'save' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setTemplateModal(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-800">Sauver comme modèle</h3>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                Nom du modèle
+              </label>
+              <input type="text" value={templateNom}
+                onChange={(e) => setTemplateNom(e.target.value)}
+                placeholder="Ex: Prestation standard, Installation réseau…"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" />
+            </div>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setTemplateModal(null)}
+                className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                Annuler
+              </button>
+              <button type="button" disabled={templateBusy || !templateNom.trim()} onClick={handleSaveTemplate}
+                className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                {templateBusy ? 'Sauvegarde…' : 'Sauver'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal appliquer modèle ── */}
+      {templateModal === 'apply' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setTemplateModal(null)} />
+          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[80vh] flex flex-col">
+            <h3 className="text-base font-bold text-slate-800">Appliquer un modèle</h3>
+            {templateBusy ? (
+              <p className="text-sm text-slate-400 text-center py-4">Chargement…</p>
+            ) : templates.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">Aucun modèle sauvegardé.</p>
+            ) : (
+              <div className="overflow-y-auto flex-1 space-y-2">
+                {templates.map((tpl) => (
+                  <div key={tpl.id} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2.5 hover:border-blue-300 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{tpl.nom}</p>
+                      {tpl.objet && <p className="text-xs text-slate-400 truncate">{tpl.objet}</p>}
+                      <p className="text-xs text-slate-400">{tpl.lignes.length} ligne{tpl.lignes.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <button type="button" onClick={() => applyTemplate(tpl)}
+                      className="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
+                      Appliquer
+                    </button>
+                    <button type="button" onClick={() => deleteTemplate(tpl.id)}
+                      className="shrink-0 rounded p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={() => setTemplateModal(null)}
+              className="w-full rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
     </SlideOver>
   );
 }
