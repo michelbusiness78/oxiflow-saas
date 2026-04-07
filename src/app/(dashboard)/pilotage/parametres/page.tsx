@@ -38,17 +38,7 @@ export default async function ParametresPage() {
 
   const tenant = tenantRes.data as { id: string; name: string; email?: string } | null;
 
-  // ── Auto-migration : créer une company depuis le tenant si aucune n'existe ──
-  let companies = companiesRaw;
-  if (companies.length === 0 && tenant) {
-    await admin.from('companies').insert({
-      tenant_id: tenantId,
-      name:      tenant.name ?? 'Ma Société',
-      email:     (tenant as Record<string, unknown>).email ?? null,
-      active:    true,
-    });
-    companies = await getCompanies(tenantId);
-  }
+  const companies = companiesRaw;
 
   const tenant_ = tenantRes.data as Record<string, unknown> | null;
   const plan       = (tenant_?.plan       as string | null) ?? 'trial';
