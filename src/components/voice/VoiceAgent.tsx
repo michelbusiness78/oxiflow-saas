@@ -9,7 +9,7 @@ import {
   type SpeechRecognitionHandle,
 } from '@/lib/voice/speech-recognition';
 import { TTSQueue, isTTSSupported } from '@/lib/voice/text-to-speech';
-import { runAgentTurn, type AgentMessage, type AgentContext } from '@/lib/voice/agent';
+import { runAgentTurn, TOOLS, type AgentMessage, type AgentContext } from '@/lib/voice/agent';
 import { navModules } from '@/lib/theme';
 
 // ── Module label from pathname ────────────────────────────────────────────────
@@ -305,6 +305,116 @@ export function VoiceAgent({ userName, userRole }: Props) {
     }
   }
 
+  // ── Debug : test batch des 5 phrases (dev uniquement) ───────────────────
+  // Bouton "🧪" visible uniquement en développement. À supprimer après validation.
+
+  const DEV_TEST_PHRASES = [
+    'fais-moi un devis câblage pour GSK',
+    'ajoute le client société Durand à Reims',
+    'ouvre un ticket SAV urgent chez Novatech, panne climatisation',
+    'note de frais 45 euros repas client',
+    'cherche la facture de GSK',
+  ];
+
+  async function runDevTests() {
+    console.group('[voice-test] === DÉBUT DES TESTS ===');
+
+    // 1. GET /api/voice-data
+    let vd: VoiceData | null = null;
+    try {
+      const r = await fetch('/api/voice-data');
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      vd = (await r.json()) as VoiceData;
+      console.log('[voice-test] GET /api/voice-data OK', {
+        companies:   vd.companies.length,
+        clients:     vd.clients.length,
+        technicians: vd.technicians.length,
+      });
+    } catch (e) {
+      console.error('[voice-test] GET /api/voice-data ERREUR:', e);
+    }
+
+    // 2. GET /api/voice-test (diagnostic)
+    try {
+      const r = await fetch('/api/voice-test');
+      const diag = await r.json();
+      console.log('[voice-test] GET /api/voice-test:', diag);
+    } catch (e) {
+      console.error('[voice-test] GET /api/voice-test ERREUR:', e);
+    }
+
+    // 3. Test des 5 phrases
+    const ctx: AgentContext = {
+      module:      getModuleLabel(pathname),
+      role:        userRole,
+      userName,
+      companies:   vd?.companies,
+      clients:     vd?.clients,
+      technicians: vd?.technicians,
+    };
+
+    const SYSTEM = `MODE VOCAL ACTIVÉ — Règles strictes :
+- Réponds en 1 à 2 phrases MAXIMUM.
+- Parle comme à l'oral : court, direct, naturel.
+Tu es l'assistant vocal d'OxiFlow. Module : ${ctx.module}. Utilisateur : ${ctx.userName} (rôle : ${ctx.role}).`;
+
+    for (let i = 0; i < DEV_TEST_PHRASES.length; i++) {
+      const phrase = DEV_TEST_PHRASES[i];
+      console.group(`[voice-test] [${i + 1}/${DEV_TEST_PHRASES.length}] "${phrase}"`);
+
+      // A. Appel brut au proxy (tool_use sans exécution)
+      try {
+        const res = await fetch('/api/claude-proxy', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            messages:   [{ role: 'user', content: phrase }],
+            system:     SYSTEM,
+            tools:      TOOLS,
+            max_tokens: 512,
+            mode:       'voice',
+          }),
+        });
+        const data = await res.json() as {
+          content?:     Array<{ type: string; id?: string; name?: string; input?: unknown; text?: string }>;
+          stop_reason?: string;
+          error?:       string;
+        };
+
+        if (data.error) {
+          console.error('  [proxy] ERREUR:', data.error);
+        } else {
+          console.log('  [proxy] stop_reason:', data.stop_reason);
+          for (const block of data.content ?? []) {
+            if (block.type === 'tool_use') {
+              console.log('  [proxy] 🔧 tool_use →', block.name, JSON.stringify(block.input));
+            } else if (block.type === 'text') {
+              console.log('  [proxy] 💬 text →', block.text);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('  [proxy] EXCEPTION:', e);
+      }
+
+      // B. Exécution complète via runAgentTurn (tools exécutés en base)
+      try {
+        const { reply } = await runAgentTurn(
+          phrase, [], ctx,
+          { navigate: (p) => console.log('  [agent] navigate →', p) },
+        );
+        console.log('  [agent] ✅ reply final:', reply);
+      } catch (e) {
+        console.error('  [agent] EXCEPTION:', e);
+      }
+
+      console.groupEnd();
+    }
+
+    console.groupEnd();
+    console.log('[voice-test] === TESTS TERMINÉS ===');
+  }
+
   function handleClose() {
     recognitionRef.current?.abort();
     ttsRef.current?.stop();
@@ -349,6 +459,17 @@ export function VoiceAgent({ userName, userRole }: Props) {
       >
         {icon}
       </button>
+
+      {/* Dev-only test button — remove after validation */}
+      {process.env.NODE_ENV === 'development' && !agentOpen && (
+        <button
+          onClick={runDevTests}
+          title="Voice agent — batch test (dev)"
+          className="fixed right-20 bottom-20 md:bottom-6 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-400 text-base shadow hover:scale-110"
+        >
+          🧪
+        </button>
+      )}
 
       {/* Fallback label for unsupported browsers */}
       {!speechSupported && !agentOpen && (

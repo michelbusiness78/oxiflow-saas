@@ -23,7 +23,7 @@ export type AgentMessage = {
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
-const TOOLS = [
+export const TOOLS = [
   // ── Actions directes ──────────────────────────────────────────────────────
   {
     name:        'creer_client',
