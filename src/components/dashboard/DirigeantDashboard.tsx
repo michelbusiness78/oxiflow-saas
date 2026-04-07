@@ -3,16 +3,18 @@ import type { DirigeantDashboardData, PrioriteItem, AlerteItem } from '@/app/act
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const METEO_META = {
-  green:   { label: 'En forme',      dot: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50 border-green-200'  },
-  orange:  { label: 'Attention',     dot: 'bg-amber-500',  text: 'text-amber-700',  bg: 'bg-amber-50 border-amber-200'  },
-  red:     { label: 'En difficulté', dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50 border-red-200'      },
-  unknown: { label: 'Inconnu',       dot: 'bg-slate-400',  text: 'text-slate-600',  bg: 'bg-slate-50 border-slate-200'  },
+const METEO_ICON: Record<string, string> = {
+  green:   '🟢',
+  orange:  '🟡',
+  red:     '🔴',
+  unknown: '⚪',
 };
 
-const PRIORITE_ICON: Record<PrioriteItem['type'], string> = {
-  facture: '€',
-  devis:   '📋',
+const METEO_LABEL: Record<string, string> = {
+  green:   'OK',
+  orange:  'Attention',
+  red:     'Critique',
+  unknown: 'Inconnu',
 };
 
 const ALERTE_ICON: Record<AlerteItem['type'], string> = {
@@ -20,6 +22,11 @@ const ALERTE_ICON: Record<AlerteItem['type'], string> = {
   contrat: '📄',
   projet:  '📌',
   sav:     '🔧',
+};
+
+const PRIORITE_ICON: Record<PrioriteItem['type'], string> = {
+  facture: '€',
+  devis:   '📋',
 };
 
 function fmtVariation(pct: number | null): string {
@@ -38,114 +45,89 @@ function fmtDelai(h: number | null): string {
 function KpiCard({
   label, value, sub, color, badge, badgeColor, href,
 }: {
-  label:        string;
-  value:        string;
-  sub:          string;
-  color:        string;
-  badge?:       string;
-  badgeColor?:  string;
-  href?:        string;
+  label:       string;
+  value:       string;
+  sub:         string;
+  color:       string;
+  badge?:      string;
+  badgeColor?: string;
+  href?:       string;
 }) {
   const inner = (
     <>
       {badge && (
-        <span
-          className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold ${badgeColor ?? 'bg-slate-100 text-slate-600'}`}
-        >
+        <span className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold ${badgeColor ?? 'bg-slate-100 text-slate-600'}`}>
           {badge}
         </span>
       )}
-      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text2)] pr-16">
-        {label}
-      </p>
-      <p
-        className="mt-2 text-[24px] font-extrabold tabular-nums"
-        style={{ color, letterSpacing: '-0.04em' }}
-      >
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text2)] pr-16">{label}</p>
+      <p className="mt-2 text-[24px] font-extrabold tabular-nums" style={{ color, letterSpacing: '-0.04em' }}>
         {value}
       </p>
       <p className="mt-1 text-[11px] text-[var(--text3)]">{sub}</p>
     </>
   );
-
   const cls = 'rounded-[14px] border border-[var(--border)] bg-white p-4 relative transition-all hover:shadow-md hover:-translate-y-0.5';
-  if (href) {
-    return (
-      <a href={href} className={`block ${cls} cursor-pointer`} style={{ boxShadow: 'var(--shadow)' }}>
-        {inner}
-      </a>
-    );
-  }
-  return (
-    <div className={cls} style={{ boxShadow: 'var(--shadow)' }}>
-      {inner}
-    </div>
-  );
+  if (href) return <a href={href} className={`block ${cls} cursor-pointer`} style={{ boxShadow: 'var(--shadow)' }}>{inner}</a>;
+  return <div className={cls} style={{ boxShadow: 'var(--shadow)' }}>{inner}</div>;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-interface Props {
-  data: DirigeantDashboardData;
-}
+interface Props { data: DirigeantDashboardData; }
 
-// ─── Composant ────────────────────────────────────────────────────────────────
+// ─── Composant principal ──────────────────────────────────────────────────────
 
 export function DirigeantDashboard({ data }: Props) {
-  const { userName, kpis, meteoSocietes, meteoGlobal, caGlobalMois, sav, apiUsage, priorites, alertes } = data;
+  const { userName, kpis, meteoSocietes, caGlobalMois, meteoGlobal, sav, apiUsage, priorites, alertes } = data;
 
   const prenom = userName.split(' ')[0] || userName;
   const today  = new Intl.DateTimeFormat('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   }).format(new Date());
+  const moisLabel = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date());
 
-  const meteoMeta = METEO_META[meteoGlobal];
-  const apiPct    = apiUsage.tokenMax > 0
+  const apiPct = apiUsage.tokenMax > 0
     ? Math.min(100, Math.round((apiUsage.tokensUsed / apiUsage.tokenMax) * 100))
     : 0;
-  const reqPct    = apiUsage.quota > 0
+  const reqPct = apiUsage.quota > 0
     ? Math.min(100, Math.round((apiUsage.requests / apiUsage.quota) * 100))
     : 0;
 
   const redAlertes    = alertes.filter((a) => a.severity === 'red');
   const orangeAlertes = alertes.filter((a) => a.severity === 'orange');
 
+  // Sociétés avec objectif annuel défini (pour la section Objectifs)
+  const societeAvecObjectif = meteoSocietes.filter((s) => s.objAnnuel && s.objAnnuel > 0);
+
   return (
     <div className="space-y-6">
 
-      {/* ── En-tête ── */}
+      {/* ── 1. En-tête ─────────────────────────────────────────────────────── */}
       <div>
-        <h1 className="text-[20px] font-bold text-[var(--text)]">
-          Bonjour {prenom}&nbsp;!
-        </h1>
+        <h1 className="text-[20px] font-bold text-[var(--text)]">Bonjour {prenom}&nbsp;!</h1>
         <p className="mt-0.5 text-sm capitalize text-[var(--text2)]">{today}</p>
       </div>
 
-      {/* ── Alertes critiques ── */}
+      {/* ── 2. Alertes critiques ────────────────────────────────────────────── */}
       {alertes.length > 0 && (
         <div className="space-y-2">
           <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--text2)]">
-            Alertes critiques
+            🚨 Alertes critiques
           </p>
           {redAlertes.map((a) => (
-            <a
-              key={`${a.type}-${a.id}`}
-              href={a.href}
+            <a key={`${a.type}-${a.id}`} href={a.href}
               className="flex items-center gap-3 rounded-[var(--radius)] border border-red-200 bg-red-50 px-4 py-3 transition-colors hover:bg-red-100"
-              style={{ boxShadow: 'var(--shadow)' }}
-            >
+              style={{ boxShadow: 'var(--shadow)' }}>
               <span className="text-base">{ALERTE_ICON[a.type]}</span>
               <span className="flex-1 min-w-0 text-sm font-semibold text-red-800 truncate">{a.label}</span>
               <span className="shrink-0 text-xs font-semibold text-red-700">Voir →</span>
             </a>
           ))}
           {orangeAlertes.map((a) => (
-            <a
-              key={`${a.type}-${a.id}`}
-              href={a.href}
+            <a key={`${a.type}-${a.id}`} href={a.href}
               className="flex items-center gap-3 rounded-[var(--radius)] border border-amber-200 bg-amber-50 px-4 py-3 transition-colors hover:bg-amber-100"
-              style={{ boxShadow: 'var(--shadow)' }}
-            >
+              style={{ boxShadow: 'var(--shadow)' }}>
               <span className="text-base">{ALERTE_ICON[a.type]}</span>
               <span className="flex-1 min-w-0 text-sm font-semibold text-amber-800 truncate">{a.label}</span>
               <span className="shrink-0 text-xs font-semibold text-amber-700">Voir →</span>
@@ -154,98 +136,119 @@ export function DirigeantDashboard({ data }: Props) {
         </div>
       )}
 
-      {/* ── Météo sociétés ── */}
+      {/* ── 3. Priorités du jour ────────────────────────────────────────────── */}
       <div>
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[var(--text2)]">
-          Météo sociétés — {new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date())}
+          ⚡ Priorités du jour
         </p>
-        {meteoSocietes.length === 0 ? (
-          /* Fallback : pas de table companies → carte unique globale */
-          <div
-            className={`flex items-center gap-4 rounded-[var(--radius)] border px-4 py-3 ${meteoMeta.bg}`}
-            style={{ boxShadow: 'var(--shadow)' }}
-          >
-            <span className={`h-3 w-3 shrink-0 rounded-full ${meteoMeta.dot}`} />
-            <span className="flex-1 text-sm font-semibold text-[var(--text)]">Entreprise</span>
-            <span className="font-mono text-sm font-bold text-[var(--text)]">{fmtEur(caGlobalMois)}</span>
-            <span className={`text-xs font-bold ${meteoMeta.text}`}>{meteoMeta.label}</span>
+        {priorites.length === 0 ? (
+          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-6 text-center"
+            style={{ boxShadow: 'var(--shadow)' }}>
+            <p className="text-sm text-[var(--text3)]">Aucune priorité en retard. Bien joué !</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white divide-y divide-[var(--border)]"
+            style={{ boxShadow: 'var(--shadow)' }}>
+            {priorites.map((p) => (
+              <a key={`${p.type}-${p.id}`} href={p.lien}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-[var(--bg)] group">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg4)] text-xs font-bold text-[var(--text2)]">
+                  {PRIORITE_ICON[p.type]}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--blue)]">{p.titre}</span>
+                  {p.projetNom && <span className="ml-2 text-xs text-[var(--text3)]">{p.projetNom}</span>}
+                </div>
+                {p.montant !== null && (
+                  <span className="shrink-0 font-mono text-xs font-bold text-[var(--text)]">{fmtEur(p.montant)}</span>
+                )}
+                {p.echeance && (
+                  <span className="shrink-0 text-xs text-[var(--text3)]">
+                    {new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(new Date(p.echeance))}
+                  </span>
+                )}
+                <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-[var(--red)]">
+                  J+{p.joursRetard}
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── 4. Météo sociétés ───────────────────────────────────────────────── */}
+      <div>
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[var(--text2)]">
+          Météo sociétés — {moisLabel}
+        </p>
+        {meteoSocietes.length === 0 ? (
+          <div className={`flex items-center gap-4 rounded-[var(--radius)] border px-4 py-3 bg-slate-50 border-slate-200`}
+            style={{ boxShadow: 'var(--shadow)' }}>
+            <span className="text-xl">{METEO_ICON[meteoGlobal]}</span>
+            <span className="flex-1 text-sm font-semibold text-[var(--text)]">Entreprise</span>
+            <span className="font-mono text-sm font-bold text-[var(--text)]">{fmtEur(caGlobalMois)}</span>
+          </div>
+        ) : (
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
             {meteoSocietes.map((s) => {
-              const meta    = METEO_META[s.meteo];
-              const barPct  = s.objectif && s.objectif > 0
+              const barPct = s.objectif && s.objectif > 0
                 ? Math.min(100, Math.round((s.caNet / s.objectif) * 100))
                 : null;
               return (
-                <div
-                  key={s.id}
-                  className="rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3"
-                  style={{ boxShadow: 'var(--shadow)' }}
-                >
-                  {/* Ligne principale */}
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: s.color }}
-                    />
-                    <span className="w-36 shrink-0 text-sm font-semibold text-[var(--text)]">
-                      {s.nom}
-                    </span>
-                    {/* Barre de progression */}
-                    <div className="flex-1 h-2 rounded-full bg-[var(--bg4)] overflow-hidden">
-                      {barPct !== null && (
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${barPct}%`, backgroundColor: s.color }}
-                        />
-                      )}
-                    </div>
-                    {/* CA net */}
-                    <span className="shrink-0 font-mono text-sm font-bold text-[var(--text)]">
-                      {fmtEur(s.caNet)}
-                    </span>
-                    {/* % objectif */}
-                    {s.pct !== null && (
-                      <span className={`shrink-0 text-xs font-bold ${meta.text}`}>
-                        {s.pct} %
-                      </span>
-                    )}
-                    {/* Variation M-1 */}
+                <a key={s.id} href="/commerce?tab=factures"
+                  className="flex flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+                  style={{ boxShadow: 'var(--shadow)' }}>
+                  {/* Icône météo */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl">{METEO_ICON[s.meteo]}</span>
                     {s.variation !== null && (
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                        s.variation >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
+                      <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${s.variation >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
                         {fmtVariation(s.variation)}
                       </span>
                     )}
-                    {/* Météo label si pas d'objectif */}
-                    {s.pct === null && (
-                      <span className={`shrink-0 text-xs font-bold ${meta.text}`}>
-                        {meta.label}
-                      </span>
-                    )}
                   </div>
-                  {/* Objectif mensuel si présent */}
-                  {s.objectif != null && s.objectif > 0 && (
-                    <div className="mt-1 ml-6 flex items-center gap-2 text-[11px] text-[var(--text3)]">
-                      <span>Objectif : {fmtEur(s.objectif)}</span>
-                      {s.avoirs > 0 && (
-                        <span className="text-red-400">· Avoirs : -{fmtEur(s.avoirs)}</span>
+                  {/* Nom société */}
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-[var(--text2)] truncate">{s.nom}</p>
+                    <p className="text-[10px] text-[var(--text3)]">{METEO_LABEL[s.meteo]}</p>
+                  </div>
+                  {/* CA net */}
+                  <p className="text-[18px] font-extrabold tabular-nums text-[var(--text)]" style={{ letterSpacing: '-0.03em' }}>
+                    {fmtEur(s.caNet)}
+                  </p>
+                  {/* Barre objectif */}
+                  <div>
+                    <div className="h-1.5 w-full rounded-full bg-[var(--bg4)] overflow-hidden">
+                      {barPct !== null ? (
+                        <div className="h-full rounded-full transition-all"
+                          style={{ width: `${barPct}%`, backgroundColor: s.color }} />
+                      ) : (
+                        <div className="h-full rounded-full bg-slate-200 w-full" />
                       )}
                     </div>
+                    <p className="mt-1 text-[10px] text-[var(--text3)]">
+                      {barPct !== null
+                        ? `${barPct} % de l'objectif (${fmtEur(s.objectif!)})`
+                        : 'Aucun objectif défini'}
+                    </p>
+                  </div>
+                  {/* Factures en retard */}
+                  {s.facsRetard > 0 && (
+                    <p className="text-[10px] font-semibold text-red-600">
+                      ⚠ {s.facsRetard} facture{s.facsRetard > 1 ? 's' : ''} en retard
+                    </p>
                   )}
-                </div>
+                </a>
               );
             })}
           </div>
         )}
       </div>
 
-      {/* ── 4 KPI Cards ── */}
+      {/* ── 5. KPIs financiers ──────────────────────────────────────────────── */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="CA Net mois"
+          label="CA Facturé mois"
           value={fmtEur(kpis.caMoisNet)}
           color="var(--green)"
           sub={`M-1 : ${fmtEur(kpis.caMoisPrecedent)}`}
@@ -258,10 +261,10 @@ export function DirigeantDashboard({ data }: Props) {
           href="/commerce?tab=factures"
         />
         <KpiCard
-          label="CA Net annuel"
+          label="CA Facturé annuel"
           value={fmtEur(kpis.caAnnuel)}
           color="var(--blue)"
-          sub={`Depuis le 1er janvier`}
+          sub="Depuis le 1er janvier"
           href="/commerce?tab=factures"
         />
         <KpiCard
@@ -269,7 +272,7 @@ export function DirigeantDashboard({ data }: Props) {
           value={kpis.margeDevisPct !== null ? `${kpis.margeDevisPct} %` : '—'}
           color="var(--purple)"
           sub={kpis.margeDevisPct !== null ? 'Sur devis acceptés' : 'Données insuffisantes'}
-          href="/commerce?tab=devis&filter=acceptes"
+          href="/commerce?tab=devis"
         />
         <KpiCard
           label="En retard"
@@ -278,200 +281,150 @@ export function DirigeantDashboard({ data }: Props) {
           sub={`${kpis.enRetardFactures} facture${kpis.enRetardFactures !== 1 ? 's' : ''} · ${kpis.enRetardTaches} tâche${kpis.enRetardTaches !== 1 ? 's' : ''}`}
           badge={kpis.enRetardFactures + kpis.enRetardTaches > 0 ? '⚠' : undefined}
           badgeColor="bg-red-100 text-red-600"
-          href="/commerce?tab=factures&filter=retard"
+          href="/commerce?tab=factures"
         />
       </div>
 
-      {/* ── SAV + API Usage ── */}
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-
-        {/* SAV */}
-        <div
-          className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
-          style={{ boxShadow: 'var(--shadow)' }}
-        >
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
-            SAV — Tickets
+      {/* ── 6. Objectifs du mois ────────────────────────────────────────────── */}
+      {societeAvecObjectif.length > 0 && (
+        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
+          style={{ boxShadow: 'var(--shadow)' }}>
+          <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
+            Objectifs annuels
           </p>
-          {!sav.hasTable ? (
-            <p className="text-sm text-[var(--text3)]">Module SAV non activé.</p>
-          ) : (
-            <div className="space-y-3">
-              {/* 3 KPI */}
-              <div className="flex gap-4">
-                <div className="flex-1 text-center rounded-lg bg-red-50 py-2">
-                  <p className="text-[22px] font-extrabold text-[var(--red)]" style={{ letterSpacing: '-0.04em' }}>
-                    {sav.ouverts}
-                  </p>
-                  <p className="text-[10px] text-[var(--text3)]">Ouverts</p>
-                </div>
-                <div className="flex-1 text-center rounded-lg bg-amber-50 py-2">
-                  <p className="text-[22px] font-extrabold text-amber-600" style={{ letterSpacing: '-0.04em' }}>
-                    {sav.enCours}
-                  </p>
-                  <p className="text-[10px] text-[var(--text3)]">En cours</p>
-                </div>
-                <div className="flex-1 text-center rounded-lg bg-green-50 py-2">
-                  <p className="text-[22px] font-extrabold text-[var(--green)]" style={{ letterSpacing: '-0.04em' }}>
-                    {sav.cloturesCeMois}
-                  </p>
-                  <p className="text-[10px] text-[var(--text3)]">Clôturés / mois</p>
-                </div>
-              </div>
-
-              {/* Métriques secondaires */}
-              <div className="flex gap-3">
-                {/* Délai moyen */}
-                <div className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text3)] mb-0.5">
-                    Délai moyen
-                  </p>
-                  <p className="text-lg font-extrabold text-[var(--text)]" style={{ letterSpacing: '-0.04em' }}>
-                    {fmtDelai(sav.delaiMoyenHeures)}
-                  </p>
-                  <p className="text-[10px] text-[var(--text3)]">résolution</p>
-                </div>
-                {/* Taux sous contrat */}
-                <div className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text3)] mb-0.5">
-                    Sous contrat
-                  </p>
-                  <p className="text-lg font-extrabold text-[var(--blue)]" style={{ letterSpacing: '-0.04em' }}>
-                    {sav.tauxSousContrat !== null ? `${sav.tauxSousContrat} %` : '—'}
-                  </p>
-                  <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                    {sav.tauxSousContrat !== null && (
-                      <div
-                        className="h-full rounded-full bg-blue-500"
-                        style={{ width: `${sav.tauxSousContrat}%` }}
-                      />
-                    )}
+          <div className="space-y-4">
+            {societeAvecObjectif.map((s) => {
+              const pctAnn = s.pctAnnuel ?? 0;
+              return (
+                <div key={s.id}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                      <span className="text-sm font-semibold text-[var(--text)]">{s.nom}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="font-mono text-[var(--text3)]">
+                        {fmtEur(s.caAnnuel)} / {fmtEur(s.objAnnuel!)}
+                      </span>
+                      <span className={`font-bold ${pctAnn >= 80 ? 'text-green-600' : pctAnn >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                        {pctAnn} %
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Urgents */}
-              {sav.urgents > 0 && (
-                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                  <span className="text-red-600 font-bold text-sm">⚠</span>
-                  <span className="text-sm font-semibold text-red-700">
-                    {sav.urgents} ticket{sav.urgents > 1 ? 's' : ''} urgent{sav.urgents > 1 ? 's' : ''} en attente
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* API Usage */}
-        <div
-          className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
-          style={{ boxShadow: 'var(--shadow)' }}
-        >
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
-            🔑 Usage API Claude
-          </p>
-
-          {/* Tokens */}
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-bold text-[var(--text2)]">Tokens</span>
-              <span className="text-xs text-[var(--text3)]">
-                {apiUsage.tokensUsed.toLocaleString('fr-FR')} / {(apiUsage.tokenMax / 1000).toFixed(0)}k
-              </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${apiPct >= 90 ? 'bg-red-500' : apiPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'}`}
-                style={{ width: `${apiPct}%` }}
-              />
-            </div>
-            <p className="mt-1 text-[10px] text-[var(--text3)]">
-              {apiPct} % du quota tokens mensuel
-            </p>
-          </div>
-
-          {/* Requêtes */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-bold text-[var(--text2)]">Requêtes</span>
-              <span className="text-xs text-[var(--text3)]">
-                {apiUsage.requests.toLocaleString('fr-FR')} / {apiUsage.quota.toLocaleString('fr-FR')}
-              </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${reqPct >= 90 ? 'bg-red-500' : reqPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'}`}
-                style={{ width: `${reqPct}%` }}
-              />
-            </div>
-            <p className="mt-1 text-[10px] text-[var(--text3)]">
-              {reqPct} % du quota requêtes mensuel ({new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date())})
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Priorités du jour ── */}
-      <div>
-        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[var(--text2)]">
-          Priorités du jour
-        </p>
-        {priorites.length === 0 ? (
-          <div
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-8 text-center"
-            style={{ boxShadow: 'var(--shadow)' }}
-          >
-            <p className="text-sm text-[var(--text3)]">Aucune priorité en retard. Bien joué !</p>
-          </div>
-        ) : (
-          <div
-            className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white divide-y divide-[var(--border)]"
-            style={{ boxShadow: 'var(--shadow)' }}
-          >
-            {priorites.map((p) => (
-              <a
-                key={`${p.type}-${p.id}`}
-                href={p.lien}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-[var(--bg)] group"
-              >
-                {/* Type icon */}
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg4)] text-xs font-bold text-[var(--text2)]">
-                  {PRIORITE_ICON[p.type]}
-                </span>
-
-                {/* Titre + projet */}
-                <div className="min-w-0 flex-1">
-                  <span className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--blue)]">
-                    {p.titre}
-                  </span>
-                  {p.projetNom && (
-                    <span className="ml-2 text-xs text-[var(--text3)]">{p.projetNom}</span>
+                  <div className="h-2 w-full rounded-full bg-[var(--bg4)] overflow-hidden">
+                    <div className="h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, pctAnn)}%`, backgroundColor: s.color }} />
+                  </div>
+                  {/* Objectif mensuel */}
+                  {s.objectif && s.objectif > 0 && s.pct !== null && (
+                    <p className="mt-1 text-[10px] text-[var(--text3)]">
+                      Ce mois : {fmtEur(s.caNet)} / {fmtEur(s.objectif)} ({s.pct} %)
+                    </p>
                   )}
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-                {/* Montant */}
-                {p.montant !== null && (
-                  <span className="shrink-0 font-mono text-xs font-bold text-[var(--text)]">
-                    {fmtEur(p.montant)}
-                  </span>
-                )}
+      {/* ── 7. SAV ──────────────────────────────────────────────────────────── */}
+      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
+        style={{ boxShadow: 'var(--shadow)' }}>
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
+          SAV — Tableau de bord
+        </p>
+        {!sav.hasTable ? (
+          <p className="text-sm text-[var(--text3)]">Module SAV non activé.</p>
+        ) : (
+          <div className="space-y-3">
+            {/* 3 compteurs */}
+            <div className="flex gap-3">
+              <div className="flex-1 text-center rounded-lg bg-red-50 py-3">
+                <p className="text-[22px] font-extrabold text-red-600" style={{ letterSpacing: '-0.04em' }}>{sav.ouverts}</p>
+                <p className="text-[10px] text-[var(--text3)]">Ouverts</p>
+              </div>
+              <div className="flex-1 text-center rounded-lg bg-amber-50 py-3">
+                <p className="text-[22px] font-extrabold text-amber-600" style={{ letterSpacing: '-0.04em' }}>{sav.enCours}</p>
+                <p className="text-[10px] text-[var(--text3)]">En cours</p>
+              </div>
+              <div className="flex-1 text-center rounded-lg bg-green-50 py-3">
+                <p className="text-[22px] font-extrabold text-green-600" style={{ letterSpacing: '-0.04em' }}>{sav.cloturesCeMois}</p>
+                <p className="text-[10px] text-[var(--text3)]">Clôturés / mois</p>
+              </div>
+            </div>
 
-                {/* Échéance */}
-                {p.echeance && (
-                  <span className="shrink-0 text-xs text-[var(--text3)]">
-                    {new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(new Date(p.echeance))}
-                  </span>
-                )}
+            {/* Délai moyen + taux sous contrat */}
+            <div className="flex gap-3">
+              <div className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text3)] mb-0.5">Délai moyen</p>
+                <p className="text-lg font-extrabold text-[var(--text)]" style={{ letterSpacing: '-0.04em' }}>
+                  {fmtDelai(sav.delaiMoyenHeures)}
+                </p>
+                <p className="text-[10px] text-[var(--text3)]">résolution</p>
+              </div>
+              <div className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text3)] mb-0.5">Sous contrat</p>
+                <p className="text-lg font-extrabold text-[var(--blue)]" style={{ letterSpacing: '-0.04em' }}>
+                  {sav.tauxSousContrat !== null ? `${sav.tauxSousContrat} %` : '—'}
+                </p>
+                <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                  {sav.tauxSousContrat !== null && (
+                    <div className="h-full rounded-full bg-blue-500" style={{ width: `${sav.tauxSousContrat}%` }} />
+                  )}
+                </div>
+              </div>
+            </div>
 
-                {/* J+ badge */}
-                <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-[var(--red)]">
-                  J+{p.joursRetard}
+            {/* Urgents */}
+            {sav.urgents > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                <span className="text-red-600 font-bold">⚠</span>
+                <span className="text-sm font-semibold text-red-700">
+                  {sav.urgents} ticket{sav.urgents > 1 ? 's' : ''} urgent{sav.urgents > 1 ? 's' : ''} en attente
                 </span>
-              </a>
-            ))}
+              </div>
+            )}
           </div>
         )}
+      </div>
+
+      {/* ── 8. Usage Agent Vocal ────────────────────────────────────────────── */}
+      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
+        style={{ boxShadow: 'var(--shadow)' }}>
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
+          🔑 Usage Agent Vocal — {moisLabel}
+        </p>
+
+        {/* Tokens */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-bold text-[var(--text2)]">Tokens</span>
+            <span className="text-xs text-[var(--text3)]">
+              {apiUsage.tokensUsed.toLocaleString('fr-FR')} / {(apiUsage.tokenMax / 1000).toFixed(0)}k
+            </span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${apiPct >= 90 ? 'bg-red-500' : apiPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'}`}
+              style={{ width: `${apiPct}%` }} />
+          </div>
+          <p className="mt-1 text-[10px] text-[var(--text3)]">{apiPct} % du quota mensuel</p>
+        </div>
+
+        {/* Requêtes */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-bold text-[var(--text2)]">Requêtes</span>
+            <span className="text-xs text-[var(--text3)]">
+              {apiUsage.requests.toLocaleString('fr-FR')} / {apiUsage.quota.toLocaleString('fr-FR')}
+            </span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${reqPct >= 90 ? 'bg-red-500' : reqPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'}`}
+              style={{ width: `${reqPct}%` }} />
+          </div>
+          <p className="mt-1 text-[10px] text-[var(--text3)]">{reqPct} % du quota requêtes</p>
+        </div>
       </div>
 
     </div>

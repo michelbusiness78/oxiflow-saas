@@ -5,20 +5,21 @@ import { createAdminClient } from '@/lib/supabase/server';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface MeteoSociete {
-  id:         string;
-  nom:        string;
-  color:      string;
-  caMois:     number;
-  avoirs:     number;
-  caNet:      number;
-  objectif:   number | null;
-  pct:        number | null;
-  meteo:      'green' | 'orange' | 'red' | 'unknown';
-  caPrevMois: number;
-  variation:  number | null;
-  caAnnuel:   number;
-  objAnnuel:  number | null;
-  pctAnnuel:  number | null;
+  id:          string;
+  nom:         string;
+  color:       string;
+  caMois:      number;
+  avoirs:      number;
+  caNet:       number;
+  objectif:    number | null;
+  pct:         number | null;
+  meteo:       'green' | 'orange' | 'red' | 'unknown';
+  caPrevMois:  number;
+  variation:   number | null;
+  caAnnuel:    number;
+  objAnnuel:   number | null;
+  pctAnnuel:   number | null;
+  facsRetard:  number;
 }
 
 export interface PrioriteItem {
@@ -41,14 +42,14 @@ export interface AlerteItem {
 }
 
 export interface SAVStats {
-  ouverts:             number;
-  enCours:             number;
-  clotures:            number;
-  cloturesCeMois:      number;
-  hasTable:            boolean;
-  urgents:             number;
-  delaiMoyenHeures:    number | null;
-  tauxSousContrat:     number | null;
+  ouverts:          number;
+  enCours:          number;
+  clotures:         number;
+  cloturesCeMois:   number;
+  hasTable:         boolean;
+  urgents:          number;
+  delaiMoyenHeures: number | null;
+  tauxSousContrat:  number | null;
 }
 
 export interface DirigeantDashboardData {
@@ -81,15 +82,17 @@ export interface DirigeantDashboardData {
 
 const PALETTE = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0ea5e9'];
 
+// CA = somme sur toutes les factures non-avoir émises/payées (pas les brouillons)
+const CA_STATUSES = ['emise', 'payee', 'en_retard'];
+
 function sum(rows: { total_ttc?: number | null }[]) {
   return rows.reduce((s, r) => s + (r.total_ttc ?? 0), 0);
 }
 
-// Quota par plan Stripe
 const QUOTA_MAP: Record<string, number> = {
-  solo:  50,
-  team:  200,
-  pro:   500,
+  solo:       50,
+  team:       200,
+  pro:        500,
   enterprise: 2000,
 };
 
@@ -99,7 +102,7 @@ export async function getDashboardDirigeant(
   tenantId: string,
   userId:   string,
 ): Promise<DirigeantDashboardData> {
-  const admin = await createAdminClient();
+  const admin = createAdminClient();
   const now   = new Date();
 
   const todayISO       = now.toISOString().split('T')[0];
@@ -107,8 +110,6 @@ export async function getDashboardDirigeant(
   const monthStart     = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
   const prevMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
-  const monthISO       = monthStart;
-  const thirtyDaysAgo  = new Date(now.getTime() - 30 * 86_400_000).toISOString().split('T')[0];
   const in30Days       = new Date(now.getTime() + 30 * 86_400_000).toISOString().split('T')[0];
   const fifteenAgo     = new Date(now.getTime() - 15 * 86_400_000).toISOString();
 
@@ -128,44 +129,74 @@ export async function getDashboardDirigeant(
     apiUsageRes,
     subscriptionRes,
   ] = await Promise.all([
+    // Nom de l'utilisateur
     admin.from('users').select('name').eq('id', userId).single(),
 
-    admin.from('invoices').select('total_ttc, company_id')
-      .eq('tenant_id', tenantId).eq('status', 'payee')
+    // CA mois courant : toutes factures émises/payées (pas seulement encaissées)
+    admin.from('invoices')
+      .select('total_ttc, company_id')
+      .eq('tenant_id', tenantId)
+      .in('status', CA_STATUSES)
       .neq('type', 'avoir')
       .gte('date_facture', monthStart),
 
-    admin.from('invoices').select('total_ttc, company_id')
-      .eq('tenant_id', tenantId).eq('status', 'payee')
+    // CA mois précédent
+    admin.from('invoices')
+      .select('total_ttc, company_id')
+      .eq('tenant_id', tenantId)
+      .in('status', CA_STATUSES)
       .neq('type', 'avoir')
-      .gte('date_facture', prevMonthStart).lte('date_facture', prevMonthEnd),
+      .gte('date_facture', prevMonthStart)
+      .lte('date_facture', prevMonthEnd),
 
-    admin.from('invoices').select('total_ttc, company_id')
-      .eq('tenant_id', tenantId).eq('status', 'payee')
+    // CA annuel
+    admin.from('invoices')
+      .select('total_ttc, company_id')
+      .eq('tenant_id', tenantId)
+      .in('status', CA_STATUSES)
       .neq('type', 'avoir')
       .gte('date_facture', yearStart),
 
-    admin.from('invoices').select('total_ttc, company_id')
-      .eq('tenant_id', tenantId).eq('type', 'avoir')
+    // Avoirs du mois
+    admin.from('invoices')
+      .select('total_ttc, company_id')
+      .eq('tenant_id', tenantId)
+      .eq('type', 'avoir')
       .gte('date_facture', monthStart),
 
-    admin.from('invoices').select('id, number, total_ttc, date_echeance, company_id')
-      .eq('tenant_id', tenantId).eq('status', 'emise').lt('date_echeance', todayISO),
+    // Factures en retard
+    admin.from('invoices')
+      .select('id, number, total_ttc, date_echeance, company_id')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'emise')
+      .lt('date_echeance', todayISO),
 
-    admin.from('quotes').select('id, number, objet, montant_ttc, created_at, clients(nom)')
-      .eq('tenant_id', tenantId).eq('statut', 'envoye')
-      .lt('created_at', fifteenAgo).order('created_at', { ascending: false }).limit(5),
+    // Devis envoyés depuis > 15j sans réponse
+    admin.from('quotes')
+      .select('id, number, objet, montant_ttc, created_at, clients(nom)')
+      .eq('tenant_id', tenantId)
+      .eq('statut', 'envoye')
+      .lt('created_at', fifteenAgo)
+      .order('created_at', { ascending: false })
+      .limit(5),
 
+    // Tâches en retard
     admin.from('project_tasks')
       .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId).eq('done', false)
-      .not('due', 'is', null).lt('due', todayISO),
+      .eq('tenant_id', tenantId)
+      .eq('done', false)
+      .not('due', 'is', null)
+      .lt('due', todayISO),
 
+    // Contrats expirant dans 30 jours
     admin.from('contrats')
       .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId).eq('actif', true)
-      .not('date_fin', 'is', null).lte('date_fin', in30Days),
+      .eq('tenant_id', tenantId)
+      .eq('actif', true)
+      .not('date_fin', 'is', null)
+      .lte('date_fin', in30Days),
 
+    // Projets en retard
     admin.from('projects')
       .select('id, name', { count: 'exact' })
       .eq('tenant_id', tenantId)
@@ -174,21 +205,21 @@ export async function getDashboardDirigeant(
       .lt('deadline', todayISO)
       .limit(5),
 
-    // SAV: tous les tickets
+    // SAV : tous les tickets (null si table inexistante → error.code 42P01)
     admin.from('sav_tickets')
       .select('id, statut, priorite, contrat_id, date_ouverture, closed_at')
       .eq('tenant_id', tenantId),
 
-    // SAV urgents ouverts depuis > 48h
+    // SAV urgents
     admin.from('sav_tickets')
       .select('*', { count: 'exact', head: true })
       .eq('tenant_id', tenantId)
       .in('statut', ['ouvert', 'en_cours'])
       .eq('priorite', 'urgente'),
 
-    // API usage du mois en cours
+    // Usage API du mois
     admin.from('api_usage')
-      .select('tokens_in, tokens_out, created_at')
+      .select('tokens_in, tokens_out')
       .eq('tenant_id', tenantId)
       .gte('created_at', monthStart),
 
@@ -200,22 +231,32 @@ export async function getDashboardDirigeant(
       .limit(1),
   ]);
 
-  const userName       = (userRes.data?.name as string | null) ?? '';
-  const facturesMois   = facturesMoisRes.data   ?? [];
-  const facturesPrev   = facturesPrevRes.data   ?? [];
-  const facturesAnnuel = facturesAnnuelRes.data ?? [];
-  const avoirsMois     = avoirsMoisRes.data      ?? [];
-  const facturesRetard = facturesRetardRes.data  ?? [];
-  const quotesRelance  = quotesRelanceRes.data   ?? [];
-  const tachesEnRetard       = taskRetardRes.count   ?? 0;
-  const contratsARenouveler  = contratsRes.count     ?? 0;
-  const projetsRetard        = projetsRetardRes.data ?? [];
-  const savAll         = savAllRes.data            ?? [];
-  const savUrgents     = savUrgentsRes.count        ?? 0;
-  const apiUsageRows   = apiUsageRes.data            ?? [];
-  const subscriptions  = subscriptionRes.data        ?? [];
+  // Loguer les erreurs éventuelles pour diagnostic
+  if (userRes.error)          console.error('[Dashboard] users:', userRes.error.message);
+  if (facturesMoisRes.error)  console.error('[Dashboard] facturesMois:', facturesMoisRes.error.message);
+  if (facturesPrevRes.error)  console.error('[Dashboard] facturesPrev:', facturesPrevRes.error.message);
+  if (facturesAnnuelRes.error)console.error('[Dashboard] facturesAnnuel:', facturesAnnuelRes.error.message);
+  if (facturesRetardRes.error)console.error('[Dashboard] facturesRetard:', facturesRetardRes.error.message);
+  if (taskRetardRes.error)    console.error('[Dashboard] taskRetard:', taskRetardRes.error.message);
+  if (contratsRes.error)      console.error('[Dashboard] contrats:', contratsRes.error.message);
+  if (projetsRetardRes.error) console.error('[Dashboard] projetsRetard:', projetsRetardRes.error.message);
 
-  // ── Calculs CA globaux ──────────────────────────────────────────────────────
+  const userName         = (userRes.data?.name as string | null) ?? '';
+  const facturesMois     = facturesMoisRes.data   ?? [];
+  const facturesPrev     = facturesPrevRes.data   ?? [];
+  const facturesAnnuel   = facturesAnnuelRes.data ?? [];
+  const avoirsMois       = avoirsMoisRes.data     ?? [];
+  const facturesRetard   = facturesRetardRes.data ?? [];
+  const quotesRelance    = quotesRelanceRes.data  ?? [];
+  const tachesEnRetard   = taskRetardRes.count    ?? 0;
+  const contratsARenouveler = contratsRes.count   ?? 0;
+  const projetsRetard    = projetsRetardRes.data  ?? [];
+  const savAll           = savAllRes.data         ?? [];
+  const savUrgents       = savUrgentsRes.count    ?? 0;
+  const apiUsageRows     = apiUsageRes.data       ?? [];
+  const subscriptions    = subscriptionRes.data   ?? [];
+
+  // ── CA globaux ──────────────────────────────────────────────────────────────
   const caMoisBrut      = sum(facturesMois);
   const avoirsMoisTotal = Math.abs(sum(avoirsMois));
   const caMoisNet       = Math.max(0, caMoisBrut - avoirsMoisTotal);
@@ -233,7 +274,7 @@ export async function getDashboardDirigeant(
         : 'red'
       : 'unknown';
 
-  // ── Objectifs par société ────────────────────────────────────────────────────
+  // ── Sociétés + objectifs ─────────────────────────────────────────────────────
   const [companiesRes, objectivesRes] = await Promise.allSettled([
     admin.from('companies').select('id, nom, color').eq('tenant_id', tenantId).order('nom'),
     admin.from('company_objectives')
@@ -249,34 +290,42 @@ export async function getDashboardDirigeant(
   for (const o of objectives) {
     objByCompany.set(o.company_id as string, {
       monthly_target: (o.monthly_target as number) ?? 0,
-      annual_target:  (o.annual_target as number)  ?? 0,
+      annual_target:  (o.annual_target  as number) ?? 0,
     });
   }
 
-  // CA par société
-  function caForCompany(rows: { total_ttc?: number | null; company_id?: string | null }[], companyId: string) {
-    return rows.filter((r) => r.company_id === companyId).reduce((s, r) => s + (r.total_ttc ?? 0), 0);
+  function caForCompany(rows: { total_ttc?: number | null; company_id?: string | null }[], cid: string) {
+    return rows.filter((r) => r.company_id === cid).reduce((s, r) => s + (r.total_ttc ?? 0), 0);
   }
 
   const meteoSocietes: MeteoSociete[] = companies.map((c, i) => {
-    const cid     = c.id as string;
-    const obj     = objByCompany.get(cid) ?? null;
-    const caMois  = caForCompany(facturesMois, cid);
-    const avoirs  = Math.abs(caForCompany(avoirsMois, cid));
-    const caNet   = Math.max(0, caMois - avoirs);
-    const caPrev  = caForCompany(facturesPrev, cid);
-    const caAnn   = caForCompany(facturesAnnuel, cid);
-    const objM    = obj?.monthly_target ?? null;
-    const objA    = obj?.annual_target  ?? null;
-    const pct     = objM && objM > 0 ? Math.min(200, Math.round((caNet / objM) * 100)) : null;
-    const pctAnn  = objA && objA > 0 ? Math.min(200, Math.round((caAnn / objA) * 100)) : null;
-    const vari    = caPrev > 0 ? Math.round(((caNet - caPrev) / caPrev) * 100) : null;
+    const cid        = c.id as string;
+    const obj        = objByCompany.get(cid) ?? null;
+    const caMois     = caForCompany(facturesMois, cid);
+    const avoirs     = Math.abs(caForCompany(avoirsMois, cid));
+    const caNet      = Math.max(0, caMois - avoirs);
+    const caPrev     = caForCompany(facturesPrev, cid);
+    const caAnn      = caForCompany(facturesAnnuel, cid);
+    const facsRetard = facturesRetard.filter((f) => (f.company_id as string | null) === cid).length;
+    const objM       = obj?.monthly_target ?? null;
+    const objA       = obj?.annual_target  ?? null;
+    const pct        = objM && objM > 0 ? Math.min(200, Math.round((caNet / objM) * 100)) : null;
+    const pctAnn     = objA && objA > 0 ? Math.min(200, Math.round((caAnn  / objA) * 100)) : null;
+    const vari       = caPrev > 0 ? Math.round(((caNet - caPrev) / caPrev) * 100) : null;
 
+    // Météo : objectif > CA vs M-1, pondéré par factures en retard
     let meteo: MeteoSociete['meteo'] = 'unknown';
-    if (objM && objM > 0) {
-      meteo = pct! >= 80 ? 'green' : pct! >= 50 ? 'orange' : 'red';
+    if (objM && objM > 0 && pct !== null) {
+      if      (pct < 60 || facsRetard >= 2) meteo = 'red';
+      else if (pct < 80 || facsRetard >= 1) meteo = 'orange';
+      else meteo = 'green';
     } else if (caPrev > 0) {
-      meteo = caNet >= caPrev * 0.8 ? 'green' : caNet >= caPrev * 0.5 ? 'orange' : 'red';
+      if      (caNet < caPrev * 0.5 || facsRetard >= 2) meteo = 'red';
+      else if (caNet < caPrev * 0.8 || facsRetard >= 1) meteo = 'orange';
+      else meteo = 'green';
+    } else {
+      // Pas d'historique ni d'objectif : vert si pas de retard
+      meteo = facsRetard === 0 ? 'green' : facsRetard === 1 ? 'orange' : 'red';
     }
 
     return {
@@ -294,10 +343,11 @@ export async function getDashboardDirigeant(
       caAnnuel:   caAnn,
       objAnnuel:  objA,
       pctAnnuel:  pctAnn,
+      facsRetard,
     };
   });
 
-  // Fallback: si pas de société, calculer globalement
+  // Fallback : pas de sociétés → entrée globale
   if (meteoSocietes.length === 0) {
     meteoSocietes.push({
       id: 'global', nom: 'Entreprise',
@@ -306,23 +356,25 @@ export async function getDashboardDirigeant(
       objectif: null, pct: null, meteo: meteoGlobal,
       caPrevMois: caMoisPrecedent, variation: variationMois,
       caAnnuel, objAnnuel: null, pctAnnuel: null,
+      facsRetard: facturesRetard.length,
     });
   }
 
   // ── SAV ──────────────────────────────────────────────────────────────────────
-  const savHasTable  = savAll.length > 0 || savAllRes.error?.code !== '42P01';
-  const savOuverts   = savAll.filter((t) => t.statut === 'ouvert').length;
-  const savEnCours   = savAll.filter((t) => t.statut === 'en_cours').length;
-  const savClotures  = savAll.filter((t) => ['cloture', 'ferme', 'resolu', 'termine'].includes(t.statut ?? '')).length;
+  const savTableOk    = savAllRes.error?.code !== '42P01'; // table exists
+  const savHasTable   = savTableOk;
+  const savOuverts    = savAll.filter((t) => t.statut === 'ouvert').length;
+  const savEnCours    = savAll.filter((t) => t.statut === 'en_cours').length;
+  const savClotures   = savAll.filter((t) =>
+    ['cloture', 'ferme', 'resolu', 'termine'].includes(t.statut ?? ''),
+  ).length;
 
-  // Clôturés ce mois
   const savClotureMois = savAll.filter((t) => {
     if (!['cloture', 'ferme', 'resolu', 'termine'].includes(t.statut ?? '')) return false;
     const closedAt = (t.closed_at as string | null) ?? (t.date_ouverture as string | null);
-    return closedAt && closedAt >= monthISO;
+    return closedAt && closedAt >= monthStart;
   }).length;
 
-  // Délai moyen (tickets avec closed_at)
   const closedWithDate = savAll.filter((t) => t.closed_at && t.date_ouverture);
   let delaiMoyen: number | null = null;
   if (closedWithDate.length > 0) {
@@ -333,27 +385,28 @@ export async function getDashboardDirigeant(
     delaiMoyen = Math.round(totalH / closedWithDate.length);
   }
 
-  // Taux sous contrat (tickets ouverts + en_cours avec contrat_id)
-  const actifs = savAll.filter((t) => t.statut === 'ouvert' || t.statut === 'en_cours');
-  const sousContrat = actifs.filter((t) => t.contrat_id).length;
+  const actifs        = savAll.filter((t) => t.statut === 'ouvert' || t.statut === 'en_cours');
+  const sousContrat   = actifs.filter((t) => t.contrat_id).length;
   const tauxSousContrat = actifs.length > 0 ? Math.round((sousContrat / actifs.length) * 100) : null;
 
-  // ── API Usage ─────────────────────────────────────────────────────────────────
-  const tokensUsed = apiUsageRows.reduce((s, r) => s + ((r.tokens_in as number) ?? 0) + ((r.tokens_out as number) ?? 0), 0);
+  // ── API Usage ────────────────────────────────────────────────────────────────
+  const tokensUsed = apiUsageRows.reduce(
+    (s, r) => s + ((r.tokens_in as number) ?? 0) + ((r.tokens_out as number) ?? 0),
+    0,
+  );
   const requests   = apiUsageRows.length;
+  const plan       = (subscriptions[0]?.plan as string | null) ?? 'solo';
+  const quota      = QUOTA_MAP[plan.toLowerCase()] ?? 50;
+  const tokenMax   = quota * 10_000;
 
-  const plan  = (subscriptions[0]?.plan as string | null) ?? 'solo';
-  const quota = QUOTA_MAP[plan.toLowerCase()] ?? 50;
-  const tokenMax = quota * 10_000;  // Estimation: 10k tokens par requête en moyenne
-
-  // ── Alertes critiques ─────────────────────────────────────────────────────────
+  // ── Alertes ──────────────────────────────────────────────────────────────────
   const alertes: AlerteItem[] = [];
 
   for (const f of facturesRetard.slice(0, 5)) {
     alertes.push({
       type: 'facture', id: f.id as string,
       label: `Facture ${f.number as string} en retard — ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(f.total_ttc as number)}`,
-      severity: 'red', href: '/commerce?tab=factures&filter=retard',
+      severity: 'red', href: '/commerce?tab=factures',
     });
   }
 
@@ -381,7 +434,7 @@ export async function getDashboardDirigeant(
     });
   }
 
-  // ── Priorités ─────────────────────────────────────────────────────────────────
+  // ── Priorités ────────────────────────────────────────────────────────────────
   const priorites: PrioriteItem[] = [];
 
   for (const f of facturesRetard.slice(0, 3)) {
