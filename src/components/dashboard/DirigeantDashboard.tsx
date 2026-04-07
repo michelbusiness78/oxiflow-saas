@@ -1,5 +1,7 @@
 import { fmtEur } from '@/lib/format';
 import type { DirigeantDashboardData, PrioriteItem, AlerteItem } from '@/app/actions/dirigeant';
+import type { PersonalTask } from '@/app/actions/tasks';
+import { MesTaches }         from '@/components/shared/MesTaches';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,11 +76,16 @@ function KpiCard({
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-interface Props { data: DirigeantDashboardData; }
+interface Props {
+  data:          DirigeantDashboardData;
+  personalTasks: PersonalTask[];
+  userId:        string;
+  tenantId:      string;
+}
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export function DirigeantDashboard({ data }: Props) {
+export function DirigeantDashboard({ data, personalTasks, userId, tenantId }: Props) {
   const { userName, kpis, meteoSocietes, caGlobalMois, meteoGlobal, sav, apiUsage, priorites, alertes } = data;
 
   const prenom = userName.split(' ')[0] || userName;
@@ -175,6 +182,14 @@ export function DirigeantDashboard({ data }: Props) {
           </div>
         )}
       </div>
+
+      {/* ── 3b. Mes tâches (widget condensé) ───────────────────────────────── */}
+      <MesTaches
+        initialTasks={personalTasks}
+        tenantId={tenantId}
+        userId={userId}
+        condensed
+      />
 
       {/* ── 4. Météo sociétés ───────────────────────────────────────────────── */}
       <div>

@@ -186,19 +186,20 @@ export const TOOLS = [
       required: ['client_nom', 'type'],
     },
   },
-  // ── Tâches ────────────────────────────────────────────────────────────────
+  // ── Tâches personnelles ───────────────────────────────────────────────────
   {
-    name:        'planifier_tache',
-    description: 'Crée une nouvelle tâche et l\'assigne si besoin',
+    name:        'creer_tache',
+    description: 'Crée une tâche personnelle, un rappel ou une note. Utilisé par tous les rôles. Exemples : "rappelle-moi de commander les câbles vendredi", "tâche urgente : appeler le comptable", "note : le client Durand veut une rallonge".',
     input_schema: {
       type: 'object' as const,
       properties: {
-        titre:         { type: 'string', description: 'Titre de la tâche' },
-        assigne_nom:   { type: 'string', description: 'Nom de la personne à qui assigner (optionnel)' },
-        date_echeance: { type: 'string', description: 'Échéance (YYYY-MM-DD, optionnel)' },
-        priorite:      { type: 'string', enum: ['faible', 'normale', 'haute', 'urgente'] },
+        tache:         { type: 'string', description: 'Intitulé de la tâche ou du rappel (obligatoire)' },
+        note:          { type: 'string', description: 'Détail ou note complémentaire (optionnel)' },
+        priorite:      { type: 'string', enum: ['basse', 'normale', 'haute', 'urgente'], description: 'Priorité (défaut : normale)' },
+        date_echeance: { type: 'string', description: 'Échéance YYYY-MM-DD (optionnel, ex: "vendredi" → convertir en date)' },
+        project_id:    { type: 'string', description: 'ID du projet si liée à un projet (optionnel)' },
       },
-      required: ['titre'],
+      required: ['tache'],
     },
   },
   // ── Lecture données ───────────────────────────────────────────────────────
@@ -365,7 +366,7 @@ Tu es l'assistant vocal d'OxiFlow, un logiciel de gestion pour PME.
 Tu parles français. Tu es efficace, direct et professionnel.
 
 Actions disponibles :
-CRÉATION : créer clients, devis, factures, projets, interventions, tâches, tickets SAV, contrats, avoirs, notes de frais, congés.
+CRÉATION : créer clients, devis, factures, projets, interventions, tâches (creer_tache), tickets SAV, contrats, avoirs, notes de frais, congés.
 MODIFICATION : changer statut devis/facture, ajouter au catalogue, clôturer intervention.
 CONSULTATION : consulter devis/factures/clients, résumé d'activité.
 LECTURE : lister_taches, lister_interventions, lister_projets.

@@ -2,6 +2,7 @@ import { redirect }                       from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getDashboardDirigeant }           from '@/app/actions/dirigeant';
 import { DirigeantDashboard }              from '@/components/dashboard/DirigeantDashboard';
+import { getPersonalTasks }                from '@/app/actions/tasks';
 
 export default async function DashboardDirigeantPage() {
   const supabase = await createClient();
@@ -17,7 +18,17 @@ export default async function DashboardDirigeantPage() {
 
   const tenantId = profile?.tenant_id as string;
 
-  const data = await getDashboardDirigeant(tenantId, user.id);
+  const [data, personalTasks] = await Promise.all([
+    getDashboardDirigeant(tenantId, user.id),
+    getPersonalTasks(tenantId, user.id),
+  ]);
 
-  return <DirigeantDashboard data={data} />;
+  return (
+    <DirigeantDashboard
+      data={data}
+      personalTasks={personalTasks}
+      userId={user.id}
+      tenantId={tenantId}
+    />
+  );
 }

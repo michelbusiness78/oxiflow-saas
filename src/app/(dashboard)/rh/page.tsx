@@ -1,7 +1,9 @@
 import { redirect }    from 'next/navigation';
 import { Suspense }    from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { RhTabs }      from '@/components/rh/RhTabs';
+import { MesTaches }   from '@/components/shared/MesTaches';
+import { getPersonalTasks } from '@/app/actions/tasks';
 import { CongeList,   type Conge }      from '@/components/rh/CongeList';
 import { NoteFraisList, type NoteFrais } from '@/components/rh/NoteFraisList';
 import { Soldes, type SoldeUser, type Mouvement } from '@/components/rh/Soldes';
@@ -116,17 +118,23 @@ export default async function RhPage({ searchParams }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
+  const admin = createAdminClient();
+  const { data: profile } = await admin
     .from('users')
-    .select('name, role')
+    .select('name, role, tenant_id')
     .eq('id', user.id)
     .single();
 
   const userName  = profile?.name  ?? user.email ?? 'Utilisateur';
-  const role      = profile?.role  ?? 'commercial';
+  const role      = (profile?.role  as string) ?? 'commercial';
+  const tenantId  = profile?.tenant_id as string;
   const isManager = role === 'dirigeant' || role === 'rh';
 
-  const { conges, notes, soldes, mouvements } = await fetchRhData(user.id, isManager);
+  const [rhData, personalTasks] = await Promise.all([
+    fetchRhData(user.id, isManager),
+    tenantId ? getPersonalTasks(tenantId, user.id) : Promise.resolve([]),
+  ]);
+  const { conges, notes, soldes, mouvements } = rhData;
 
   const params = await searchParams;
   const tab    = params?.tab ?? 'conges';
@@ -134,10 +142,12 @@ export default async function RhPage({ searchParams }: PageProps) {
   const congesEnAttente = conges.filter((c) => c.statut === 'en_attente').length;
   const notesEnAttente  = notes.filter((n) => n.statut  === 'soumise').length;
 
+  const pendingTaskCount = personalTasks.filter((t) => !t.done).length;
   const tabs = [
     { key: 'conges',      label: 'Congés',         count: congesEnAttente || undefined },
     { key: 'notes-frais', label: 'Notes de frais',  count: notesEnAttente  || undefined },
     { key: 'soldes',      label: 'Soldes'                                               },
+    { key: 'taches',      label: '📌 Mes tâches',   count: pendingTaskCount || undefined },
   ];
 
   return (
@@ -179,6 +189,14 @@ export default async function RhPage({ searchParams }: PageProps) {
             soldes={isManager ? soldes : soldes.filter((s) => s.user_id === user.id)}
             mouvements={mouvements}
             isManager={isManager}
+            userId={user.id}
+          />
+        )}
+
+        {tab === 'taches' && tenantId && (
+          <MesTaches
+            initialTasks={personalTasks}
+            tenantId={tenantId}
             userId={user.id}
           />
         )}

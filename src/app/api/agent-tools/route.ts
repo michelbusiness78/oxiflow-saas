@@ -693,53 +693,49 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // ── planifier_tache ───────────────────────────────────────────────────────
-  if (tool === 'planifier_tache') {
-    const titre         = String(input.titre ?? '').trim();
-    const assigne_nom   = input.assigne_nom   ? String(input.assigne_nom).trim()   : null;
-    const date_echeance = input.date_echeance ? String(input.date_echeance).trim() : null;
-    const priorite      = (['faible', 'normale', 'haute', 'urgente'].includes(String(input.priorite)))
-      ? String(input.priorite) : 'normale';
+  // ── creer_tache (remplace planifier_tache) ───────────────────────────────
+  if (tool === 'creer_tache' || tool === 'planifier_tache') {
+    // Support les deux noms pour la rétrocompatibilité
+    const tache        = String(input.tache ?? input.titre ?? '').trim();
+    const note         = input.note         ? String(input.note).trim()         : null;
+    const dateEcheance = input.date_echeance ? String(input.date_echeance).trim() : null;
+    const projectId    = input.project_id   ? String(input.project_id)          : null;
+    const priorite     = (['basse', 'normale', 'haute', 'urgente', 'faible'].includes(String(input.priorite)))
+      ? (String(input.priorite) === 'faible' ? 'basse' : String(input.priorite))
+      : 'normale';
 
-    if (!titre) return NextResponse.json({ result: 'Titre de tâche manquant.' });
-
-    let assigne_a: string | null = null;
-    if (assigne_nom) {
-      const { data: found } = await admin
-        .from('users')
-        .select('id, name')
-        .eq('tenant_id', tenantId)
-        .ilike('name', `%${assigne_nom}%`)
-        .limit(1)
-        .single();
-      if (found) assigne_a = found.id as string;
-    }
+    if (!tache) return NextResponse.json({ result: 'Intitulé de tâche manquant.' });
 
     const { error } = await admin.from('project_tasks').insert({
-      tenant_id:  tenantId,
-      project_id: null,
-      name:       titre,
-      done:       false,
-      due:        date_echeance || null,
-      priority:   priorite === 'urgente' || priorite === 'haute' ? 'high'
-                : priorite === 'faible' ? 'low' : 'mid',
+      tenant_id:   tenantId,
+      user_id:     user.id,
+      project_id:  projectId,
+      name:        tache,
+      note:        note || null,
+      done:        false,
+      due:         dateEcheance || null,
+      priority:    priorite,
+      is_personal: !projectId,
     });
 
     if (error) return NextResponse.json({ result: `Erreur création tâche : ${error.message}` });
 
-    const who  = assigne_nom   ? ` assignée à ${assigne_nom}` : '';
-    const when = date_echeance ? ` pour le ${new Date(date_echeance).toLocaleDateString('fr-FR')}` : '';
-    return NextResponse.json({ result: `Tâche "${titre}" créée${who}${when}.` });
+    const when = dateEcheance
+      ? ` pour le ${new Date(dateEcheance + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+      : '';
+    const proj = projectId ? ' (liée au projet)' : '';
+    return NextResponse.json({ result: `Tâche "${tache}" créée${when}${proj}.` });
   }
 
   // ── lister_taches ─────────────────────────────────────────────────────────
   if (tool === 'lister_taches') {
+    // Tâches personnelles de l'utilisateur + tâches projet non faites
     const { data } = await admin
       .from('project_tasks')
-      .select('name, done, due, priority, projects(name)')
+      .select('name, done, due, priority, is_personal, user_id, projects(name)')
       .eq('tenant_id', tenantId)
       .eq('done', false)
-      .order('priority')
+      .or(`user_id.eq.${user.id},is_personal.eq.false`)
       .order('due', { ascending: true, nullsFirst: false })
       .limit(20);
 
@@ -747,22 +743,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ result: 'Aucune tâche en cours.' });
     }
 
-    const PRIO: Record<string, string> = { high: 'urgente', mid: 'normale', low: 'faible' };
-    const lines = data.map((t) => {
+    // Trier : urgente > haute > normale > basse, puis high > mid > low (anciennes)
+    const PRIO_ORDER: Record<string, number> = {
+      urgente: 0, haute: 1, high: 1, normale: 2, mid: 2, basse: 3, low: 3,
+    };
+    const sorted = [...data].sort((a, b) =>
+      (PRIO_ORDER[a.priority as string] ?? 2) - (PRIO_ORDER[b.priority as string] ?? 2),
+    );
+
+    const PRIO_LABEL: Record<string, string> = {
+      urgente: 'urgente', haute: 'haute', high: 'urgente',
+      normale: 'normale', mid: 'normale', basse: 'basse', low: 'basse',
+    };
+
+    const lines = sorted.slice(0, 5).map((t) => {
       const proj  = (t.projects as unknown as { name: string } | null)?.name ?? '';
-      const prio  = PRIO[t.priority as string] ?? t.priority;
+      const prio  = PRIO_LABEL[t.priority as string] ?? (t.priority as string);
       const echeance = t.due
         ? ` (échéance ${new Date(t.due + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })})`
         : '';
       return `${t.name}${proj ? ` [${proj}]` : ''} — ${prio}${echeance}`;
     });
 
-    const urgentes = data.filter((t) => t.priority === 'high').length;
+    const urgentes = sorted.filter((t) => ['urgente', 'haute', 'high'].includes(t.priority as string)).length;
     const intro    = urgentes > 0
-      ? `${data.length} tâche(s) en cours dont ${urgentes} urgente(s).`
+      ? `${data.length} tâche(s) dont ${urgentes} urgente(s) ou haute(s).`
       : `${data.length} tâche(s) en cours.`;
 
-    return NextResponse.json({ result: `${intro} ${lines.slice(0, 5).join(' | ')}.` });
+    return NextResponse.json({ result: `${intro} ${lines.join(' | ')}.` });
   }
 
   // ── lister_interventions ──────────────────────────────────────────────────

@@ -8,8 +8,10 @@ import { ContratList }         from '@/components/commerce/ContratList';
 import { CatalogueList }       from '@/components/commerce/CatalogueList';
 import { CommerceDashboard }   from '@/components/commerce/CommerceDashboard';
 import { InvoiceList }         from '@/components/commerce/InvoiceList';
+import { MesTaches }           from '@/components/shared/MesTaches';
 import { getDashboardCommerce } from '@/app/actions/commerce';
 import { getInvoices }         from '@/app/actions/invoices';
+import { getPersonalTasks }    from '@/app/actions/tasks';
 import { getCompanies }        from '@/app/actions/companies';
 import type { Client }         from '@/components/commerce/ClientList';
 import type { Contrat }        from '@/components/commerce/ContratForm';
@@ -34,7 +36,7 @@ async function fetchCommerceData() {
   const tenantId        = profile?.tenant_id as string;
   const currentUserName = (profile?.name as string) ?? user.email ?? 'Utilisateur';
 
-  const [clientsRes, quotesRes, contratsRes, catalogueRes, usersRes, companiesData, invoicesData, savRes, projectsRes] =
+  const [clientsRes, quotesRes, contratsRes, catalogueRes, usersRes, companiesData, invoicesData, savRes, projectsRes, personalTasksData] =
     await Promise.all([
       admin
         .from('clients')
@@ -73,6 +75,7 @@ async function fetchCommerceData() {
         .select('id, client_id, name, status, progress_percent, amount_ttc, deadline')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false }),
+      getPersonalTasks(tenantId, user.id),
     ]);
 
   const clients = (clientsRes.data ?? []) as Client[];
@@ -127,7 +130,7 @@ async function fetchCommerceData() {
   return {
     tenantId, clients, quotes, invoices, contrats, catalogue,
     users, currentUserId: user.id, currentUserName, companies,
-    savs, dossiers, projectsForContrat,
+    savs, dossiers, projectsForContrat, personalTasks: personalTasksData,
   };
 }
 
@@ -167,6 +170,7 @@ export default async function CommercePage({ searchParams }: PageProps) {
       { key: 'devis',     label: 'Devis',     count: dashData.kpis.totalDevis },
       { key: 'factures',  label: 'Factures'                                   },
       { key: 'contrats',  label: 'Contrats'                                   },
+      { key: 'taches',    label: '📌 Mes tâches'                              },
     ];
 
     return (
@@ -180,16 +184,18 @@ export default async function CommercePage({ searchParams }: PageProps) {
   }
 
   // ── Autres onglets ──────────────────────────────────────────────────────────
-  const { clients, quotes, invoices, contrats, catalogue, users, currentUserId, currentUserName, companies, savs, dossiers, projectsForContrat } =
+  const { clients, quotes, invoices, contrats, catalogue, users, currentUserId, currentUserName, companies, savs, dossiers, projectsForContrat, personalTasks, tenantId } =
     await fetchCommerceData();
 
+  const pendingTaskCount = personalTasks.filter((t) => !t.done).length;
   const tabs: TabItem[] = [
-    { key: 'dashboard', label: 'Tableau de bord'                           },
-    { key: 'clients',   label: 'Clients',   count: clients.length          },
-    { key: 'catalogue', label: 'Catalogue', count: catalogue.length        },
-    { key: 'devis',     label: 'Devis',     count: quotes.length           },
-    { key: 'factures',  label: 'Factures',  count: invoices.length         },
-    { key: 'contrats',  label: 'Contrats',  count: contrats.length         },
+    { key: 'dashboard', label: 'Tableau de bord'                                                  },
+    { key: 'clients',   label: 'Clients',    count: clients.length                                },
+    { key: 'catalogue', label: 'Catalogue',  count: catalogue.length                              },
+    { key: 'devis',     label: 'Devis',      count: quotes.length                                 },
+    { key: 'factures',  label: 'Factures',   count: invoices.length                               },
+    { key: 'contrats',  label: 'Contrats',   count: contrats.length                               },
+    { key: 'taches',    label: '📌 Mes tâches', count: pendingTaskCount || undefined              },
   ];
 
   return (
@@ -274,6 +280,14 @@ export default async function CommercePage({ searchParams }: PageProps) {
         {tab === 'contrats'  && <ContratList contrats={contrats} clients={clients} companies={companies} projects={projectsForContrat} invoices={invoices} />}
 
         {tab === 'catalogue' && <CatalogueList catalogue={catalogue} />}
+
+        {tab === 'taches' && (
+          <MesTaches
+            initialTasks={personalTasks}
+            tenantId={tenantId}
+            userId={currentUserId}
+          />
+        )}
       </div>
     </div>
   );

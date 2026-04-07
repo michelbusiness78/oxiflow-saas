@@ -5,13 +5,16 @@ import { useRouter } from 'next/navigation';
 import { TechnicienAccueil }       from './TechnicienAccueil';
 import { TechnicienInterventions } from './TechnicienInterventions';
 import { InterventionDetailPanel } from './InterventionDetailPanel';
+import { MesTaches }               from '@/components/shared/MesTaches';
 import type { PlanningIntervention } from '@/app/actions/technicien';
+import type { PersonalTask }         from '@/app/actions/tasks';
 
-type Tab = 'accueil' | 'interventions' | 'materiel' | 'dossier' | 'historique';
+type Tab = 'accueil' | 'interventions' | 'taches' | 'materiel' | 'dossier' | 'historique';
 
 const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: 'accueil',       icon: '🏠', label: 'Accueil'       },
   { id: 'interventions', icon: '🔧', label: 'Interventions' },
+  { id: 'taches',        icon: '📌', label: 'Mes tâches'    },
   { id: 'materiel',      icon: '📦', label: 'Matériel'      },
   { id: 'dossier',       icon: '📁', label: 'Dossier'       },
   { id: 'historique',    icon: '📜', label: 'Historique'    },
@@ -19,7 +22,9 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
 
 interface Props {
   currentUser:          { id: string; name: string };
+  tenantId:             string;
   initialInterventions: PlanningIntervention[];
+  initialTasks:         PersonalTask[];
 }
 
 function fmtDate(iso: string) {
@@ -28,7 +33,7 @@ function fmtDate(iso: string) {
   }).format(new Date(iso));
 }
 
-export function TechnicienApp({ currentUser, initialInterventions }: Props) {
+export function TechnicienApp({ currentUser, tenantId, initialInterventions, initialTasks }: Props) {
   const router = useRouter();
   const [activeTab,     setActiveTab]     = useState<Tab>('accueil');
   const [interventions, setInterventions] = useState<PlanningIntervention[]>(initialInterventions);
@@ -104,6 +109,17 @@ export function TechnicienApp({ currentUser, initialInterventions }: Props) {
             interventions={interventions}
             onSelect={setSelected}
           />
+        );
+
+      case 'taches':
+        return (
+          <div className="p-4">
+            <MesTaches
+              initialTasks={initialTasks}
+              tenantId={tenantId}
+              userId={currentUser.id}
+            />
+          </div>
         );
 
       case 'materiel':
@@ -248,6 +264,11 @@ export function TechnicienApp({ currentUser, initialInterventions }: Props) {
             {tab.id === 'accueil' && newInterventions.length > 0 && (
               <span className="absolute top-1.5 right-3 inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[9px] font-bold text-white">
                 {newInterventions.length}
+              </span>
+            )}
+            {tab.id === 'taches' && initialTasks.filter((t) => !t.done).length > 0 && (
+              <span className="absolute top-1.5 right-3 inline-flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white">
+                {initialTasks.filter((t) => !t.done).length}
               </span>
             )}
           </button>

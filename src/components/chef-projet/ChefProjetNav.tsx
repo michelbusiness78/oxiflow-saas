@@ -6,6 +6,7 @@ export const CHEF_TABS = [
   { key: 'projets',     icon: '🔨', label: 'Projets',         short: 'Projets'   },
   { key: 'sav',         icon: '🔧', label: 'SAV / Tickets',   short: 'SAV'       },
   { key: 'techniciens', icon: '👷', label: 'Techniciens',     short: 'Équipe'    },
+  { key: 'taches',      icon: '📌', label: 'Mes tâches',      short: 'Tâches'    },
 ] as const;
 
 export type ChefTab = (typeof CHEF_TABS)[number]['key'];

@@ -16,6 +16,8 @@ import {
   getProjectFull,
 } from '@/app/actions/chef-projet';
 import { getProjectTasks }    from '@/app/actions/project-tasks';
+import { getPersonalTasks }  from '@/app/actions/tasks';
+import { MesTaches }         from '@/components/shared/MesTaches';
 import type { TechnicienWithStats } from '@/components/chef-projet/TechniciensTab';
 import type { SAVTicketFull }       from '@/components/chef-projet/SAVTab';
 
@@ -77,6 +79,7 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
     techniciensRes,
     savRes,
     contratsRes,
+    personalTasksRes,
   ] = await Promise.all([
     getDashboardChefProjet(),
     tenantId ? getProjects(tenantId) : Promise.resolve([]),
@@ -109,6 +112,8 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
           .eq('actif', true)
           .order('nom')
       : Promise.resolve({ data: [] }),
+    // Tâches personnelles du chef de projet
+    tenantId ? getPersonalTasks(tenantId, user.id) : Promise.resolve([]),
   ]);
 
   // ── Task counts pour cartes projets ──────────────────────────────────────────
@@ -293,6 +298,15 @@ export default async function ChefProjetPage({ searchParams }: PageProps) {
           {/* ── TECHNICIENS ── */}
           {activeTab === 'techniciens' && (
             <TechniciensTab techniciens={techniciensWithStats} />
+          )}
+
+          {/* ── MES TÂCHES ── */}
+          {activeTab === 'taches' && tenantId && (
+            <MesTaches
+              initialTasks={personalTasksRes}
+              tenantId={tenantId}
+              userId={user.id}
+            />
           )}
 
         </div>
