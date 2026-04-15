@@ -43,11 +43,6 @@ export function MarketingFooter() {
                   Mentions légales
                 </Link>
               </li>
-              <li>
-                <Link href="/confidentialite" className="text-sm text-slate-400 hover:text-white transition-colors">
-                  Confidentialité
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -83,7 +78,20 @@ export function MarketingFooter() {
         </div>
 
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-500">© 2026 OxiFlow. Tous droits réservés.</p>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+            <p className="text-xs text-slate-500">© 2026 OxiFlow. Tous droits réservés.</p>
+            <p className="text-xs text-slate-500">
+              Édité par{' '}
+              <a
+                href="https://oxilabs.fr"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline transition-colors"
+              >
+                Oxilabs
+              </a>
+            </p>
+          </div>
           <p className="text-xs text-slate-500">Conçu et hébergé en France 🇫🇷</p>
         </div>
       </div>
