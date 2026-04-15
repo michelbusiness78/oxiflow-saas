@@ -27,14 +27,27 @@ export default async function ParametresPage() {
 
   const tenantId    = profile?.tenant_id as string;
   const currentYear = new Date().getFullYear();
+  const monthStart  = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 
   // ── Données parallèles ───────────────────────────────────────────────────────
-  const [tenantRes, tenantUsers, companiesRaw, objectives] = await Promise.all([
+  const [tenantRes, tenantUsers, companiesRaw, objectives, usageRes, subscriptionRes] = await Promise.all([
     admin.from('tenants').select('id, name, email').eq('id', tenantId).single(),
     getTenantUsers(tenantId),
     getCompanies(tenantId),
     getCompanyObjectives(tenantId, currentYear),
+    admin.from('api_usage')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('model', 'claude-haiku-4-5-20251001')
+      .gte('created_at', monthStart),
+    admin.from('subscriptions')
+      .select('current_period_end')
+      .eq('tenant_id', tenantId)
+      .maybeSingle(),
   ]);
+
+  const usageCount = usageRes.count ?? 0;
+  const periodEnd  = subscriptionRes.data?.current_period_end ?? null;
 
   const tenant = tenantRes.data as { id: string; name: string; email?: string } | null;
 
@@ -69,6 +82,8 @@ export default async function ParametresPage() {
             plan={plan}
             plan_debut={plan_debut}
             plan_fin={plan_fin}
+            usageCount={usageCount}
+            periodEnd={periodEnd}
           />
         }
       />
