@@ -42,7 +42,7 @@ export default function CgvPage() {
         <li>RCS : <span className="placeholder">[À COMPLÉTER — ville d&apos;immatriculation]</span></li>
         <li>Numéro TVA intracommunautaire : <span className="placeholder">[À COMPLÉTER]</span></li>
         <li>Siège social : <span className="placeholder">[À COMPLÉTER — adresse complète]</span></li>
-        <li>Contact : <a href="mailto:support@oxiflow.fr">support@oxiflow.fr</a></li>
+        <li>Contact : <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a></li>
       </ul>
 
       <h2>Article 3 — Plans et tarifs</h2>
@@ -115,7 +115,7 @@ export default function CgvPage() {
       </p>
       <p>
         Pour exercer ce droit, le Client doit notifier sa décision par email à{' '}
-        <a href="mailto:support@oxiflow.fr">support@oxiflow.fr</a> avant l&apos;expiration du délai.
+        <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a> avant l&apos;expiration du délai.
         En cas d&apos;accès au service avant l&apos;expiration du délai de rétractation et conformément
         à l&apos;article L.221-28 12° du Code de la consommation, le Client reconnaît expressément renoncer
         à son droit de rétractation dès lors qu&apos;il a pleinement utilisé le service.
@@ -171,7 +171,7 @@ export default function CgvPage() {
       <p>
         Le Client conserve la pleine propriété des données qu&apos;il saisit dans le service
         (données clients, devis, factures, etc.) et peut en demander l&apos;export à tout moment
-        via <a href="mailto:support@oxiflow.fr">support@oxiflow.fr</a>.
+        via <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a>.
       </p>
 
       <h2>Article 11 — Sous-traitants techniques</h2>
@@ -243,7 +243,7 @@ export default function CgvPage() {
       <h2>Article 15 — Contact</h2>
       <p>
         Pour toute question relative aux présentes CGV :{' '}
-        <a href="mailto:support@oxiflow.fr">support@oxiflow.fr</a>
+        <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a>
       </p>
 
     </LegalLayout>

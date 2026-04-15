@@ -32,7 +32,7 @@ export default function ConfidentialitePage() {
         <li>Raison sociale : <span className="placeholder">[À COMPLÉTER]</span></li>
         <li>Adresse : <span className="placeholder">[À COMPLÉTER]</span></li>
         <li>SIRET : <span className="placeholder">[À COMPLÉTER]</span></li>
-        <li>Email DPO : <span className="placeholder">[À COMPLÉTER]</span> — <a href="mailto:dpo@oxiflow.fr">dpo@oxiflow.fr</a></li>
+        <li>Email DPO : <span className="placeholder">[À COMPLÉTER]</span> — <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a></li>
       </ul>
 
       <h2>2. Données collectées</h2>
@@ -206,7 +206,7 @@ export default function ConfidentialitePage() {
         <li><strong>Droit à la limitation</strong> (Art. 18) : demander la suspension temporaire d&apos;un traitement.</li>
       </ul>
       <p>
-        Pour exercer vos droits, contactez-nous à <a href="mailto:dpo@oxiflow.fr">dpo@oxiflow.fr</a>.
+        Pour exercer vos droits, contactez-nous à <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a>.
         Nous répondrons dans un délai d&apos;un mois. En cas de réponse insatisfaisante, vous pouvez
         introduire une réclamation auprès de la <strong>CNIL</strong> (Commission Nationale de
         l&apos;Informatique et des Libertés) — <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">www.cnil.fr</a>.
@@ -246,7 +246,7 @@ export default function ConfidentialitePage() {
       <h2>10. Contact</h2>
       <p>
         Pour toute question relative à cette politique ou à vos données personnelles :{' '}
-        <a href="mailto:dpo@oxiflow.fr">dpo@oxiflow.fr</a>
+        <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a>
       </p>
 
     </LegalLayout>

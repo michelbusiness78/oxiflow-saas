@@ -130,8 +130,8 @@ export function Subscription({ plan, plan_debut, plan_fin }: Props) {
 
       <p className="text-xs text-slate-400">
         Pour toute question sur votre facturation, contactez{' '}
-        <a href="mailto:support@oxiflow.fr" className="text-blue-600 hover:underline">
-          support@oxiflow.fr
+        <a href="mailto:contact@oxilabs.fr" className="text-blue-600 hover:underline">
+          contact@oxilabs.fr
         </a>
       </p>
     </div>

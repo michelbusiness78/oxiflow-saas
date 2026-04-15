@@ -35,14 +35,14 @@ export default function MentionsLegalesPage() {
         <li>SIRET : <span className="placeholder">[À COMPLÉTER]</span></li>
         <li>RCS : <span className="placeholder">[À COMPLÉTER — ville d&apos;immatriculation + numéro]</span></li>
         <li>Numéro TVA intracommunautaire : <span className="placeholder">[À COMPLÉTER]</span></li>
-        <li>Email : <a href="mailto:contact@oxiflow.fr">contact@oxiflow.fr</a></li>
+        <li>Email : <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a></li>
       </ul>
 
       <h2>2. Directeur de la publication</h2>
       <ul>
         <li>Nom : <span className="placeholder">[À COMPLÉTER — nom et prénom du dirigeant]</span></li>
         <li>Qualité : <span className="placeholder">[À COMPLÉTER — ex. Président, Gérant]</span></li>
-        <li>Contact : <a href="mailto:contact@oxiflow.fr">contact@oxiflow.fr</a></li>
+        <li>Contact : <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a></li>
       </ul>
 
       <h2>3. Hébergeur</h2>
@@ -71,7 +71,7 @@ export default function MentionsLegalesPage() {
         La collecte et le traitement des données personnelles des utilisateurs sont régis par
         la <a href="/confidentialite">Politique de confidentialité</a> d&apos;OxiFlow,
         conforme au RGPD (Règlement UE 2016/679) et à la loi Informatique et Libertés.
-        Pour exercer vos droits ou pour toute question : <a href="mailto:dpo@oxiflow.fr">dpo@oxiflow.fr</a>.
+        Pour exercer vos droits ou pour toute question : <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a>.
       </p>
 
       <h2>6. Cookies</h2>
@@ -97,7 +97,7 @@ export default function MentionsLegalesPage() {
       <h2>9. Contact</h2>
       <p>
         Pour toute question, signalement ou demande :{' '}
-        <a href="mailto:contact@oxiflow.fr">contact@oxiflow.fr</a>
+        <a href="mailto:contact@oxilabs.fr">contact@oxilabs.fr</a>
       </p>
 
     </LegalLayout>
