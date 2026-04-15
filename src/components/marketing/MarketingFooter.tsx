@@ -49,7 +49,7 @@ export function MarketingFooter() {
           {/* Réseaux */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider mb-4 text-slate-400">Suivez-nous</p>
-            <div className="flex gap-3">
+            <div className="flex gap-3 mb-4">
               <a
                 href="https://linkedin.com"
                 target="_blank"
@@ -74,6 +74,12 @@ export function MarketingFooter() {
                 </svg>
               </a>
             </div>
+            <a
+              href="mailto:contact@oxilabs.fr"
+              className="text-sm text-slate-400 hover:text-white transition-colors"
+            >
+              contact@oxilabs.fr
+            </a>
           </div>
         </div>
 
