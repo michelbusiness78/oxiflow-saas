@@ -625,10 +625,10 @@ export default async function LandingPage() {
             offers: [
               {
                 '@type': 'Offer',
-                name: 'Starter',
-                price: '15',
+                name: 'Solo',
+                price: '19',
                 priceCurrency: 'EUR',
-                description: '1 utilisateur — Tous les modules, agent vocal IA, support email',
+                description: '1 utilisateur — Tous les modules, agent vocal IA 50 req/mois, 1 Go stockage, support email',
                 url: 'https://oxiflow.fr/#tarifs',
               },
               {

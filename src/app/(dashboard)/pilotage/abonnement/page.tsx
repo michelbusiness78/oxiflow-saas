@@ -17,20 +17,21 @@ interface Subscription {
 
 const PLANS = [
   {
-    key:           'starter' as const,
-    label:         'Starter',
+    key:           'solo' as const,
+    label:         'Solo',
     desc:          'Pour les indépendants',
     popular:       false,
-    monthlyPrice:  '15€',
-    yearlyPrice:   '11,25€',
-    yearlyTotal:   '135€/an',
-    yearlySavings: 'Économisez 45€',
+    monthlyPrice:  '19€',
+    yearlyPrice:   '14,25€',
+    yearlyTotal:   '171€/an',
+    yearlySavings: 'Économisez 57€',
     features: [
       '1 utilisateur',
       '1 société',
-      'Devis & Factures',
-      'Catalogue produits',
-      '50 requêtes vocales IA/mois',
+      'Tous les modules',
+      'Agent vocal IA : 50 req/mois',
+      '1 Go stockage',
+      'Support email',
     ],
   },
   {
@@ -38,17 +39,17 @@ const PLANS = [
     label:         'Team',
     desc:          'Pour les petites équipes',
     popular:       true,
-    monthlyPrice:  '39€',
-    yearlyPrice:   '29,25€',
-    yearlyTotal:   '351€/an',
-    yearlySavings: 'Économisez 117€',
+    monthlyPrice:  '29€',
+    yearlyPrice:   '21,75€',
+    yearlyTotal:   '261€/an',
+    yearlySavings: 'Économisez 87€',
     features: [
-      '5 utilisateurs',
+      "Jusqu'à 5 utilisateurs",
       '1 société',
       'Tous les modules',
-      'Gestion terrain & techniciens',
-      '200 requêtes vocales IA/mois',
-      'Calendrier partagé',
+      'Agent vocal IA : 200 req/mois',
+      '5 Go stockage',
+      'Support email + chat',
     ],
   },
   {
@@ -56,17 +57,17 @@ const PLANS = [
     label:         'Pro',
     desc:          'Pour les PME structurées',
     popular:       false,
-    monthlyPrice:  '69€',
-    yearlyPrice:   '51,75€',
-    yearlyTotal:   '621€/an',
-    yearlySavings: 'Économisez 207€',
+    monthlyPrice:  '59€',
+    yearlyPrice:   '44,25€',
+    yearlyTotal:   '531€/an',
+    yearlySavings: 'Économisez 177€',
     features: [
-      '15 utilisateurs',
+      "Jusqu'à 15 utilisateurs",
       'Multi-sociétés illimité',
       'Tous les modules',
-      'Agent vocal IA avancé (500 req/mois)',
-      'Support prioritaire',
-      'Connecteurs API (bientôt)',
+      'Agent vocal IA : 500 req/mois',
+      '20 Go stockage',
+      'Support prioritaire téléphone',
     ],
   },
 ];
@@ -88,10 +89,10 @@ const STATUS_COLOR: Record<Subscription['status'], string> = {
 };
 
 const PLAN_LABEL: Record<string, string> = {
-  starter: 'Starter',
+  solo:    'Solo',
+  starter: 'Solo',  // rétrocompatibilité anciens abonnements en base
   team:    'Team',
   pro:     'Pro',
-  solo:    'Solo',  // rétrocompatibilité anciens abonnements
 };
 
 function fmtDate(iso: string | null) {
@@ -140,13 +141,14 @@ export default async function AbonnementPage({ searchParams }: PageProps) {
   const isYearly  = params?.billing !== 'monthly';
 
   // Price IDs depuis les variables d'environnement
+  // Les env vars Stripe gardent le nom STARTER pour rester en mode TEST
   const priceIds: Record<string, string> = {
-    starter_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTHLY ?? '',
-    starter_yearly:  process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEARLY  ?? '',
-    team_monthly:    process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY    ?? '',
-    team_yearly:     process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY     ?? '',
-    pro_monthly:     process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY     ?? '',
-    pro_yearly:      process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEARLY      ?? '',
+    solo_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTHLY ?? '',
+    solo_yearly:  process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEARLY  ?? '',
+    team_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY    ?? '',
+    team_yearly:  process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY     ?? '',
+    pro_monthly:  process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY     ?? '',
+    pro_yearly:   process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEARLY      ?? '',
   };
 
   function getPriceId(key: string): string {

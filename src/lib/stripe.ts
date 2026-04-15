@@ -30,22 +30,23 @@ export function getStripe() {
 // ─── Correspondance plan ↔ priceId ───────────────────────────────────────────
 
 export function getPlanPriceIds(): Record<string, string> {
+  // Les env vars Stripe gardent le nom STARTER pour rester en mode TEST
   return {
-    starter_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTHLY ?? '',
-    starter_yearly:  process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEARLY  ?? '',
-    team_monthly:    process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY    ?? '',
-    team_yearly:     process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY     ?? '',
-    pro_monthly:     process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY     ?? '',
-    pro_yearly:      process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEARLY      ?? '',
+    solo_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTHLY ?? '',
+    solo_yearly:  process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEARLY  ?? '',
+    team_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY    ?? '',
+    team_yearly:  process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY     ?? '',
+    pro_monthly:  process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY     ?? '',
+    pro_yearly:   process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEARLY      ?? '',
   };
 }
 
 export function getPlanFromPriceId(priceId: string): string {
   const ids = getPlanPriceIds();
-  if (priceId === ids.starter_monthly || priceId === ids.starter_yearly) return 'starter';
-  if (priceId === ids.team_monthly    || priceId === ids.team_yearly)    return 'team';
-  if (priceId === ids.pro_monthly     || priceId === ids.pro_yearly)     return 'pro';
-  return 'starter';
+  if (priceId === ids.solo_monthly || priceId === ids.solo_yearly) return 'solo';
+  if (priceId === ids.team_monthly || priceId === ids.team_yearly) return 'team';
+  if (priceId === ids.pro_monthly  || priceId === ids.pro_yearly)  return 'pro';
+  return 'solo';
 }
 
 // ─── Helper : récupère ou crée un Stripe Customer pour un tenant ──────────────
