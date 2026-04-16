@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QuoteForm, type QuoteWithClient, type TenantUser } from './QuoteForm';
 import { SendDevisModal } from './SendDevisModal';
@@ -51,6 +51,20 @@ export function QuoteList({ quotes, clients, catalogue, users, companies, curren
   const [error,         setError]         = useState('');
   const [sendingDevis,  setSendingDevis]  = useState<QuoteWithClient | null>(null);
   const [sendToast,     setSendToast]     = useState<{ msg: string; ok: boolean } | null>(null);
+
+  // Synchronise `editing` et `sendingDevis` quand les props `quotes` changent
+  // (ex : après router.refresh() suite à un envoi email ou une mise à jour)
+  useEffect(() => {
+    if (editing) {
+      const fresh = quotes.find((q) => q.id === editing.id);
+      if (fresh) setEditing(fresh);
+    }
+    if (sendingDevis) {
+      const fresh = quotes.find((q) => q.id === sendingDevis.id);
+      if (fresh) setSendingDevis(fresh);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quotes]);
 
   function openCreate() { setEditing(null); setFormOpen(true); }
   function openEdit(q: QuoteWithClient) { setEditing(q); setFormOpen(true); }
