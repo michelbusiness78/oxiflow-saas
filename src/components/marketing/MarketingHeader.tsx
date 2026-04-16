@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import { OxiLogo } from '@/components/OxiLogo';
 
 export async function MarketingHeader() {
   const supabase = await createClient();
@@ -11,13 +12,8 @@ export async function MarketingHeader() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <div className="h-8 w-8 rounded-lg bg-[#2563EB] flex items-center justify-center shadow-sm">
-            <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px] text-white" stroke="currentColor" strokeWidth={2.5} aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          <span className="text-base font-bold text-[#1B2A4A] tracking-tight">OxiFlow</span>
+        <Link href="/" className="flex items-center shrink-0">
+          <OxiLogo variant="oxiflow" theme="light" size="md" />
         </Link>
 
         {/* Nav */}

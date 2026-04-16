@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { navModules } from '@/lib/theme';
 import { NavIcon } from './NavIcon';
 import { createClient } from '@/lib/supabase/client';
+import { OxiLogo } from '@/components/OxiLogo';
 
 interface SidebarProps {
   isOpen:        boolean;
@@ -97,9 +98,8 @@ export function Sidebar({
         {/* ── Header gradient ── */}
         <div className="flex h-16 shrink-0 flex-col justify-center gap-0.5 px-4 bg-gradient-to-r from-[#1e3a8a] to-[#2563eb]">
           <div className="flex items-center justify-between">
-            <Link href="/pilotage" className="flex items-baseline" onClick={onClose}>
-              <span className="text-base font-bold tracking-tight text-white">Oxi</span>
-              <span className="text-base font-bold tracking-tight text-blue-300">Flow</span>
+            <Link href="/pilotage" className="flex items-center" onClick={onClose}>
+              <OxiLogo variant="oxiflow" theme="dark" size="md" />
             </Link>
             <button
               onClick={onClose}

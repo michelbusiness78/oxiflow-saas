@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { OxiLogo } from '@/components/OxiLogo';
 
 export function MarketingFooter() {
   return (
@@ -8,13 +9,8 @@ export function MarketingFooter() {
 
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="h-8 w-8 rounded-lg bg-[#2563EB] flex items-center justify-center">
-                <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px] text-white" stroke="currentColor" strokeWidth={2.5} aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <span className="text-base font-bold tracking-tight">OxiFlow</span>
+            <div className="mb-4">
+              <OxiLogo variant="oxiflow" theme="dark" size="md" />
             </div>
             <p className="text-sm text-slate-400 leading-relaxed max-w-[200px]">
               La gestion PME intelligente, pilotée à la voix.
@@ -86,16 +82,18 @@ export function MarketingFooter() {
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
             <p className="text-xs text-slate-500">© 2026 OxiFlow. Tous droits réservés.</p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 inline-flex items-center gap-1.5 flex-wrap">
               Édité par{' '}
               <a
                 href="https://oxilabs.fr"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:underline transition-colors"
+                className="inline-flex items-center hover:opacity-80 transition-opacity"
+                aria-label="Oxilabs"
               >
-                Oxilabs
+                <OxiLogo variant="oxilabs" theme="dark" size="sm" />
               </a>
+              {' '}· oxilabs.fr
             </p>
           </div>
           <p className="text-xs text-slate-500">Conçu et hébergé en France 🇫🇷</p>
