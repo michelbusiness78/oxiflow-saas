@@ -6,7 +6,8 @@ import { FicheClient } from './FicheClient';
 import type { RelanceEntry } from '@/app/actions/invoices';
 
 interface Dossier { id: string; nom: string; statut: string; pct_avancement: number; montant_ht: number | null; date_fin_prevue: string | null; client_id: string; }
-interface Devis   { id: string; num: string; statut: string; montant_ttc: number; date: string; client_id: string; }
+interface SendEntry { sent_at: string; to: string; }
+interface Devis   { id: string; num: string; statut: string; montant_ttc: number; date: string; client_id: string; send_history?: SendEntry[]; }
 interface Facture { id: string; num: string; statut: string; montant_ttc: number; date: string; echeance: string; client_id: string; }
 interface Contrat { id: string; type: string; montant_mensuel: number | null; actif: boolean; date_debut: string; date_fin: string | null; client_id: string; }
 interface SAV     { id: string; titre: string | null; priorite: string; statut: string; date_ouverture: string; client_id: string; }

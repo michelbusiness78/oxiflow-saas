@@ -21,7 +21,7 @@ import {
 import { createProjectFromQuote }  from '@/app/actions/projects';
 import { createInvoiceFromQuote }  from '@/app/actions/invoices';
 import type { InvoiceStatus }      from '@/app/actions/invoices';
-import { fmtEur, fmtDate, todayISO, addDays } from '@/lib/format';
+import { fmtEur, fmtDate, fmtDateTime, todayISO, addDays } from '@/lib/format';
 import type { CatalogueItem, CatalogueType } from '@/app/actions/catalogue';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -978,6 +978,36 @@ export function QuoteForm({
               />
             </div>
           </div>
+
+          {/* ══ Section Historique des envois ══ */}
+          {editing && editing.send_history && editing.send_history.length > 0 && (
+            <div className={sectionCls}>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Envois
+                <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
+                  {editing.send_history.length}
+                </span>
+              </h3>
+              <div className="space-y-2">
+                {[...editing.send_history].reverse().map((entry, i) => (
+                  <div key={i} className="flex items-start gap-2.5 rounded-lg border border-green-100 bg-green-50 px-3 py-2.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor"
+                      className="h-3.5 w-3.5 shrink-0 mt-0.5 text-green-500" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                    </svg>
+                    <div className="min-w-0 text-xs leading-relaxed">
+                      <span className="font-medium text-slate-700">{fmtDateTime(entry.sent_at)}</span>
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span className="text-slate-600 break-all">{entry.to}</span>
+                      {entry.sent_by && (
+                        <span className="text-slate-400"> · par {entry.sent_by}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>{/* end scrollable */}
 

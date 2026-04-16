@@ -23,6 +23,13 @@ export interface QuoteLigne {
   total_ht:      number;
 }
 
+export interface SendHistoryEntry {
+  sent_at: string;   // ISO timestamp
+  to:      string;   // adresse destinataire
+  subject: string;   // objet de l'email
+  sent_by: string;   // prénom + nom de l'utilisateur
+}
+
 export interface Quote {
   id:                  string;
   number:              string;
@@ -45,6 +52,7 @@ export interface Quote {
   project_created:     boolean;
   project_id:          string | null;
   created_at:          string;
+  send_history:        SendHistoryEntry[];
 }
 
 export type QuoteInput = {

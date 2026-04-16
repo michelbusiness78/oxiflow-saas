@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { QuoteForm, type QuoteWithClient, type TenantUser } from './QuoteForm';
 import { SendDevisModal } from './SendDevisModal';
 import { duplicateQuoteAction, type QuoteStatut } from '@/app/actions/quotes';
-import { fmtEur, fmtDate } from '@/lib/format';
+import { fmtEur, fmtDate, fmtDateTime } from '@/lib/format';
 import type { CatalogueItem } from '@/app/actions/catalogue';
 import type { Invoice }       from '@/app/actions/invoices';
 
@@ -189,6 +189,14 @@ export function QuoteList({ quotes, clients, catalogue, users, companies, curren
                   >
                     <td className="px-4 py-3 font-mono text-sm font-semibold text-slate-700 whitespace-nowrap">
                       {q.number}
+                      {q.send_history && q.send_history.length > 0 && (() => {
+                        const last = q.send_history[q.send_history.length - 1];
+                        return (
+                          <p className="sm:hidden mt-0.5 font-normal text-[10px] text-slate-400 leading-tight">
+                            ✉ {fmtDateTime(last.sent_at)}
+                          </p>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                       {q.client_nom}
@@ -233,11 +241,17 @@ export function QuoteList({ quotes, clients, catalogue, users, companies, curren
                           onClick={() => setSendingDevis(q)}
                           className={[
                             'rounded-md p-1.5 transition-colors',
-                            q.statut === 'envoye'
+                            q.send_history && q.send_history.length > 0
                               ? 'text-blue-500 hover:bg-blue-50'
                               : 'text-slate-400 hover:bg-white hover:text-blue-600',
                           ].join(' ')}
-                          title={q.statut === 'envoye' ? 'Renvoyer par email' : 'Envoyer par email'}
+                          title={(() => {
+                            if (q.send_history && q.send_history.length > 0) {
+                              const last = q.send_history[q.send_history.length - 1];
+                              return `Dernier envoi : ${fmtDateTime(last.sent_at)} → ${last.to}`;
+                            }
+                            return 'Envoyer par email';
+                          })()}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />

@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
-import { fmtEur, fmtDate } from '@/lib/format';
+import { fmtEur, fmtDate, fmtDateTime } from '@/lib/format';
 import { DossierTechniqueClient } from './DossierTechniqueClient';
 
 import type { RelanceEntry } from '@/app/actions/invoices';
 
 interface Client  { id: string; nom: string; email: string; tel: string; adresse: string; cp: string; ville: string; }
 interface Dossier { id: string; nom: string; statut: string; pct_avancement: number; montant_ht: number | null; date_fin_prevue: string | null; }
-interface Devis   { id: string; num: string; statut: string; montant_ttc: number; date: string; }
+interface SendEntry { sent_at: string; to: string; }
+interface Devis   { id: string; num: string; statut: string; montant_ttc: number; date: string; send_history?: SendEntry[]; }
 interface Facture { id: string; num: string; statut: string; montant_ttc: number; date: string; echeance: string; }
 interface Contrat { id: string; type: string; montant_mensuel: number | null; actif: boolean; date_debut: string; date_fin: string | null; }
 interface SAV     { id: string; titre: string | null; priorite: string; statut: string; date_ouverture: string; }
@@ -252,6 +253,14 @@ export function FicheClient({ clients, dossiers, devis, factures, contrats, savs
                   <div>
                     <p className="font-mono text-sm font-semibold text-slate-700">{d.num}</p>
                     <p className="text-xs text-slate-400">{fmtDate(d.date)}</p>
+                    {d.send_history && d.send_history.length > 0 && (() => {
+                      const last = d.send_history[d.send_history.length - 1];
+                      return (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          ✉ Envoyé le {fmtDateTime(last.sent_at)} à {last.to}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-sm text-slate-800">{fmtEur(d.montant_ttc)}</span>

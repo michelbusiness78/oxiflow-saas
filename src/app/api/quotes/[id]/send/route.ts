@@ -3,19 +3,21 @@
 //
 // Body JSON attendu : { to: string; subject: string; message: string }
 //
-// 1. Vérifie l'auth + le tenant
+// 1. Vérifie l'auth + le tenant (récupère aussi le nom de l'utilisateur)
 // 2. Lit le devis + la société (createAdminClient) pour générer le PDF
 // 3. Génère le PDF serveur-side (buildDevisPdf)
 // 4. Envoie l'email avec la PJ via Resend (to/subject/message depuis le body)
-// 5. Met à jour le statut du devis → 'envoye' + revalidatePath
+// 5. Append une entrée dans send_history + passe le statut → 'envoye'
+// 6. revalidatePath('/commerce')
 
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath }             from 'next/cache';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { buildDevisPdf }              from '@/lib/pdf/devis-pdf';
 import { sendEmailWithAttachment }    from '@/lib/email';
+import type { SendHistoryEntry }      from '@/app/actions/quotes';
 
-// Utilitaire — convertit du texte brut en HTML (paragraphes, liens sécurisés)
+// Utilitaire — convertit du texte brut en HTML sécurisé
 function textToHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -52,9 +54,10 @@ export async function POST(
 
   const admin = createAdminClient();
 
+  // Récupère tenant_id ET name pour l'historique
   const { data: profile } = await admin
     .from('users')
-    .select('tenant_id')
+    .select('tenant_id, name')
     .eq('id', user.id)
     .single();
 
@@ -62,17 +65,18 @@ export async function POST(
     return NextResponse.json({ error: 'Profil introuvable.' }, { status: 403 });
   }
 
-  const tenantId = profile.tenant_id as string;
-  const { id }   = await params;
+  const tenantId   = profile.tenant_id as string;
+  const sentByName = (profile.name as string) ?? '';
+  const { id }     = await params;
 
-  // ── Devis ─────────────────────────────────────────────────────────────────────
+  // ── Devis (avec send_history existant) ────────────────────────────────────────
   const { data: quote, error: qErr } = await admin
     .from('quotes')
     .select(`
       id, number, affair_number, objet, date, validity, statut,
       lignes, notes, conditions, deposit_percent,
       montant_ht, tva_amount, montant_ttc,
-      client_id, company_id,
+      client_id, company_id, send_history,
       clients(nom, adresse, cp, ville, email, tel)
     `)
     .eq('id', id)
@@ -108,8 +112,9 @@ export async function POST(
     return NextResponse.json({ error: 'Erreur lors de la génération du PDF.' }, { status: 500 });
   }
 
-  // ── Corps email — le message utilisateur dans l'enveloppe HTML ────────────────
-  const devisNumero = quote.number as string;
+  // ── Corps email — message utilisateur dans l'enveloppe HTML ──────────────────
+  const devisNumero    = quote.number as string;
+  const effectiveSubject = subject || `Devis ${devisNumero} · ${societeNom}`;
 
   const contactBlock = [
     societeNom,
@@ -178,7 +183,7 @@ export async function POST(
   try {
     await sendEmailWithAttachment(
       to,
-      subject || `Devis ${devisNumero} · ${societeNom}`,
+      effectiveSubject,
       emailBodyHtml,
       {
         filename: `Devis-${devisNumero}.pdf`,
@@ -193,12 +198,30 @@ export async function POST(
     );
   }
 
-  // ── Mise à jour statut ─────────────────────────────────────────────────────────
+  // ── Mise à jour statut + historique ───────────────────────────────────────────
+  const newEntry: SendHistoryEntry = {
+    sent_at: new Date().toISOString(),
+    to,
+    subject: effectiveSubject,
+    sent_by: sentByName,
+  };
+
+  // send_history existant — le parser si besoin (Supabase retourne du JSON natif)
+  const rawHistory = quote.send_history;
+  const existingHistory: SendHistoryEntry[] = Array.isArray(rawHistory)
+    ? (rawHistory as SendHistoryEntry[])
+    : typeof rawHistory === 'string'
+      ? (JSON.parse(rawHistory) as SendHistoryEntry[])
+      : [];
+
+  const updatedHistory = [...existingHistory, newEntry];
+
   await admin
     .from('quotes')
     .update({
-      statut:     'envoye',
-      updated_at: new Date().toISOString(),
+      statut:       'envoye',
+      send_history: updatedHistory,
+      updated_at:   new Date().toISOString(),
     })
     .eq('id', id)
     .eq('tenant_id', tenantId);

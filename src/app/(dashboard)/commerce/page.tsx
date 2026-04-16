@@ -17,6 +17,7 @@ import type { Client }         from '@/components/commerce/ClientList';
 import type { Contrat }        from '@/components/commerce/ContratForm';
 import type { CatalogueItem }  from '@/app/actions/catalogue';
 import type { QuoteWithClient, TenantUser } from '@/components/commerce/QuoteForm';
+import type { SendHistoryEntry }            from '@/app/actions/quotes';
 
 // ─── Fetch (onglets non-dashboard) ───────────────────────────────────────────
 
@@ -45,7 +46,7 @@ async function fetchCommerceData() {
         .order('nom'),
       admin
         .from('quotes')
-        .select('id, number, affair_number, client_id, company_id, commercial_user_id, chef_projet_user_id, objet, date, validity, statut, lignes, notes, conditions, deposit_percent, project_created, project_id, montant_ht, tva_amount, montant_ttc, created_at, clients(nom)')
+        .select('id, number, affair_number, client_id, company_id, commercial_user_id, chef_projet_user_id, objet, date, validity, statut, lignes, notes, conditions, deposit_percent, project_created, project_id, montant_ht, tva_amount, montant_ttc, created_at, send_history, clients(nom)')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false }),
       admin
@@ -85,6 +86,7 @@ async function fetchCommerceData() {
     lignes:          (q.lignes as QuoteWithClient['lignes']) ?? [],
     client_nom:      (q.clients as unknown as { nom: string } | null)?.nom ?? '—',
     deposit_percent: (q.deposit_percent as number) ?? 0,
+    send_history:    (q.send_history as SendHistoryEntry[]) ?? [],
   })) as QuoteWithClient[];
 
   const contrats = (contratsRes.data ?? []).map((c) => ({
@@ -210,12 +212,13 @@ export default async function CommercePage({ searchParams }: PageProps) {
             clients={clients}
             dossiers={dossiers}
             devis={quotes.filter((q) => q.client_id).map((q) => ({
-              id:          q.id,
-              client_id:   q.client_id as string,
-              num:         q.number,
-              statut:      q.statut,
-              montant_ttc: q.montant_ttc,
-              date:        q.date,
+              id:           q.id,
+              client_id:    q.client_id as string,
+              num:          q.number,
+              statut:       q.statut,
+              montant_ttc:  q.montant_ttc,
+              date:         q.date,
+              send_history: q.send_history ?? [],
             }))}
             factures={invoices.map((f) => ({
               id:          f.id,

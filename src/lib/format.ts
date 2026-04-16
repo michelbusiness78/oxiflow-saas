@@ -14,6 +14,18 @@ export function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR');
 }
 
+/** Formate un timestamp ISO en "16 avr. 2026 à 10h30" */
+export function fmtDateTime(iso: string): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('fr-FR', {
+    day:    'numeric',
+    month:  'short',
+    year:   'numeric',
+    hour:   '2-digit',
+    minute: '2-digit',
+  }).replace(',', ' à').replace(':', 'h');
+}
+
 export function todayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
