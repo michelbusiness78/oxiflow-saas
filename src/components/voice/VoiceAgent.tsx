@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import LottiePlayer from '@/components/ui/LottiePlayer';
 import { AgentPanel, type ChatMessage, type AgentStatus } from './AgentPanel';
 import {
   createSpeechRecognition,
@@ -444,49 +443,21 @@ Tu es l'assistant vocal d'OxiFlow. Module : ${ctx.module}. Utilisateur : ${ctx.u
 
   return (
     <>
-      {/* Floating button + sound-wave Lottie (loops when agent is active) */}
-      <div
+      {/* Floating button */}
+      <button
+        onClick={handleButtonClick}
+        title={title}
+        aria-label={title}
         className={[
-          'fixed right-4 z-40 relative',
+          'fixed right-4 z-40 flex h-14 w-14 items-center justify-center',
+          'rounded-full shadow-lg transition-all duration-200 select-none',
+          'text-xl hover:scale-110 active:scale-95',
+          bg, ring,
           agentOpen ? 'bottom-[calc(60vh+1rem)]' : 'bottom-20 md:bottom-6',
         ].join(' ')}
       >
-        {/* Sound-wave animation — centered overlay behind button */}
-        {status !== 'idle' && (
-          <div
-            className="pointer-events-none absolute"
-            style={{
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: -1,
-              width: 120,
-              height: 120,
-            }}
-          >
-            <LottiePlayer
-              src="https://assets9.lottiefiles.com/packages/lf20_myejiggj.json"
-              width={120}
-              height={120}
-              loop
-              autoplay
-            />
-          </div>
-        )}
-        <button
-          onClick={handleButtonClick}
-          title={title}
-          aria-label={title}
-          className={[
-            'relative flex h-14 w-14 items-center justify-center',
-            'rounded-full shadow-lg transition-all duration-200 select-none',
-            'text-xl hover:scale-110 active:scale-95',
-            bg, ring,
-          ].join(' ')}
-        >
-          {icon}
-        </button>
-      </div>
+        {icon}
+      </button>
 
       {/* Dev-only test button — remove after validation */}
       {process.env.NODE_ENV === 'development' && !agentOpen && (
