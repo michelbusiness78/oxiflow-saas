@@ -4,14 +4,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { navModules } from '@/lib/theme';
 import LordIcon from './LordIcon';
+import { NavIcon } from './NavIcon';
 
 // Mapping from navModule icon name → Lordicon CDN URL
+// 'users' (RH) omitted — falls back to NavIcon (CDN URL unreliable)
 const LORDICON_MAP: Record<string, string> = {
   chart:     'https://cdn.lordicon.com/wmwqvixz.json',
   briefcase: 'https://cdn.lordicon.com/qhgmphtg.json',
   clipboard: 'https://cdn.lordicon.com/wloilxuq.json',
   wrench:    'https://cdn.lordicon.com/dxjqoygy.json',
-  users:     'https://cdn.lordicon.com/bgebyztq.json',
 };
 
 interface MobileNavProps {
@@ -44,13 +45,20 @@ export function MobileNav({ allowedHrefs }: MobileNavProps) {
             {isActive && (
               <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-b-full bg-blue-500" />
             )}
-            <LordIcon
-              icon={LORDICON_MAP[module.icon] ?? ''}
-              size={20}
-              trigger="click"
-              colors={isActive ? 'primary:#3b82f6' : 'primary:#94a3b8'}
-              className="shrink-0"
-            />
+            {LORDICON_MAP[module.icon] ? (
+              <LordIcon
+                icon={LORDICON_MAP[module.icon]}
+                size={20}
+                trigger="click"
+                colors={isActive ? 'primary:#2563EB' : 'primary:#6B7280'}
+                className="shrink-0"
+              />
+            ) : (
+              <NavIcon
+                name={module.icon as Parameters<typeof NavIcon>[0]['name']}
+                className="w-5 h-5 shrink-0"
+              />
+            )}
             <span className="text-[9px] font-semibold uppercase tracking-wide leading-none">
               {module.label}
             </span>

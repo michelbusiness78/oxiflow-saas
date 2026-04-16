@@ -447,17 +447,27 @@ Tu es l'assistant vocal d'OxiFlow. Module : ${ctx.module}. Utilisateur : ${ctx.u
       {/* Floating button + sound-wave Lottie (loops when agent is active) */}
       <div
         className={[
-          'fixed right-4 z-40',
+          'fixed right-4 z-40 relative',
           agentOpen ? 'bottom-[calc(60vh+1rem)]' : 'bottom-20 md:bottom-6',
         ].join(' ')}
       >
-        {/* Sound-wave animation — visible only when agent is active */}
+        {/* Sound-wave animation — centered overlay behind button */}
         {status !== 'idle' && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center -m-6">
+          <div
+            className="pointer-events-none absolute"
+            style={{
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: -1,
+              width: 120,
+              height: 120,
+            }}
+          >
             <LottiePlayer
               src="https://assets9.lottiefiles.com/packages/lf20_myejiggj.json"
-              width={88}
-              height={88}
+              width={120}
+              height={120}
               loop
               autoplay
             />
