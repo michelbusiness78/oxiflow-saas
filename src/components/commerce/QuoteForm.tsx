@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { SlideOver }         from '@/components/ui/SlideOver';
 import { CatalogueSelector } from './CatalogueSelector';
+import { SendDevisModal }    from './SendDevisModal';
 import {
   saveQuoteAction,
   deleteQuoteAction,
@@ -96,7 +98,7 @@ interface QuoteFormProps {
   clients:         { id: string; nom: string; email?: string | null }[];
   catalogue:       CatalogueItem[];
   users:           TenantUser[];
-  companies:       { id: string; name: string; color?: string }[];
+  companies:       { id: string; name: string; color?: string; email?: string | null }[];
   currentUserId:   string;
   currentUserName: string;
   relatedInvoice?: { id: string; number: string; status: InvoiceStatus } | null;
@@ -304,13 +306,15 @@ export function QuoteForm({
   const [conditions,     setConditions]     = useState(DEFAULT_CONDITIONS);
   const [depositPercent, setDepositPercent] = useState(0);
 
+  const router = useRouter();
+
   // ── UI ──
   const [saving,          setSaving]          = useState(false);
   const [deleting,        setDeleting]        = useState(false);
   const [confirmDel,      setConfirmDel]      = useState(false);
   const [error,           setError]           = useState('');
-  const [sending,         setSending]         = useState(false);
-  const [sendOk,          setSendOk]          = useState(false);
+  const [sendModalOpen,   setSendModalOpen]   = useState(false);
+  const [sendToast,       setSendToast]       = useState('');
   const [statusBusy,      setStatusBusy]      = useState(false);
   const [creatingProject, setCreatingProject] = useState(false);
   const [projectCreated,  setProjectCreated]  = useState(false);
@@ -366,6 +370,8 @@ export function QuoteForm({
     setInvoiceResult(relatedInvoice ?? null);
     setError('');
     setConfirmDel(false);
+    setSendModalOpen(false);
+    setSendToast('');
   }, [open, editing]);
 
   // ── Lignes ──
@@ -562,6 +568,7 @@ export function QuoteForm({
   const title = editing ? `Devis ${editing.number}` : 'Nouveau devis';
 
   return (
+    <>
     <SlideOver open={open} onClose={onClose} title={title} width="xl">
       <form onSubmit={handleSubmit} className="flex h-full flex-col">
         <div className="flex-1 overflow-y-auto">
@@ -1004,41 +1011,19 @@ export function QuoteForm({
           )}
 
           <div className="ml-auto flex items-center gap-2">
+            {sendToast && (
+              <span className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${sendToast.startsWith('✅') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {sendToast}
+              </span>
+            )}
             {editing && (
               <button
                 type="button"
-                disabled={sending}
-                title="Envoyer le devis par email (PDF en pièce jointe)"
-                onClick={async () => {
-                  setSending(true);
-                  setSendOk(false);
-                  setError('');
-                  try {
-                    const res  = await fetch(`/api/quotes/${editing.id}/send`, { method: 'POST' });
-                    const data = await res.json();
-                    if (!res.ok) {
-                      setError(data.error ?? 'Erreur lors de l\'envoi.');
-                      setSending(false);
-                      return;
-                    }
-                    await changeQuoteStatutAction(editing.id, 'envoye');
-                    setSendOk(true);
-                    setSending(false);
-                    setTimeout(() => onClose(), 1200);
-                  } catch {
-                    setError('Erreur réseau lors de l\'envoi.');
-                    setSending(false);
-                  }
-                }}
-                className={[
-                  'rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                  sendOk
-                    ? 'border-green-300 bg-green-50 text-green-700'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-50',
-                  sending ? 'opacity-60 cursor-not-allowed' : '',
-                ].join(' ')}
+                title="Prévisualiser et envoyer le devis par email"
+                onClick={() => setSendModalOpen(true)}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
               >
-                {sending ? '⏳ Envoi…' : sendOk ? '✅ Envoyé !' : '📧 Email'}
+                📧 Email
               </button>
             )}
             {/* Modèles */}
@@ -1148,5 +1133,21 @@ export function QuoteForm({
         </div>
       )}
     </SlideOver>
+
+    {/* Modale prévisualisation email — rendue en dehors du SlideOver pour le z-index */}
+    <SendDevisModal
+      key={editing?.id ?? 'new'}
+      devis={editing && sendModalOpen ? editing : null}
+      clients={clients}
+      companies={companies}
+      onClose={() => setSendModalOpen(false)}
+      onSent={(_id, email) => {
+        setSendModalOpen(false);
+        setSendToast(`✅ Email envoyé à ${email}`);
+        setTimeout(() => setSendToast(''), 5000);
+        router.refresh();
+      }}
+    />
+    </>
   );
 }

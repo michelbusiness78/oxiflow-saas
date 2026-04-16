@@ -1,22 +1,49 @@
 // Route API — envoi email devis avec PDF en pièce jointe.
 // POST /api/quotes/[id]/send
 //
+// Body JSON attendu : { to: string; subject: string; message: string }
+//
 // 1. Vérifie l'auth + le tenant
-// 2. Récupère le devis, le client et la société (createAdminClient)
+// 2. Lit le devis + la société (createAdminClient) pour générer le PDF
 // 3. Génère le PDF serveur-side (buildDevisPdf)
-// 4. Envoie l'email avec la PJ via Resend (sendEmailWithAttachment)
-// 5. Met à jour le statut du devis → 'envoye'
+// 4. Envoie l'email avec la PJ via Resend (to/subject/message depuis le body)
+// 5. Met à jour le statut du devis → 'envoye' + revalidatePath
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath }             from 'next/cache';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { buildDevisPdf }              from '@/lib/pdf/devis-pdf';
 import { sendEmailWithAttachment }    from '@/lib/email';
 
+// Utilitaire — convertit du texte brut en HTML (paragraphes, liens sécurisés)
+function textToHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+}
+
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Body ──────────────────────────────────────────────────────────────────────
+  let body: { to?: string; subject?: string; message?: string } = {};
+  try { body = await req.json(); } catch { /* body vide → on validera plus bas */ }
+
+  const to      = (body.to      ?? '').trim();
+  const subject = (body.subject ?? '').trim();
+  const message = body.message ?? '';
+
+  if (!to) {
+    return NextResponse.json(
+      { error: 'Adresse email destinataire manquante.' },
+      { status: 422 },
+    );
+  }
+
+  // ── Auth ──────────────────────────────────────────────────────────────────────
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) {
@@ -38,7 +65,7 @@ export async function POST(
   const tenantId = profile.tenant_id as string;
   const { id }   = await params;
 
-  // ── Devis ─────────────────────────────────────────────────────────────────
+  // ── Devis ─────────────────────────────────────────────────────────────────────
   const { data: quote, error: qErr } = await admin
     .from('quotes')
     .select(`
@@ -56,19 +83,7 @@ export async function POST(
     return NextResponse.json({ error: 'Devis introuvable.' }, { status: 404 });
   }
 
-  // ── Client email ──────────────────────────────────────────────────────────
-  const client      = quote.clients as unknown as Record<string, unknown> | null;
-  const clientEmail = client?.email as string | null;
-  const clientNom   = client?.nom   as string | null;
-
-  if (!clientEmail) {
-    return NextResponse.json(
-      { error: 'Aucune adresse email renseignée pour ce client.' },
-      { status: 422 },
-    );
-  }
-
-  // ── Société émettrice ──────────────────────────────────────────────────────
+  // ── Société émettrice (nécessaire pour le PDF + footer email) ─────────────────
   let company: Record<string, unknown> | null = null;
   if (quote.company_id) {
     const { data } = await admin
@@ -83,7 +98,7 @@ export async function POST(
   const societeEmail = (company?.email as string) ?? '';
   const societePhone = (company?.phone as string) ?? '';
 
-  // ── Génération PDF ─────────────────────────────────────────────────────────
+  // ── Génération PDF ─────────────────────────────────────────────────────────────
   let pdfBuffer: Buffer;
   try {
     const arrayBuffer = await buildDevisPdf(quote, company);
@@ -93,21 +108,16 @@ export async function POST(
     return NextResponse.json({ error: 'Erreur lors de la génération du PDF.' }, { status: 500 });
   }
 
-  // ── Corps email ────────────────────────────────────────────────────────────
+  // ── Corps email — le message utilisateur dans l'enveloppe HTML ────────────────
   const devisNumero = quote.number as string;
-  const montantTtc  = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' })
-    .format(quote.montant_ttc as number);
-  const validite    = quote.validity
-    ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-        .format(new Date(quote.validity as string))
-    : null;
-  const objetLine   = quote.objet ? `<br>Objet : <strong>${quote.objet as string}</strong>` : '';
 
   const contactBlock = [
     societeNom,
     societeEmail ? `<a href="mailto:${societeEmail}" style="color:#2563EB">${societeEmail}</a>` : null,
     societePhone,
   ].filter(Boolean).join(' · ');
+
+  const messageHtml = textToHtml(message);
 
   const emailBodyHtml = `
 <!DOCTYPE html>
@@ -128,37 +138,20 @@ export async function POST(
           </td>
         </tr>
 
-        <!-- Body -->
+        <!-- Message personnalisé -->
         <tr>
           <td style="padding:36px 40px">
-            <p style="margin:0 0 16px;font-size:15px;color:#1e293b">
-              Bonjour${clientNom ? ` <strong>${clientNom}</strong>` : ''},
+            <p style="margin:0;font-size:15px;color:#1e293b;line-height:1.7">
+              ${messageHtml}
             </p>
-            <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6">
-              Veuillez trouver ci-joint le devis <strong>${devisNumero}</strong>
-              établi par <strong>${societeNom}</strong>.${objetLine}
-            </p>
+          </td>
+        </tr>
 
-            <!-- Récapitulatif -->
-            <table width="100%" cellpadding="0" cellspacing="0"
-              style="background:#f1f5f9;border-radius:8px;padding:20px;margin-bottom:28px">
-              <tr>
-                <td style="font-size:13px;color:#64748b;padding:4px 0">Montant TTC</td>
-                <td align="right" style="font-size:16px;font-weight:700;color:#1e3a8a">${montantTtc}</td>
-              </tr>
-              ${validite ? `
-              <tr>
-                <td style="font-size:13px;color:#64748b;padding:4px 0">Validité du devis</td>
-                <td align="right" style="font-size:13px;color:#475569">${validite}</td>
-              </tr>` : ''}
-            </table>
-
-            <p style="margin:0 0 28px;font-size:14px;color:#475569;line-height:1.6;background:#eff6ff;border-left:3px solid #2563eb;padding:12px 16px;border-radius:0 6px 6px 0">
+        <!-- Notice pièce jointe -->
+        <tr>
+          <td style="padding:0 40px 32px">
+            <p style="margin:0;font-size:14px;color:#475569;line-height:1.6;background:#eff6ff;border-left:3px solid #2563eb;padding:12px 16px;border-radius:0 6px 6px 0">
               📎 Vous trouverez le devis en pièce jointe au format PDF.
-            </p>
-
-            <p style="margin:0;font-size:14px;color:#475569;line-height:1.6">
-              N'hésitez pas à nous contacter pour toute question ou pour valider ce devis.
             </p>
           </td>
         </tr>
@@ -181,11 +174,11 @@ export async function POST(
 </body>
 </html>`.trim();
 
-  // ── Envoi email ────────────────────────────────────────────────────────────
+  // ── Envoi email ────────────────────────────────────────────────────────────────
   try {
     await sendEmailWithAttachment(
-      clientEmail,
-      `Devis ${devisNumero}${quote.objet ? ` — ${quote.objet as string}` : ''} · ${societeNom}`,
+      to,
+      subject || `Devis ${devisNumero} · ${societeNom}`,
       emailBodyHtml,
       {
         filename: `Devis-${devisNumero}.pdf`,
@@ -200,7 +193,7 @@ export async function POST(
     );
   }
 
-  // ── Mise à jour statut ─────────────────────────────────────────────────────
+  // ── Mise à jour statut ─────────────────────────────────────────────────────────
   await admin
     .from('quotes')
     .update({
@@ -210,5 +203,7 @@ export async function POST(
     .eq('id', id)
     .eq('tenant_id', tenantId);
 
-  return NextResponse.json({ success: true, email: clientEmail });
+  revalidatePath('/commerce');
+
+  return NextResponse.json({ success: true, email: to });
 }

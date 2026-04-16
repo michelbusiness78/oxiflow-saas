@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { QuoteForm, type QuoteWithClient, type TenantUser } from './QuoteForm';
+import { SendDevisModal } from './SendDevisModal';
 import { duplicateQuoteAction, type QuoteStatut } from '@/app/actions/quotes';
 import { fmtEur, fmtDate } from '@/lib/format';
 import type { CatalogueItem } from '@/app/actions/catalogue';
@@ -27,10 +29,10 @@ function normalize(s: string) {
 
 interface QuoteListProps {
   quotes:          QuoteWithClient[];
-  clients:         { id: string; nom: string }[];
+  clients:         { id: string; nom: string; email?: string | null }[];
   catalogue:       CatalogueItem[];
   users:           TenantUser[];
-  companies:       { id: string; name: string; color?: string }[];
+  companies:       { id: string; name: string; color?: string; email?: string | null }[];
   currentUserId:   string;
   currentUserName: string;
   invoices?:       Pick<Invoice, 'id' | 'number' | 'quote_id' | 'status'>[];
@@ -39,12 +41,16 @@ interface QuoteListProps {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export function QuoteList({ quotes, clients, catalogue, users, companies, currentUserId, currentUserName, invoices }: QuoteListProps) {
-  const [formOpen,     setFormOpen]     = useState(false);
-  const [editing,      setEditing]      = useState<QuoteWithClient | null>(null);
-  const [statusFilter, setStatusFilter] = useState<QuoteStatut | 'tous'>('tous');
-  const [search,       setSearch]       = useState('');
-  const [dupBusy,      setDupBusy]      = useState<string | null>(null);
-  const [error,        setError]        = useState('');
+  const router = useRouter();
+
+  const [formOpen,      setFormOpen]      = useState(false);
+  const [editing,       setEditing]       = useState<QuoteWithClient | null>(null);
+  const [statusFilter,  setStatusFilter]  = useState<QuoteStatut | 'tous'>('tous');
+  const [search,        setSearch]        = useState('');
+  const [dupBusy,       setDupBusy]       = useState<string | null>(null);
+  const [error,         setError]         = useState('');
+  const [sendingDevis,  setSendingDevis]  = useState<QuoteWithClient | null>(null);
+  const [sendToast,     setSendToast]     = useState<{ msg: string; ok: boolean } | null>(null);
 
   function openCreate() { setEditing(null); setFormOpen(true); }
   function openEdit(q: QuoteWithClient) { setEditing(q); setFormOpen(true); }
@@ -215,10 +221,26 @@ export function QuoteList({ quotes, clients, catalogue, users, companies, curren
                           type="button"
                           onClick={() => window.open(`/api/pdf/devis/${q.id}`, '_blank')}
                           className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-slate-700 transition-colors"
-                          title="PDF"
+                          title="Télécharger le PDF"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                          </svg>
+                        </button>
+                        {/* Email */}
+                        <button
+                          type="button"
+                          onClick={() => setSendingDevis(q)}
+                          className={[
+                            'rounded-md p-1.5 transition-colors',
+                            q.statut === 'envoye'
+                              ? 'text-blue-500 hover:bg-blue-50'
+                              : 'text-slate-400 hover:bg-white hover:text-blue-600',
+                          ].join(' ')}
+                          title={q.statut === 'envoye' ? 'Renvoyer par email' : 'Envoyer par email'}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-4 w-4" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
                           </svg>
                         </button>
                         {/* Dupliquer */}
@@ -271,6 +293,40 @@ export function QuoteList({ quotes, clients, catalogue, users, companies, curren
             : null
         }
       />
+
+      {/* Modale envoi email — déclenchée depuis la liste */}
+      <SendDevisModal
+        key={sendingDevis?.id ?? 'send-new'}
+        devis={sendingDevis}
+        clients={clients}
+        companies={companies}
+        onClose={() => setSendingDevis(null)}
+        onSent={(_id, email) => {
+          setSendingDevis(null);
+          setSendToast({ msg: `Email envoyé à ${email}`, ok: true });
+          setTimeout(() => setSendToast(null), 5000);
+          router.refresh();
+        }}
+      />
+
+      {/* Toast confirmation envoi */}
+      {sendToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={[
+            'fixed bottom-6 left-1/2 z-50 -translate-x-1/2',
+            'flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-xl',
+            'transition-all duration-300',
+            sendToast.ok
+              ? 'bg-green-600 text-white'
+              : 'bg-red-600 text-white',
+          ].join(' ')}
+        >
+          <span aria-hidden>{sendToast.ok ? '✅' : '❌'}</span>
+          {sendToast.msg}
+        </div>
+      )}
     </>
   );
 }
