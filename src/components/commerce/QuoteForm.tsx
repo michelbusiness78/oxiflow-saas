@@ -309,6 +309,8 @@ export function QuoteForm({
   const [deleting,        setDeleting]        = useState(false);
   const [confirmDel,      setConfirmDel]      = useState(false);
   const [error,           setError]           = useState('');
+  const [sending,         setSending]         = useState(false);
+  const [sendOk,          setSendOk]          = useState(false);
   const [statusBusy,      setStatusBusy]      = useState(false);
   const [creatingProject, setCreatingProject] = useState(false);
   const [projectCreated,  setProjectCreated]  = useState(false);
@@ -1002,24 +1004,43 @@ export function QuoteForm({
           )}
 
           <div className="ml-auto flex items-center gap-2">
-            {editing && (() => {
-              const clientEmail = clients.find((c) => c.id === (editing.client_id ?? ''))?.email ?? '';
-              const emailObjet  = encodeURIComponent(`Devis ${editing.number}${editing.objet ? ` — ${editing.objet}` : ''}`);
-              const emailCorps  = encodeURIComponent(
-                `Bonjour,\n\nVeuillez trouver ci-joint le devis ${editing.number}` +
-                (editing.objet ? ` concernant : ${editing.objet}` : '') +
-                `.\n\nMontant TTC : ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(editing.montant_ttc)}\n\nN'hésitez pas à nous contacter pour toute question.\n\nCordialement`
-              );
-              return (
-                <a
-                  href={`mailto:${clientEmail}?subject=${emailObjet}&body=${emailCorps}`}
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                  title="Envoyer par email"
-                >
-                  📧 Email
-                </a>
-              );
-            })()}
+            {editing && (
+              <button
+                type="button"
+                disabled={sending}
+                title="Envoyer le devis par email (PDF en pièce jointe)"
+                onClick={async () => {
+                  setSending(true);
+                  setSendOk(false);
+                  setError('');
+                  try {
+                    const res  = await fetch(`/api/quotes/${editing.id}/send`, { method: 'POST' });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      setError(data.error ?? 'Erreur lors de l\'envoi.');
+                      setSending(false);
+                      return;
+                    }
+                    await changeQuoteStatutAction(editing.id, 'envoye');
+                    setSendOk(true);
+                    setSending(false);
+                    setTimeout(() => onClose(), 1200);
+                  } catch {
+                    setError('Erreur réseau lors de l\'envoi.');
+                    setSending(false);
+                  }
+                }}
+                className={[
+                  'rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                  sendOk
+                    ? 'border-green-300 bg-green-50 text-green-700'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                  sending ? 'opacity-60 cursor-not-allowed' : '',
+                ].join(' ')}
+              >
+                {sending ? '⏳ Envoi…' : sendOk ? '✅ Envoyé !' : '📧 Email'}
+              </button>
+            )}
             {/* Modèles */}
             {editing && !readonly && (
               <button type="button" onClick={() => { setTemplateNom(''); setTemplateModal('save'); }}
