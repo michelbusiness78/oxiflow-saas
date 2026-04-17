@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useActionState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { signIn } from '@/app/actions/auth';
+import { signIn, resendConfirmationEmail } from '@/app/actions/auth';
 import { Suspense } from 'react';
 
 function LoginForm() {
@@ -12,6 +12,10 @@ function LoginForm() {
   const activated = searchParams.get('activated') === '1';
 
   const [state, action, pending] = useActionState(signIn, null);
+  const [resendState, resendAction, resendPending] = useActionState(
+    resendConfirmationEmail,
+    null,
+  );
 
   return (
     <>
@@ -31,7 +35,39 @@ function LoginForm() {
           </div>
         )}
 
-        {state?.error && (
+        {/* Erreur email non confirmé */}
+        {state?.emailNotConfirmed && (
+          <div className="rounded-lg bg-oxi-danger-light px-4 py-3 text-sm text-oxi-danger">
+            {state.error}{' '}
+            <form action={resendAction} className="inline">
+              <input type="hidden" name="email" value={state.email} />
+              <button
+                type="submit"
+                disabled={resendPending}
+                className="font-medium underline underline-offset-2 hover:opacity-80 disabled:opacity-60"
+              >
+                {resendPending ? 'Envoi…' : 'renvoyer l\'email de confirmation'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Feedback renvoi réussi */}
+        {resendState?.success && (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            ✓ {resendState.success} Vérifiez votre boîte mail.
+          </div>
+        )}
+
+        {/* Erreur renvoi */}
+        {resendState?.error && (
+          <div className="rounded-lg bg-oxi-danger-light px-4 py-3 text-sm text-oxi-danger">
+            {resendState.error}
+          </div>
+        )}
+
+        {/* Erreur classique */}
+        {state?.error && !state.emailNotConfirmed && (
           <div className="rounded-lg bg-oxi-danger-light px-4 py-3 text-sm text-oxi-danger">
             {state.error}
           </div>

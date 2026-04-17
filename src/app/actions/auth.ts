@@ -15,10 +15,39 @@ export async function signIn(_: unknown, formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: 'Email ou mot de passe incorrect.' };
+    const isEmailNotConfirmed =
+      error.code === 'email_not_confirmed' ||
+      error.message?.toLowerCase().includes('email not confirmed');
+
+    if (isEmailNotConfirmed) {
+      return {
+        error: 'Votre adresse email n\'est pas encore confirmée. Vérifiez vos spams ou',
+        emailNotConfirmed: true as const,
+        email,
+      };
+    }
+
+    return { error: 'Adresse email ou mot de passe incorrect.' };
   }
 
   redirect(next);
+}
+
+// ─── Renvoi email de confirmation ─────────────────────────────────────────────
+export async function resendConfirmationEmail(_: unknown, formData: FormData) {
+  const email = formData.get('email') as string;
+
+  if (!email) return { error: 'Email manquant.' };
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.resend({ type: 'signup', email });
+
+  if (error) {
+    console.error('[resendConfirmationEmail] error:', error.message);
+    return { error: 'Impossible de renvoyer l\'email. Réessayez dans quelques instants.' };
+  }
+
+  return { success: 'Email renvoyé !' };
 }
 
 // ─── Inscription ──────────────────────────────────────────────────────────────
@@ -103,7 +132,7 @@ export async function signUp(_: unknown, formData: FormData) {
     console.error('[signUp] welcome email failed:', emailErr);
   }
 
-  redirect('/pilotage');
+  return { success: true as const, email };
 }
 
 // ─── Mot de passe oublié ──────────────────────────────────────────────────────
