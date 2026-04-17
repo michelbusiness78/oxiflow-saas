@@ -28,6 +28,7 @@ export interface Company {
   mention_tva:                string;
   conditions_paiement_defaut: string;
   pied_facture:               string | null;
+  email_rapports:             string | null;
   active:                     boolean;
   created_at:                 string;
 }

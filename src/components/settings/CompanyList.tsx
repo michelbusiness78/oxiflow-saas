@@ -54,6 +54,7 @@ const EMPTY: CompanyInput = {
   mention_tva:                'TVA sur encaissements',
   conditions_paiement_defaut: '30 jours fin de mois',
   pied_facture:               null,
+  email_rapports:             null,
   active:                     true,
 };
 
@@ -104,6 +105,7 @@ export function CompanyList({ companies, objectives }: Props) {
         mention_tva:                editing.mention_tva ?? 'TVA sur encaissements',
         conditions_paiement_defaut: editing.conditions_paiement_defaut ?? '30 jours fin de mois',
         pied_facture:               editing.pied_facture,
+        email_rapports:             editing.email_rapports,
         active:                     editing.active,
       });
     } else {
@@ -494,6 +496,21 @@ export function CompanyList({ companies, objectives }: Props) {
                     onChange={(e) => setField('pied_facture', e.target.value || null)}
                     rows={3} className={INPUT + ' resize-none'}
                     placeholder="Capital : 10 000 € — RCS Paris 123 456 789" />
+                </Field>
+              </Section>
+
+              <Section title="Notifications">
+                <Field label="Email de réception des rapports d'intervention">
+                  <input
+                    type="email"
+                    value={form.email_rapports ?? ''}
+                    onChange={(e) => setField('email_rapports', e.target.value || null)}
+                    className={INPUT}
+                    placeholder="Laisser vide pour envoyer au dirigeant"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">
+                    Si renseigné, les rapports PDF des techniciens seront envoyés à cette adresse (assistante, référent…). Sinon, envoi au dirigeant du compte.
+                  </p>
                 </Field>
               </Section>
 

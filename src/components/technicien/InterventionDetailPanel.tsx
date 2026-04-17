@@ -173,8 +173,10 @@ export function InterventionDetailPanel({
   const [isSendingReport, setIsSendingReport]    = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf]  = useState(false);
   const [error,           setError]              = useState('');
-  const [reportSent,      setReportSent]         = useState(false);
-  const [reportSuccess,   setReportSuccess]      = useState('');
+  const [reportSent,        setReportSent]        = useState(false);
+  const [reportSuccess,     setReportSuccess]     = useState('');
+  const [localReportSentTo, setLocalReportSentTo] = useState<string | null>(null);
+  const [localReportSentAt, setLocalReportSentAt] = useState<string | null>(null);
   const [elapsed,         setElapsed]            = useState(0);
 
   // Signature
@@ -220,6 +222,8 @@ export function InterventionDetailPanel({
     setLocalDocs(iv.documents               ?? []);
     setReportSent(iv.report_sent            ?? false);
     setReportSuccess('');
+    setLocalReportSentTo(null);
+    setLocalReportSentAt(null);
     setError('');
     setShowMatForm(false);
     setDocDescription('');
@@ -520,8 +524,11 @@ export function InterventionDetailPanel({
     const res = await sendInterventionReport(iv.id, pdfBase64);
     setIsSendingReport(false);
     if (res.error) { setError(res.error); return; }
+    const now = new Date().toISOString();
     setReportSent(true);
     setReportSuccess(`✅ Rapport envoyé à ${res.recipientEmail}`);
+    setLocalReportSentTo(res.recipientEmail ?? null);
+    setLocalReportSentAt(now);
     onSaveProgress(iv.id, { report_sent: true, report_sent_to: res.recipientEmail ?? null });
   }
 
@@ -1084,52 +1091,71 @@ export function InterventionDetailPanel({
       )}
 
       {/* ── Footer fixe ───────────────────────────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 md:left-[230px] z-10 border-t border-slate-200 bg-white px-5 py-4 md:px-6">
-        <div className="max-w-[900px] mx-auto flex gap-2 justify-end flex-wrap">
-        <button
-          type="button" onClick={onClose}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-        >
-          Fermer
-        </button>
-        <button
-          type="button" onClick={handleSave} disabled={isSaving}
-          className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
-        >
-          {isSaving ? '…' : '💾 Sauvegarder'}
-        </button>
+      <div className="fixed bottom-0 left-0 right-0 md:left-[230px] z-10 border-t border-slate-200 bg-white px-5 py-3 md:px-6">
+        <div className="max-w-[900px] mx-auto space-y-2">
+          {/* Info rapport déjà envoyé */}
+          {iv.status === 'terminee' && (reportSent || iv.report_sent) && (() => {
+            const sentTo = localReportSentTo ?? iv.report_sent_to;
+            const sentAt = localReportSentAt ?? iv.report_sent_at;
+            if (!sentTo) return null;
+            const sentAtFmt = sentAt
+              ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(sentAt))
+              : null;
+            return (
+              <p className="text-xs text-slate-400 text-right">
+                Envoyé à <span className="font-medium text-slate-600">{sentTo}</span>
+                {sentAtFmt && <> le {sentAtFmt}</>}
+              </p>
+            );
+          })()}
 
-        {iv.status === 'planifiee' && (
-          <button type="button" onClick={() => handleStatus('en_cours')} disabled={isPendingStatus}
-            className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50 transition-colors">
-            {isPendingStatus ? '…' : '🚀 Démarrer'}
-          </button>
-        )}
+          {/* Boutons */}
+          <div className="flex gap-2 justify-end flex-wrap">
+            <button
+              type="button" onClick={onClose}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Fermer
+            </button>
+            <button
+              type="button" onClick={handleSave} disabled={isSaving}
+              className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+            >
+              {isSaving ? '…' : '💾 Sauvegarder'}
+            </button>
 
-        {iv.status === 'en_cours' && (
-          <button type="button" onClick={() => handleStatus('terminee')} disabled={isPendingStatus}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors">
-            {isPendingStatus ? '…' : '✅ Terminer'}
-          </button>
-        )}
+            {iv.status === 'planifiee' && (
+              <button type="button" onClick={() => handleStatus('en_cours')} disabled={isPendingStatus}
+                className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50 transition-colors">
+                {isPendingStatus ? '…' : '🚀 Démarrer'}
+              </button>
+            )}
 
-        {iv.status === 'terminee' && (
-          <button type="button" onClick={handleDownloadPdf} disabled={isDownloadingPdf}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors">
-            {isDownloadingPdf ? '…' : '📄 Télécharger PDF'}
-          </button>
-        )}
+            {iv.status === 'en_cours' && (
+              <button type="button" onClick={() => handleStatus('terminee')} disabled={isPendingStatus}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors">
+                {isPendingStatus ? '…' : '✅ Terminer'}
+              </button>
+            )}
 
-        {iv.status === 'terminee' && (
-          <button type="button" onClick={handleSendReport} disabled={isSendingReport || reportSent}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              reportSent
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
-            }`}>
-            {isSendingReport ? '…' : reportSent ? '✅ Rapport envoyé' : '📧 Envoyer le rapport'}
-          </button>
-        )}
+            {iv.status === 'terminee' && (
+              <button type="button" onClick={handleDownloadPdf} disabled={isDownloadingPdf}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors">
+                {isDownloadingPdf ? '…' : '📄 Télécharger PDF'}
+              </button>
+            )}
+
+            {iv.status === 'terminee' && (
+              <button type="button" onClick={handleSendReport} disabled={isSendingReport || reportSent || iv.report_sent}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                  reportSent || iv.report_sent
+                    ? 'bg-green-600 text-white cursor-not-allowed opacity-80'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
+                }`}>
+                {isSendingReport ? '⏳ Envoi…' : (reportSent || iv.report_sent) ? '✅ Rapport envoyé' : '📧 Envoyer le rapport'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </SlideOver>

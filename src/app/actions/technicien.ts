@@ -370,9 +370,19 @@ export async function sendInterventionReport(
 
   if (ivErr || !iv) return { error: 'Intervention introuvable' };
 
-  // Chercher le dirigeant du tenant
-  const adminClient = createAdminClient();
-  const { data: dirigeants } = await adminClient
+  // ── 1. Email de la société (email_rapports) ──────────────────────────────────
+  const { data: companies } = await admin
+    .from('companies')
+    .select('email_rapports')
+    .eq('tenant_id', tenant_id)
+    .eq('active', true)
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  const emailRapports = (companies ?? [])[0]?.email_rapports as string | null | undefined;
+
+  // ── 2. Dirigeant du tenant (fallback) ─────────────────────────────────────────
+  const { data: dirigeants } = await admin
     .from('users')
     .select('email, name, role')
     .eq('tenant_id', tenant_id)
@@ -380,23 +390,27 @@ export async function sendInterventionReport(
     .eq('active', true)
     .limit(1);
 
-  let recipient = (dirigeants ?? [])[0] ?? null;
+  let dirigeant = (dirigeants ?? [])[0] ?? null;
 
-  // Fallback : n'importe quel utilisateur actif avec un email valide
-  if (!recipient?.email) {
-    const { data: anyUser } = await adminClient
+  // Fallback secondaire : n'importe quel utilisateur actif
+  if (!dirigeant?.email) {
+    const { data: anyUser } = await admin
       .from('users')
       .select('email, name, role')
       .eq('tenant_id', tenant_id)
       .eq('active', true)
       .not('email', 'is', null)
       .limit(1);
-    recipient = (anyUser ?? [])[0] ?? null;
+    dirigeant = (anyUser ?? [])[0] ?? null;
   }
 
-  console.log('[sendInterventionReport] destinataire:', recipient?.email ?? 'aucun');
+  // ── 3. Choix du destinataire ──────────────────────────────────────────────────
+  const recipientEmail = emailRapports?.trim() || dirigeant?.email || null;
 
-  if (!recipient?.email) return { error: 'Aucun destinataire configuré' };
+  console.log('[sendInterventionReport] email_rapports:', emailRapports ?? 'non défini');
+  console.log('[sendInterventionReport] destinataire final:', recipientEmail ?? 'aucun');
+
+  if (!recipientEmail) return { error: 'Aucun destinataire configuré' };
 
   // ── Formatage ────────────────────────────────────────────────────────────────
 
@@ -493,7 +507,7 @@ export async function sendInterventionReport(
         day: '2-digit', month: '2-digit', year: 'numeric',
       }).format(new Date(iv.date_start)).replace(/\//g, '-');
       await sendEmailWithAttachment(
-        recipient.email,
+        recipientEmail,
         subject,
         `<p style="font-family:sans-serif;font-size:14px;color:#475569;">
           Veuillez trouver ci-joint le rapport d'intervention en PDF.<br><br>
@@ -502,7 +516,7 @@ export async function sendInterventionReport(
         { filename: `rapport-intervention-${dateLabel}.pdf`, content: pdfBuffer },
       );
     } else {
-      await sendEmail(recipient.email, subject, html);
+      await sendEmail(recipientEmail, subject, html);
     }
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur lors de l\'envoi' };
@@ -514,14 +528,14 @@ export async function sendInterventionReport(
     .update({
       report_sent:    true,
       report_sent_at: new Date().toISOString(),
-      report_sent_to: recipient.email,
+      report_sent_to: recipientEmail,
       updated_at:     new Date().toISOString(),
     })
     .eq('id', interventionId)
     .eq('tenant_id', tenant_id);
 
   revalidatePath('/technicien');
-  return { recipientEmail: recipient.email };
+  return { recipientEmail };
 }
 
 // ── Upload photo et sauvegarder l'URL dans interventions.photos ───────────────
