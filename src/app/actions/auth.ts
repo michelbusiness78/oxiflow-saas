@@ -139,9 +139,10 @@ export async function signUp(_: unknown, formData: FormData) {
 export async function forgotPassword(_: unknown, formData: FormData) {
   const email = formData.get('email') as string;
 
+  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL || 'https://oxiflow-saas.vercel.app';
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/reset-password`,
+    redirectTo: `${siteUrl}/reset-password`,
   });
 
   if (error) {
