@@ -567,22 +567,46 @@ export function CompanyList({ companies, objectives }: Props) {
 function CompanyCard({
   company, onEdit, onDelete,
 }: { company: Company; onEdit: () => void; onDelete: () => void }) {
-  const color = company.color ?? '#2563eb';
+  const color    = company.color ?? '#2563eb';
+  const initials = company.name.substring(0, 2).toUpperCase();
+
   return (
     <div className="rounded-xl border-2 bg-white shadow-sm flex flex-col gap-3 p-4" style={{ borderColor: color }}>
       <div className="flex items-start justify-between gap-2">
-        {company.logo_url ? (
-          <Image
-            src={company.logo_url}
-            alt={company.name}
-            width={120}
-            height={36}
-            className="max-h-9 w-auto object-contain"
-            unoptimized
-          />
-        ) : (
-          <span className="font-semibold text-slate-800 leading-snug">{company.name}</span>
-        )}
+        <div className="flex items-center gap-2 min-w-0">
+          {company.logo_url ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={company.logo_url}
+                alt={company.name}
+                className="max-h-9 w-auto max-w-[120px] object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
+                  if (fb) fb.style.display = 'flex';
+                }}
+              />
+              {/* Fallback initiales — masqué tant que l'image charge */}
+              <div
+                className="h-9 w-9 shrink-0 rounded-lg items-center justify-center text-white font-bold text-sm"
+                style={{ backgroundColor: color, display: 'none' }}
+              >
+                {initials}
+              </div>
+            </>
+          ) : (
+            <div
+              className="h-9 w-9 shrink-0 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+              style={{ backgroundColor: color }}
+            >
+              {initials}
+            </div>
+          )}
+          {!company.logo_url && (
+            <span className="font-semibold text-slate-800 leading-snug truncate">{company.name}</span>
+          )}
+        </div>
         {!company.active && (
           <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Inactive</span>
         )}
