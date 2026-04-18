@@ -33,13 +33,9 @@ export async function signIn(_: unknown, formData: FormData) {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('users')
-    .select('role, must_change_password')
+    .select('role')
     .eq('id', data.user!.id)
     .single();
-
-  if (profile?.must_change_password) {
-    redirect('/mon-compte/changer-mot-de-passe');
-  }
 
   redirect(getRedirectByRole(profile?.role ?? 'dirigeant'));
 }
@@ -161,34 +157,6 @@ export async function forgotPassword(_: unknown, formData: FormData) {
   }
 
   return { success: 'Un email de réinitialisation a été envoyé.' };
-}
-
-// ─── Changement de mot de passe obligatoire (première connexion) ──────────────
-export async function changePasswordAction(_: unknown, formData: FormData) {
-  const password = formData.get('password') as string;
-
-  if (!password || password.length < 8) {
-    return { error: 'Le mot de passe doit faire au moins 8 caractères.' };
-  }
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Session expirée. Reconnectez-vous.' };
-
-  const { error: updateError } = await supabase.auth.updateUser({ password });
-  if (updateError) return { error: updateError.message };
-
-  // Efface le flag — accès admin pour bypass RLS
-  const admin = createAdminClient();
-  await admin.from('users').update({ must_change_password: false }).eq('id', user.id);
-
-  const { data: profile } = await admin
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  redirect(getRedirectByRole(profile?.role ?? 'dirigeant'));
 }
 
 // ─── Déconnexion ──────────────────────────────────────────────────────────────

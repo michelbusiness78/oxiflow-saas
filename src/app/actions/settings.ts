@@ -135,7 +135,6 @@ export async function inviteUserAction(input: InviteUserInput) {
         name:                input.name,
         role:                input.role,
         status:              'active',
-        must_change_password: true,
       });
     if (dbError) {
       // Rollback auth user si insert échoue

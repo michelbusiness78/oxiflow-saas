@@ -29,18 +29,9 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from('users')
-    .select('name, email, role, tenant_id, must_change_password')
+    .select('name, email, role, tenant_id')
     .eq('id', user.id)
     .single();
-
-  // Changement de mot de passe obligatoire (comptes invités)
-  if (profile?.must_change_password) {
-    const headersList = await headers();
-    const pathname = headersList.get('next-url') ?? '';
-    if (!pathname.startsWith('/mon-compte/changer-mot-de-passe')) {
-      redirect('/mon-compte/changer-mot-de-passe');
-    }
-  }
 
   const userName  = profile?.name      ?? user.email ?? 'Utilisateur';
   const userEmail = profile?.email     ?? user.email ?? '';

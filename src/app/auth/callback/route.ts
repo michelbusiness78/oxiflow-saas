@@ -35,13 +35,9 @@ export async function GET(request: Request) {
         const admin = createAdminClient();
         const { data: profile } = await admin
           .from('users')
-          .select('role, must_change_password')
+          .select('role')
           .eq('id', user.id)
           .single();
-
-        if (profile?.must_change_password) {
-          return NextResponse.redirect(`${origin}/mon-compte/changer-mot-de-passe`);
-        }
 
         return NextResponse.redirect(`${origin}${getRedirectByRole(profile?.role ?? 'dirigeant')}`);
       }
