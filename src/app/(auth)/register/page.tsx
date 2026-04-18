@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useFormState } from 'react-dom';
 import { useActionState, useState } from 'react';
 import { signUp, resendConfirmationEmail } from '@/app/actions/auth';
 
 // ─── Écran de confirmation email ──────────────────────────────────────────────
 function VerifyEmailScreen({ email }: { email: string }) {
-  const [resendState, resendAction, resendPending] = useActionState(
+  const [resendState, resendAction, resendPending] = useFormState(
     resendConfirmationEmail,
     null,
   );
