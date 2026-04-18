@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useFormState } from 'react-dom';
+import { useState } from 'react';
 import { changePasswordAction } from '@/app/actions/auth';
 
 const inputCls =
@@ -9,7 +10,7 @@ const inputCls =
   'focus:border-oxi-primary focus:ring-1 focus:ring-oxi-primary';
 
 export default function ChangerMotDePassePage() {
-  const [state, action, pending] = useActionState(changePasswordAction, null);
+  const [state, action] = useFormState(changePasswordAction, null);
   const [pwd,     setPwd]     = useState('');
   const [confirm, setConfirm] = useState('');
 
