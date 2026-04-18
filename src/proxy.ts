@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { getRedirectByRole } from '@/lib/role-redirect';
 
 // ─── Routes toujours accessibles (connecté ou non, jamais redirigé) ──────────
 
@@ -18,15 +19,6 @@ const ROLE_MODULES: Record<string, string[]> = {
   technicien:  ['/technicien'],
   chef_projet: ['/pilotage', '/chef-projet'],
   rh:          ['/pilotage', '/rh'],
-};
-
-// Module par défaut si accès refusé
-const ROLE_DEFAULT: Record<string, string> = {
-  dirigeant:   '/pilotage',
-  commercial:  '/commerce',
-  technicien:  '/technicien',
-  chef_projet: '/chef-projet',
-  rh:          '/pilotage',
 };
 
 // Tous les modules dashboard (pour détecter si la route est un module)
@@ -62,10 +54,25 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // Déjà connecté sur une page d'auth → redirige vers le dashboard
+  // Déjà connecté sur une page d'auth → redirige vers le module selon le rôle
   if (user && isAuthPath) {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => request.cookies.getAll(),
+          setAll: () => {},
+        },
+      },
+    );
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
     const url = request.nextUrl.clone();
-    url.pathname = '/pilotage';
+    url.pathname = getRedirectByRole(profile?.role ?? 'dirigeant');
     url.search   = '';
     return NextResponse.redirect(url);
   }
@@ -102,7 +109,7 @@ export async function middleware(request: NextRequest) {
 
     if (!isAllowed(role, pathname)) {
       const url = request.nextUrl.clone();
-      url.pathname = ROLE_DEFAULT[role] ?? '/pilotage';
+      url.pathname = getRedirectByRole(role);
       url.search   = '';
       return NextResponse.redirect(url);
     }

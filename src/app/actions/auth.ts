@@ -4,15 +4,15 @@ import { redirect } from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email';
 import { welcomeEmail } from '@/lib/email-templates';
+import { getRedirectByRole } from '@/lib/role-redirect';
 
 // ─── Connexion ────────────────────────────────────────────────────────────────
 export async function signIn(_: unknown, formData: FormData) {
   const email    = formData.get('email') as string;
   const password = formData.get('password') as string;
-  const next     = (formData.get('next') as string) || '/pilotage';
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     const isEmailNotConfirmed =
@@ -30,7 +30,18 @@ export async function signIn(_: unknown, formData: FormData) {
     return { error: 'Adresse email ou mot de passe incorrect.' };
   }
 
-  redirect(next);
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from('users')
+    .select('role, must_change_password')
+    .eq('id', data.user!.id)
+    .single();
+
+  if (profile?.must_change_password) {
+    redirect('/mon-compte/changer-mot-de-passe');
+  }
+
+  redirect(getRedirectByRole(profile?.role ?? 'dirigeant'));
 }
 
 // ─── Renvoi email de confirmation ─────────────────────────────────────────────
@@ -171,20 +182,13 @@ export async function changePasswordAction(_: unknown, formData: FormData) {
   const admin = createAdminClient();
   await admin.from('users').update({ must_change_password: false }).eq('id', user.id);
 
-  // Redirige vers la première page accessible selon le rôle
   const { data: profile } = await admin
     .from('users')
     .select('role')
     .eq('id', user.id)
     .single();
 
-  const roleHome: Record<string, string> = {
-    technicien:  '/technicien',
-    commercial:  '/commerce',
-    chef_projet: '/chef-projet',
-    rh:          '/rh',
-  };
-  redirect(roleHome[profile?.role ?? ''] ?? '/pilotage');
+  redirect(getRedirectByRole(profile?.role ?? 'dirigeant'));
 }
 
 // ─── Déconnexion ──────────────────────────────────────────────────────────────
