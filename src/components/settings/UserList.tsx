@@ -158,11 +158,19 @@ export function UserList({ users, companies, currentUserId, plan }: Props) {
     e.preventDefault();
     setInviteError('');
     startTransition(async () => {
-      const res = await inviteUserAction({
-        email: inviteEmail.trim(),
-        name:  inviteName.trim(),
-        role:  inviteRole,
-      });
+      let res: Awaited<ReturnType<typeof inviteUserAction>>;
+      try {
+        res = await inviteUserAction({
+          email: inviteEmail.trim(),
+          name:  inviteName.trim(),
+          role:  inviteRole,
+        });
+        console.log('[UI-DEBUG] inviteUserAction response:', res);
+      } catch (err: unknown) {
+        const e = err as Error;
+        console.log('[UI-DEBUG] inviteUserAction THREW:', e?.message, e?.stack);
+        throw err;
+      }
       if ('error' in res) { setInviteError(res.error ?? 'Erreur'); return; }
       setTempPwd(res.tempPassword ?? null);
       router.refresh();
