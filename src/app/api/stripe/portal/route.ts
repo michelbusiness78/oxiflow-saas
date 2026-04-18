@@ -22,7 +22,7 @@ export async function POST() {
     }
 
     const stripe  = getStripeServer();
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://oxiflow.fr';
 
     const session = await stripe.billingPortal.sessions.create({
       customer:   sc.stripe_customer_id,

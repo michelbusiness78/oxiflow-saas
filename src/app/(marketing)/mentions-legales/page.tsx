@@ -23,7 +23,7 @@ export default function MentionsLegalesPage() {
       <p>
         Conformément aux dispositions de la loi n°&nbsp;2004-575 du 21 juin 2004 pour la Confiance
         dans l&apos;Économie Numérique (LCEN), les informations suivantes sont mises à disposition
-        des utilisateurs du site <strong>oxiflow.fr</strong> et de l&apos;application <strong>app.oxiflow.fr</strong>.
+        des utilisateurs du site <strong>oxiflow.fr</strong> et de l&apos;application <strong>oxiflow.fr</strong>.
       </p>
 
       <h2>1. Éditeur du site</h2>
@@ -58,7 +58,7 @@ export default function MentionsLegalesPage() {
 
       <h2>4. Propriété intellectuelle</h2>
       <p>
-        Le site <strong>oxiflow.fr</strong>, l&apos;application <strong>app.oxiflow.fr</strong>,
+        Le site <strong>oxiflow.fr</strong>, l&apos;application <strong>oxiflow.fr</strong>,
         leur contenu (textes, graphismes, logo, icônes, code source) et la marque «&nbsp;OxiFlow&nbsp;»
         sont la propriété exclusive de <span className="placeholder">[À COMPLÉTER — raison sociale]</span>
         et protégés par le droit d&apos;auteur (Code de la propriété intellectuelle).

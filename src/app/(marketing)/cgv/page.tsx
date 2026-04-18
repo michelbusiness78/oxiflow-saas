@@ -29,7 +29,7 @@ export default function CgvPage() {
       </p>
       <p>
         OxiFlow est un logiciel de gestion PME en mode SaaS (Software as a Service) accessible depuis
-        l&apos;URL <strong>app.oxiflow.fr</strong>, permettant notamment la gestion commerciale (devis, factures),
+        l&apos;URL <strong>oxiflow.fr</strong>, permettant notamment la gestion commerciale (devis, factures),
         le pilotage d&apos;activité, la gestion d&apos;équipe et l&apos;assistance vocale par intelligence artificielle.
       </p>
 

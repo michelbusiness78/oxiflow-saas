@@ -4,7 +4,7 @@ import { updateSession } from '@/lib/supabase/middleware';
 
 // ─── Routes toujours accessibles (connecté ou non, jamais redirigé) ──────────
 
-const ALWAYS_PUBLIC = ['/', '/cgv', '/mentions-legales', '/confidentialite'];
+const ALWAYS_PUBLIC = ['/', '/cgv', '/mentions-legales', '/confidentialite', '/auth/callback'];
 
 // ─── Pages d'authentification (redirige vers /pilotage si déjà connecté) ─────
 

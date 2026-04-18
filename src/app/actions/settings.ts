@@ -4,6 +4,8 @@ import { translateSupabaseError } from '@/lib/error-messages';
 import { revalidatePath } from 'next/cache';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { ensureUserProfile } from '@/lib/ensure-profile';
+import { sendEmail } from '@/lib/email';
+import { collaboratorInviteEmail } from '@/lib/email-templates';
 
 const PATH = '/pilotage/parametres';
 
@@ -110,7 +112,7 @@ function generateTempPassword(): string {
 
 export async function inviteUserAction(input: InviteUserInput) {
   try {
-    const { admin, tenant_id } = await getDirigentContext();
+    const { admin, user: dirigeant, tenant_id } = await getDirigentContext();
     const tempPassword = generateTempPassword();
 
     // Crée le compte directement (email_confirm: true = skip confirmation email)
@@ -127,12 +129,13 @@ export async function inviteUserAction(input: InviteUserInput) {
     const { error: dbError } = await admin
       .from('users')
       .insert({
-        id:        authData.user.id,
+        id:                  authData.user.id,
         tenant_id,
-        email:     input.email,
-        name:      input.name,
-        role:      input.role,
-        status:    'active',
+        email:               input.email,
+        name:                input.name,
+        role:                input.role,
+        status:              'active',
+        must_change_password: true,
       });
     if (dbError) {
       // Rollback auth user si insert échoue
@@ -140,8 +143,28 @@ export async function inviteUserAction(input: InviteUserInput) {
       return { error: dbError.message };
     }
 
+    // Récupère le nom du dirigeant pour l'email d'invitation
+    const { data: dirigeantProfile } = await admin
+      .from('users')
+      .select('name')
+      .eq('id', dirigeant.id)
+      .single();
+    const dirigeantName = dirigeantProfile?.name ?? dirigeant.email ?? 'Votre responsable';
+
+    // Email d'invitation avec les credentials temporaires (non bloquant)
+    try {
+      const { subject, html } = collaboratorInviteEmail(
+        input.name,
+        input.email,
+        tempPassword,
+        dirigeantName,
+      );
+      await sendEmail(input.email, subject, html);
+    } catch (emailErr) {
+      console.error('[inviteUserAction] invitation email failed:', emailErr);
+    }
+
     revalidatePath(PATH);
-    // Le mot de passe temporaire est renvoyé pour que le dirigeant puisse le communiquer
     return { success: true, tempPassword };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur invitation' };

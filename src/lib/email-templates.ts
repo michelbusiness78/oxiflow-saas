@@ -1,6 +1,6 @@
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.oxiflow.fr';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://oxiflow.fr';
 
 function base(content: string): string {
   return `<!DOCTYPE html>
@@ -224,6 +224,64 @@ export function invoiceEmail(
 
   return {
     subject: 'Votre facture OxiFlow est disponible',
+    html,
+  };
+}
+
+export function collaboratorInviteEmail(
+  collaboratorName: string,
+  email: string,
+  tempPassword: string,
+  dirigeantName: string,
+): { subject: string; html: string } {
+  const html = base(`
+    ${h1(`Bienvenue sur OxiFlow\u00a0!`)}
+    ${p(`Bonjour ${collaboratorName},`)}
+    ${p(`<strong>${dirigeantName}</strong> vous a invit\u00e9(e) \u00e0 rejoindre son espace OxiFlow. Votre compte est pr\u00eat \u2014 voici vos identifiants de connexion.`)}
+
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+      style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;margin:20px 0;">
+      <tr>
+        <td style="padding:20px 24px;">
+          <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.5px;">
+            Vos identifiants temporaires
+          </p>
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+              <td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">
+                <span style="font-size:13px;color:#64748B;min-width:120px;display:inline-block;">Email</span>
+                <span style="font-size:14px;color:#1B2A4A;font-weight:600;">${email}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:10px 0 0;">
+                <span style="font-size:13px;color:#64748B;min-width:120px;display:inline-block;">Mot de passe</span>
+                <code style="font-size:16px;color:#1B2A4A;font-weight:700;background:#F1F5F9;padding:4px 10px;border-radius:6px;letter-spacing:1px;font-family:monospace;">${tempPassword}</code>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+      style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;margin:20px 0;">
+      <tr>
+        <td style="padding:14px 20px;">
+          <p style="margin:0;font-size:13px;color:#92400E;font-weight:600;">
+            &#128274; Pour votre s\u00e9curit\u00e9, vous devrez choisir un nouveau mot de passe d\u00e8s votre premi\u00e8re connexion.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton("Acc\u00e9der \u00e0 mon espace", `${SITE_URL}/login`)}
+    ${divider()}
+    ${p("<small style=\"color:#64748B;\">Si vous pensez avoir re\u00e7u cet email par erreur, vous pouvez l\u2019ignorer. Pour toute question, contactez votre responsable.</small>")}
+  `);
+
+  return {
+    subject: `${dirigeantName} vous invite sur OxiFlow \u2014 vos acc\u00e8s`,
     html,
   };
 }

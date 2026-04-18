@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
     const plan    = getPlanFromPriceId(priceId);
     const stripe  = getStripeServer();
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://oxiflow.fr';
 
     // Crée la session Checkout Stripe
     const session = await stripe.checkout.sessions.create({

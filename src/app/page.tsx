@@ -97,7 +97,7 @@ function DashboardMockup() {
           <div className="h-3 w-3 rounded-full bg-yellow-400/80" />
           <div className="h-3 w-3 rounded-full bg-green-400/80" />
           <div className="ml-3 flex-1 bg-slate-600 rounded-md px-3 py-1 text-[11px] text-slate-300 font-mono">
-            app.oxiflow.fr/pilotage
+            oxiflow.fr/pilotage
           </div>
         </div>
 

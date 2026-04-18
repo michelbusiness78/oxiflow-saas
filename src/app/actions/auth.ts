@@ -73,7 +73,7 @@ export async function signUp(_: unknown, formData: FormData) {
   }
 
   // 1. Créer le compte Supabase Auth
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.oxiflow.fr';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://oxiflow.fr';
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
@@ -139,7 +139,7 @@ export async function signUp(_: unknown, formData: FormData) {
 export async function forgotPassword(_: unknown, formData: FormData) {
   const email = formData.get('email') as string;
 
-  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.oxiflow.fr';
+  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL || 'https://oxiflow.fr';
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl}/reset-password`,
