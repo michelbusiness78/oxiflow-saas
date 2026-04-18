@@ -73,14 +73,14 @@ export async function signUp(_: unknown, formData: FormData) {
   }
 
   // 1. Créer le compte Supabase Auth
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://oxiflow-saas.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.oxiflow.fr';
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data:            { name },
-      emailRedirectTo: `${baseUrl}/pilotage`,
+      emailRedirectTo: `${baseUrl}/auth/callback`,
     },
   });
 
@@ -139,7 +139,7 @@ export async function signUp(_: unknown, formData: FormData) {
 export async function forgotPassword(_: unknown, formData: FormData) {
   const email = formData.get('email') as string;
 
-  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL || 'https://oxiflow-saas.vercel.app';
+  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.oxiflow.fr';
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl}/reset-password`,
@@ -150,6 +150,41 @@ export async function forgotPassword(_: unknown, formData: FormData) {
   }
 
   return { success: 'Un email de réinitialisation a été envoyé.' };
+}
+
+// ─── Changement de mot de passe obligatoire (première connexion) ──────────────
+export async function changePasswordAction(_: unknown, formData: FormData) {
+  const password = formData.get('password') as string;
+
+  if (!password || password.length < 8) {
+    return { error: 'Le mot de passe doit faire au moins 8 caractères.' };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Session expirée. Reconnectez-vous.' };
+
+  const { error: updateError } = await supabase.auth.updateUser({ password });
+  if (updateError) return { error: updateError.message };
+
+  // Efface le flag — accès admin pour bypass RLS
+  const admin = createAdminClient();
+  await admin.from('users').update({ must_change_password: false }).eq('id', user.id);
+
+  // Redirige vers la première page accessible selon le rôle
+  const { data: profile } = await admin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const roleHome: Record<string, string> = {
+    technicien:  '/technicien',
+    commercial:  '/commerce',
+    chef_projet: '/chef-projet',
+    rh:          '/rh',
+  };
+  redirect(roleHome[profile?.role ?? ''] ?? '/pilotage');
 }
 
 // ─── Déconnexion ──────────────────────────────────────────────────────────────
