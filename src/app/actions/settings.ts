@@ -14,11 +14,7 @@ const PATH = '/pilotage/parametres';
 async function getDirigentContext() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
-  console.log('[SETTINGS-DEBUG] getUser result — user.id:', user?.id, '| error:', error?.message ?? null);
-  if (error || !user) {
-    console.log('[SETTINGS-DEBUG] throw at line 18, reason: Non authentifié');
-    throw new Error('Non authentifié');
-  }
+  if (error || !user) throw new Error('Non authentifié');
 
   // Garantit l'existence du profil (crée si absent — ex: compte créé hors signup)
   await ensureUserProfile(user);
@@ -26,20 +22,13 @@ async function getDirigentContext() {
   // Admin client pour bypass RLS sur la table users
   const admin = await createAdminClient();
 
-  const { data: profile, error: profileError } = await admin
+  const { data: profile } = await admin
     .from('users')
     .select('tenant_id, role')
     .eq('id', user.id)
     .single();
-  console.log('[SETTINGS-DEBUG] profile query — role:', profile?.role, '| tenant_id:', profile?.tenant_id, '| profileError:', profileError?.message ?? null);
-  if (!profile) {
-    console.log('[SETTINGS-DEBUG] throw at line 31, reason: Profil introuvable');
-    throw new Error('Profil introuvable après création automatique');
-  }
-  if (profile.role !== 'dirigeant') {
-    console.log('[SETTINGS-DEBUG] throw at line 33, reason: role check failed — role in DB:', profile.role);
-    throw new Error('Accès refusé');
-  }
+  if (!profile) throw new Error('Profil introuvable après création automatique');
+  if (profile.role !== 'dirigeant') throw new Error('Seul le dirigeant peut inviter des utilisateurs.');
 
   return { supabase, admin, user, tenant_id: profile.tenant_id as string };
 }
@@ -134,7 +123,7 @@ export async function inviteUserAction(input: InviteUserInput) {
     ]);
     const planLimit = PLAN_LIMITS[tenantData?.plan ?? 'trial'] ?? 3;
     if ((userCount ?? 0) >= planLimit) {
-      return { error: `Limite du plan atteinte (${userCount}/${planLimit}). Passez à un plan supérieur pour ajouter des utilisateurs.` };
+      return { error: `Limite de votre plan atteinte (${userCount}/${planLimit} utilisateurs). Passez au plan supérieur pour inviter plus de membres.` };
     }
 
     const tempPassword = generateTempPassword();

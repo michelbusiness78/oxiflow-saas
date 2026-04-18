@@ -157,33 +157,23 @@ export function UserList({ users, companies, currentUserId, plan }: Props) {
   function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     setInviteError('');
-    const email = inviteEmail.trim();
-    const name  = inviteName.trim();
-    const role  = inviteRole;
     startTransition(async () => {
-      console.log('[DEBUG] Appel inviteUserAction avec:', { email, name, role });
-      let res;
       try {
-        res = await inviteUserAction({ email, name, role });
-        console.log('[DEBUG] Réponse brute:', res);
-      } catch (err: unknown) {
-        const e = err as Error & { name?: string };
-        console.log('[DEBUG] EXCEPTION catchée:', {
-          message: e?.message,
-          name:    e?.name,
-          stack:   e?.stack?.split('\n').slice(0, 3).join(' | '),
-          full:    err,
+        const res = await inviteUserAction({
+          email: inviteEmail.trim(),
+          name:  inviteName.trim(),
+          role:  inviteRole,
         });
-        alert('ERREUR RÉELLE: ' + (e?.message || JSON.stringify(err)));
-        return;
+        if ('error' in res) {
+          setInviteError(res.error || 'Erreur inconnue');
+          return;
+        }
+        setTempPwd(res.tempPassword ?? null);
+        router.refresh();
+      } catch (err: unknown) {
+        const e = err as Error;
+        setInviteError(e?.message || 'Erreur inattendue');
       }
-      console.log('[DEBUG] Succès ou erreur applicative:', res);
-      if (res && 'error' in res) {
-        alert('ERREUR APPLICATIVE: ' + JSON.stringify(res));
-      }
-      if (!res || 'error' in res) return;
-      setTempPwd(res.tempPassword ?? null);
-      router.refresh();
     });
   }
 
