@@ -110,9 +110,22 @@ function generateTempPassword(): string {
   return pwd;
 }
 
+const PLAN_LIMITS: Record<string, number> = { trial: 3, solo: 1, team: 5, pro: 15 };
+
 export async function inviteUserAction(input: InviteUserInput) {
   try {
     const { admin, user: dirigeant, tenant_id } = await getDirigentContext();
+
+    // Vérifie la limite du plan avant de créer l'utilisateur
+    const [{ count: userCount }, { data: tenantData }] = await Promise.all([
+      admin.from('users').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant_id),
+      admin.from('tenants').select('plan').eq('id', tenant_id).single(),
+    ]);
+    const planLimit = PLAN_LIMITS[tenantData?.plan ?? 'trial'] ?? 3;
+    if ((userCount ?? 0) >= planLimit) {
+      return { error: `Limite du plan atteinte (${userCount}/${planLimit}). Passez à un plan supérieur pour ajouter des utilisateurs.` };
+    }
+
     const tempPassword = generateTempPassword();
 
     // Crée le compte directement (email_confirm: true = skip confirmation email)

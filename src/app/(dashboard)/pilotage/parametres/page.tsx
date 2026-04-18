@@ -31,7 +31,7 @@ export default async function ParametresPage() {
 
   // ── Données parallèles ───────────────────────────────────────────────────────
   const [tenantRes, tenantUsers, companiesRaw, objectives, usageRes, subscriptionRes] = await Promise.all([
-    admin.from('tenants').select('id, name, email').eq('id', tenantId).single(),
+    admin.from('tenants').select('id, name, email, plan, plan_debut, plan_fin').eq('id', tenantId).single(),
     getTenantUsers(tenantId),
     getCompanies(tenantId),
     getCompanyObjectives(tenantId, currentYear),
