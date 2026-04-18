@@ -3,13 +3,21 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 import { getRedirectByRole } from '@/lib/role-redirect';
 
-// ─── Routes toujours accessibles (connecté ou non, jamais redirigé) ──────────
+// ─── Routes toujours accessibles (connecté ou non, jamais redirigées) ────────
+// /register ici (pas dans AUTH_PATHS) pour que l'écran "Vérifiez votre mail"
+// reste visible même si signUp crée une session avant la confirmation email.
 
-const ALWAYS_PUBLIC = ['/', '/cgv', '/mentions-legales', '/confidentialite', '/auth/callback'];
+const ALWAYS_PUBLIC = [
+  '/',
+  '/cgv', '/mentions-legales', '/confidentialite',
+  '/auth/callback',
+  '/register',       // écran de confirmation email inline
+  '/reset-password', // accessible depuis le lien email sans session
+];
 
-// ─── Pages d'authentification (redirige vers /pilotage si déjà connecté) ─────
+// ─── Pages d'auth (accessibles sans session, redirige si déjà connecté) ──────
 
-const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/setup-password'];
+const AUTH_PATHS = ['/login', '/forgot-password', '/setup-password'];
 
 // ─── Accès par rôle ───────────────────────────────────────────────────────────
 
