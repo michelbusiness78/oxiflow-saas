@@ -13,6 +13,13 @@ export default function ChangerMotDePassePage() {
   const [state, action] = useFormState(changePasswordAction, null);
   const [pwd,     setPwd]     = useState('');
   const [confirm, setConfirm] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(formData: FormData) {
+    setPending(true);
+    await action(formData);
+    setPending(false);
+  }
 
   const mismatch    = confirm.length > 0 && pwd !== confirm;
   const submitReady = !pending && !mismatch && pwd.length >= 8 && confirm.length > 0;
@@ -48,7 +55,7 @@ export default function ChangerMotDePassePage() {
             Pour la sécurité de votre compte, vous devez définir un mot de passe personnel avant de continuer.
           </p>
 
-          <form action={action} className="space-y-4">
+          <form action={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="password" className="block text-sm font-medium text-oxi-text">
                 Nouveau mot de passe
