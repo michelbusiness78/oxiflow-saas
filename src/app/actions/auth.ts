@@ -146,10 +146,10 @@ export async function signUp(_: unknown, formData: FormData) {
 export async function forgotPassword(_: unknown, formData: FormData) {
   const email = formData.get('email') as string;
 
-  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL || 'https://oxiflow.fr';
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL || 'https://oxiflow.fr';
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/reset-password`,
+    redirectTo: `${appUrl}/reset-password`,
   });
 
   if (error) {
