@@ -130,32 +130,51 @@ export async function uploadCompanyLogoAction(
   companyId: string,
 ): Promise<{ success?: true; logo_url?: string; error?: string }> {
   try {
+    console.log('[LOGO-UPLOAD] step: entrée — companyId:', companyId);
+
     const { admin, tenant_id } = await getAuthContext();
     const file = formData.get('file') as File | null;
+
+    console.log('[LOGO-UPLOAD] step: fichier reçu —', file ? `${file.name} (${file.size} bytes, ${file.type})` : 'MANQUANT');
     if (!file) return { error: 'Fichier manquant' };
 
     const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'png';
     const path = `${tenant_id}/${companyId}.${ext}`;
 
+    console.log('[LOGO-UPLOAD] step: avant upload Storage — path:', path);
     const { error: uploadError } = await admin.storage
       .from('logos')
       .upload(path, file, { upsert: true, contentType: file.type });
-    if (uploadError) return { error: uploadError.message };
+
+    if (uploadError) {
+      console.log('[LOGO-UPLOAD] step: ERREUR Storage —', uploadError.message);
+      return { error: uploadError.message };
+    }
+    console.log('[LOGO-UPLOAD] step: upload Storage OK');
 
     const { data: { publicUrl } } = admin.storage
       .from('logos')
       .getPublicUrl(path);
 
     const logo_url = `${publicUrl}?t=${Date.now()}`;
+    console.log('[LOGO-UPLOAD] step: avant update DB — logo_url:', logo_url);
+
     const { error: updateError } = await admin
       .from('companies')
       .update({ logo_url })
       .eq('id', companyId);
 
-    if (updateError) return { error: updateError.message };
+    if (updateError) {
+      console.log('[LOGO-UPLOAD] step: ERREUR update DB —', updateError.message);
+      return { error: updateError.message };
+    }
+    console.log('[LOGO-UPLOAD] step: update DB OK — logo_url persisté en base');
+
     revalidatePath(PATH);
+    console.log('[LOGO-UPLOAD] step: retour success — logo_url:', logo_url);
     return { success: true, logo_url };
   } catch (e) {
+    console.log('[LOGO-UPLOAD] step: EXCEPTION —', e instanceof Error ? e.message : String(e));
     return { error: e instanceof Error ? e.message : 'Erreur upload' };
   }
 }

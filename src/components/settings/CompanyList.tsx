@@ -143,19 +143,23 @@ export function CompanyList({ companies, objectives }: Props) {
     if (!form.name.trim()) { setFormError('Le nom est obligatoire.'); return; }
     setSaving(true);
 
+    // Capture logo_url dans une variable locale pour éviter le stale closure React
+    let finalLogoUrl = form.logo_url;
+
     // Upload logo if pending (only for existing companies)
     if (pendingLogo && editing) {
       const fd = new FormData();
       fd.append('file', pendingLogo);
       const uploadRes = await uploadCompanyLogoAction(fd, editing.id);
       if (uploadRes.error) { setFormError(uploadRes.error); setSaving(false); return; }
-      if (uploadRes.logo_url) setForm((f) => ({ ...f, logo_url: uploadRes.logo_url! }));
+      if (uploadRes.logo_url) {
+        finalLogoUrl = uploadRes.logo_url;
+        setForm((f) => ({ ...f, logo_url: uploadRes.logo_url! }));
+      }
     }
 
     const res = await saveCompany(
-      pendingLogo && editing
-        ? { ...form, logo_url: form.logo_url }
-        : form,
+      { ...form, logo_url: finalLogoUrl },
       editing?.id,
     );
     setSaving(false);
