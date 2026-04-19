@@ -11,6 +11,7 @@ const ALWAYS_PUBLIC = [
   '/',
   '/cgv', '/mentions-legales', '/confidentialite',
   '/auth/callback',
+  '/auth/confirm',
   '/register',       // écran de confirmation email inline
   '/reset-password', // accessible depuis le lien email sans session
 ];
