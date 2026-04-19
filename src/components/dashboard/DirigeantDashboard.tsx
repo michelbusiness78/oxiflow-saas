@@ -86,7 +86,7 @@ interface Props {
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export function DirigeantDashboard({ data, personalTasks, userId, tenantId }: Props) {
-  const { userName, kpis, meteoSocietes, caGlobalMois, meteoGlobal, sav, apiUsage, priorites, alertes } = data;
+  const { userName, kpis, meteoSocietes, caGlobalMois, meteoGlobal, sav, priorites, alertes } = data;
 
   const prenom = userName.split(' ')[0] || userName;
   const today  = new Intl.DateTimeFormat('fr-FR', {
@@ -94,18 +94,8 @@ export function DirigeantDashboard({ data, personalTasks, userId, tenantId }: Pr
   }).format(new Date());
   const moisLabel = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date());
 
-  const apiPct = apiUsage.tokenMax > 0
-    ? Math.min(100, Math.round((apiUsage.tokensUsed / apiUsage.tokenMax) * 100))
-    : 0;
-  const reqPct = apiUsage.quota > 0
-    ? Math.min(100, Math.round((apiUsage.requests / apiUsage.quota) * 100))
-    : 0;
-
   const redAlertes    = alertes.filter((a) => a.severity === 'red');
   const orangeAlertes = alertes.filter((a) => a.severity === 'orange');
-
-  // Sociétés avec objectif annuel défini (pour la section Objectifs)
-  const societeAvecObjectif = meteoSocietes.filter((s) => s.objAnnuel && s.objAnnuel > 0);
 
   return (
     <div className="space-y-6">
@@ -300,51 +290,7 @@ export function DirigeantDashboard({ data, personalTasks, userId, tenantId }: Pr
         />
       </div>
 
-      {/* ── 6. Objectifs du mois ────────────────────────────────────────────── */}
-      {societeAvecObjectif.length > 0 && (
-        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
-          style={{ boxShadow: 'var(--shadow)' }}>
-          <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
-            Objectifs annuels
-          </p>
-          <div className="space-y-4">
-            {societeAvecObjectif.map((s) => {
-              const pctAnn = s.pctAnnuel ?? 0;
-              return (
-                <a key={s.id} href={`/commerce?tab=factures&company=${s.id}`}
-                  className="block rounded-lg px-1 py-1 -mx-1 transition-colors hover:bg-[var(--bg)] cursor-pointer">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                      <span className="text-sm font-semibold text-[var(--text)]">{s.nom}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="font-mono text-[var(--text3)]">
-                        {fmtEur(s.caAnnuel)} / {fmtEur(s.objAnnuel!)}
-                      </span>
-                      <span className={`font-bold ${pctAnn >= 80 ? 'text-green-600' : pctAnn >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                        {pctAnn} %
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-[var(--bg4)] overflow-hidden">
-                    <div className="h-full rounded-full transition-all"
-                      style={{ width: `${Math.min(100, pctAnn)}%`, backgroundColor: s.color }} />
-                  </div>
-                  {/* Objectif mensuel */}
-                  {s.objectif && s.objectif > 0 && s.pct !== null && (
-                    <p className="mt-1 text-[10px] text-[var(--text3)]">
-                      Ce mois : {fmtEur(s.caNet)} / {fmtEur(s.objectif)} ({s.pct} %)
-                    </p>
-                  )}
-                </a>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── 7. SAV ──────────────────────────────────────────────────────────── */}
+      {/* ── 6. SAV ──────────────────────────────────────────────────────────── */}
       <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
         style={{ boxShadow: 'var(--shadow)' }}>
         <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
@@ -407,44 +353,6 @@ export function DirigeantDashboard({ data, personalTasks, userId, tenantId }: Pr
             )}
           </div>
         )}
-      </div>
-
-      {/* ── 8. Usage Agent Vocal ────────────────────────────────────────────── */}
-      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
-        style={{ boxShadow: 'var(--shadow)' }}>
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text2)]">
-          🔑 Usage Agent Vocal — {moisLabel}
-        </p>
-
-        {/* Tokens */}
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-bold text-[var(--text2)]">Tokens</span>
-            <span className="text-xs text-[var(--text3)]">
-              {apiUsage.tokensUsed.toLocaleString('fr-FR')} / {(apiUsage.tokenMax / 1000).toFixed(0)}k
-            </span>
-          </div>
-          <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${apiPct >= 90 ? 'bg-red-500' : apiPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'}`}
-              style={{ width: `${apiPct}%` }} />
-          </div>
-          <p className="mt-1 text-[10px] text-[var(--text3)]">{apiPct} % du quota mensuel</p>
-        </div>
-
-        {/* Requêtes */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-bold text-[var(--text2)]">Requêtes</span>
-            <span className="text-xs text-[var(--text3)]">
-              {apiUsage.requests.toLocaleString('fr-FR')} / {apiUsage.quota.toLocaleString('fr-FR')}
-            </span>
-          </div>
-          <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${reqPct >= 90 ? 'bg-red-500' : reqPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'}`}
-              style={{ width: `${reqPct}%` }} />
-          </div>
-          <p className="mt-1 text-[10px] text-[var(--text3)]">{reqPct} % du quota requêtes</p>
-        </div>
       </div>
 
     </div>
