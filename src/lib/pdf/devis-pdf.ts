@@ -173,11 +173,11 @@ export async function buildDevisPdf(
     yR += 4;
 
     const clLines: string[] = [client.nom as string];
-    const clAddr = [client.adresse, client.cp, client.ville]
-      .filter(Boolean).join(' ');
-    if (clAddr)       clLines.push(clAddr as string);
-    if (client.tel)   clLines.push(client.tel  as string);
-    if (client.email) clLines.push(client.email as string);
+    if (client.adresse) clLines.push(client.adresse as string);
+    const cpVille = [client.cp, client.ville].filter(Boolean).join(' ');
+    if (cpVille)        clLines.push(cpVille);
+    if (client.tel)     clLines.push(client.tel   as string);
+    if (client.email)   clLines.push(client.email as string);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
