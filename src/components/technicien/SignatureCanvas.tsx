@@ -25,16 +25,17 @@ function getCanvasPos(canvas: HTMLCanvasElement, clientX: number, clientY: numbe
   return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
 }
 
-// Vérifie si tous les pixels sont transparents (canvas vierge).
-// Plus fiable que hasDrawn.current sur mobile car lit le contenu réel.
+// Compare toDataURL avec un canvas vierge de même taille.
+// Plus fiable que getImageData sur iOS Safari (évite les problèmes de sync GPU).
 function isCanvasBlank(canvas: HTMLCanvasElement): boolean {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return true;
-  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] !== 0) return false;
+  try {
+    const blank = document.createElement('canvas');
+    blank.width  = canvas.width;
+    blank.height = canvas.height;
+    return canvas.toDataURL('image/png') === blank.toDataURL('image/png');
+  } catch {
+    return false; // en cas d'erreur, on ne bloque pas la validation
   }
-  return true;
 }
 
 // ── Composant ─────────────────────────────────────────────────────────────────
@@ -142,12 +143,16 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
       },
       getDataURL: () => {
         const canvas = canvasRef.current;
-        if (!canvas || isCanvasBlank(canvas)) return null;
+        if (!canvas) return null;
+        // Retourne null seulement si LES DEUX checks s'accordent sur "vide" :
+        // hasDrawn.current peut manquer sur mobile ; isCanvasBlank lit les pixels réels.
+        if (!hasDrawn.current && isCanvasBlank(canvas)) return null;
         return canvas.toDataURL('image/png');
       },
       isEmpty: () => {
         const canvas = canvasRef.current;
-        return !canvas || isCanvasBlank(canvas);
+        if (!canvas) return true;
+        return !hasDrawn.current && isCanvasBlank(canvas);
       },
     }));
 
