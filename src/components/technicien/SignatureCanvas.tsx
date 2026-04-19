@@ -25,13 +25,28 @@ function getCanvasPos(canvas: HTMLCanvasElement, clientX: number, clientY: numbe
   return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
 }
 
+// Vérifie si tous les pixels sont transparents (canvas vierge).
+// Plus fiable que hasDrawn.current sur mobile car lit le contenu réel.
+function isCanvasBlank(canvas: HTMLCanvasElement): boolean {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return true;
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] !== 0) return false;
+  }
+  return true;
+}
+
 // ── Composant ─────────────────────────────────────────────────────────────────
 
 export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
   function SignatureCanvas({ readonly = false, existingData, onBegin }, ref) {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const isDrawing = useRef(false);
-    const hasDrawn  = useRef(false);
+    const canvasRef  = useRef<HTMLCanvasElement>(null);
+    const isDrawing  = useRef(false);
+    const hasDrawn   = useRef(false);
+    // Ref stable pour onBegin — évite de recréer startDraw à chaque render parent
+    const onBeginRef = useRef(onBegin);
+    useEffect(() => { onBeginRef.current = onBegin; }, [onBegin]);
 
     // Charger une signature existante
     useEffect(() => {
@@ -54,7 +69,7 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      if (!hasDrawn.current) onBegin?.();
+      if (!hasDrawn.current) onBeginRef.current?.();
       isDrawing.current = true;
       // Dessine un point au démarrage pour les traits très courts (tap mobile)
       ctx.strokeStyle = '#1e293b';
@@ -67,7 +82,7 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
       ctx.beginPath();
       ctx.moveTo(x, y);
       hasDrawn.current = true;
-    }, [readonly, onBegin]);
+    }, [readonly]);
 
     const draw = useCallback((x: number, y: number) => {
       if (!isDrawing.current || readonly) return;
@@ -126,10 +141,14 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
         hasDrawn.current = false;
       },
       getDataURL: () => {
-        if (!hasDrawn.current) return null;
-        return canvasRef.current?.toDataURL('image/png') ?? null;
+        const canvas = canvasRef.current;
+        if (!canvas || isCanvasBlank(canvas)) return null;
+        return canvas.toDataURL('image/png');
       },
-      isEmpty: () => !hasDrawn.current,
+      isEmpty: () => {
+        const canvas = canvasRef.current;
+        return !canvas || isCanvasBlank(canvas);
+      },
     }));
 
     return (
