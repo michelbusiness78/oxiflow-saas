@@ -119,9 +119,9 @@ export async function buildDevisPdf(
 
     const coLines: string[] = [];
     if (logoH > 0 && logoUrl) coLines.push(coName);
-    const addr = [company.address, company.postal_code, company.city]
-      .filter(Boolean).join(' ');
-    if (addr)               coLines.push(addr as string);
+    if (company.address)    coLines.push(company.address as string);
+    const coCity = [company.postal_code, company.city].filter(Boolean).join(' ');
+    if (coCity)             coLines.push(coCity);
     if (company.phone)      coLines.push(company.phone as string);
     if (company.email)      coLines.push(company.email as string);
     if (company.siret)      coLines.push(`SIRET : ${company.siret}`);
