@@ -439,9 +439,12 @@ export function InterventionDetailPanel({
   }
 
   async function handleValidateSignature() {
-    console.log('[Signature] Validate clicked');
+    console.log('[SIG-DEBUG] === Clic Valider ===');
+    console.log('[SIG-DEBUG] canvasRef.current =', canvasRef.current);
+    console.log('[SIG-DEBUG] isEmpty() =', canvasRef.current?.isEmpty());
     const data = canvasRef.current?.getDataURL();
-    console.log('[Signature] Canvas data length:', data?.length ?? 0);
+    console.log('[SIG-DEBUG] getDataURL() length =', data?.length ?? 0);
+    console.log('[SIG-DEBUG] getDataURL() start =', data?.substring(0, 80) ?? 'NULL');
     if (!data) { setError('Veuillez signer dans le cadre avant de valider.'); return; }
     if (!signerName.trim()) { setError('Veuillez saisir le nom du signataire.'); return; }
     setIsSigningSaving(true);

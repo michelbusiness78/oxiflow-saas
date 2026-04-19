@@ -70,6 +70,7 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+      console.log('[SIG-DEBUG] startDraw x=', Math.round(x), 'y=', Math.round(y), '| hasDrawn was', hasDrawn.current);
       if (!hasDrawn.current) onBeginRef.current?.();
       isDrawing.current = true;
       // Dessine un point au démarrage pour les traits très courts (tap mobile)
@@ -111,7 +112,7 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
       const onMouseMove = (e: MouseEvent) => { const p = getCanvasPos(canvas, e.clientX, e.clientY); draw(p.x, p.y); };
       const onMouseUp   = () => endDraw();
 
-      const onTouchStart = (e: TouchEvent) => { e.preventDefault(); const t = e.touches[0]; const p = getCanvasPos(canvas, t.clientX, t.clientY); startDraw(p.x, p.y); };
+      const onTouchStart = (e: TouchEvent) => { console.log('[SIG-DEBUG] touchstart', e.touches.length, 'touch(es)'); e.preventDefault(); const t = e.touches[0]; const p = getCanvasPos(canvas, t.clientX, t.clientY); startDraw(p.x, p.y); };
       const onTouchMove  = (e: TouchEvent) => { e.preventDefault(); const t = e.touches[0]; const p = getCanvasPos(canvas, t.clientX, t.clientY); draw(p.x, p.y); };
       const onTouchEnd   = (e: TouchEvent) => { e.preventDefault(); endDraw(); };
 
@@ -143,16 +144,26 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
       },
       getDataURL: () => {
         const canvas = canvasRef.current;
+        console.log('[SIG-DEBUG] getDataURL — canvas =', canvas, 'hasDrawn =', hasDrawn.current);
         if (!canvas) return null;
-        // Retourne null seulement si LES DEUX checks s'accordent sur "vide" :
-        // hasDrawn.current peut manquer sur mobile ; isCanvasBlank lit les pixels réels.
-        if (!hasDrawn.current && isCanvasBlank(canvas)) return null;
-        return canvas.toDataURL('image/png');
+        const blank    = document.createElement('canvas');
+        blank.width    = canvas.width;
+        blank.height   = canvas.height;
+        const canvasUrl = canvas.toDataURL('image/png');
+        const blankUrl  = blank.toDataURL('image/png');
+        const pixelBlank = canvasUrl === blankUrl;
+        console.log('[SIG-DEBUG] canvas', canvas.width, 'x', canvas.height,
+          '| dataURL len:', canvasUrl.length, '| blank len:', blankUrl.length,
+          '| pixelBlank:', pixelBlank, '| hasDrawn:', hasDrawn.current);
+        if (!hasDrawn.current && pixelBlank) return null;
+        return canvasUrl;
       },
       isEmpty: () => {
         const canvas = canvasRef.current;
         if (!canvas) return true;
-        return !hasDrawn.current && isCanvasBlank(canvas);
+        const blank = document.createElement('canvas');
+        blank.width = canvas.width; blank.height = canvas.height;
+        return !hasDrawn.current && canvas.toDataURL('image/png') === blank.toDataURL('image/png');
       },
     }));
 
