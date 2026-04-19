@@ -528,7 +528,9 @@ export function InterventionForm({ open, onClose, clients, catalogue, editing, c
           ) : !isTerminee ? (
             showSig ? (
               <div className="space-y-2">
-                <SignatureCanvas ref={canvasSigRef} />
+                <div style={{ touchAction: 'none' }}>
+                  <SignatureCanvas ref={canvasSigRef} />
+                </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setShowSig(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors">Annuler</button>
                   <button type="button" onClick={() => canvasSigRef.current?.clear()} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors">Effacer</button>

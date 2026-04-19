@@ -13,6 +13,7 @@ export interface SignatureCanvasHandle {
 interface Props {
   readonly?:     boolean;
   existingData?: string | null;
+  onBegin?:      () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -27,7 +28,7 @@ function getCanvasPos(canvas: HTMLCanvasElement, clientX: number, clientY: numbe
 // ── Composant ─────────────────────────────────────────────────────────────────
 
 export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
-  function SignatureCanvas({ readonly = false, existingData }, ref) {
+  function SignatureCanvas({ readonly = false, existingData, onBegin }, ref) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isDrawing = useRef(false);
     const hasDrawn  = useRef(false);
@@ -53,6 +54,7 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+      if (!hasDrawn.current) onBegin?.();
       isDrawing.current = true;
       // Dessine un point au démarrage pour les traits très courts (tap mobile)
       ctx.strokeStyle = '#1e293b';
@@ -65,7 +67,7 @@ export const SignatureCanvas = forwardRef<SignatureCanvasHandle, Props>(
       ctx.beginPath();
       ctx.moveTo(x, y);
       hasDrawn.current = true;
-    }, [readonly]);
+    }, [readonly, onBegin]);
 
     const draw = useCallback((x: number, y: number) => {
       if (!isDrawing.current || readonly) return;

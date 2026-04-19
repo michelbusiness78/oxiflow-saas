@@ -186,6 +186,7 @@ export function InterventionDetailPanel({
   const [signatureData,      setSignatureData]  = useState<string | null>(null);
   const [signatureDate,      setSignatureDate]  = useState<string | null>(null);
   const [isSigningSaving,    setIsSigningSaving] = useState(false);
+  const [sigPlaceholder,     setSigPlaceholder] = useState(true);
 
   // Photos
   const [localPhotos,      setLocalPhotos]      = useState<PhotoEntry[]>([]);
@@ -245,6 +246,7 @@ export function InterventionDetailPanel({
     setSignatureData(iv.signature_data ?? null);
     setSignatureDate(iv.signature_date ?? null);
     setSignatureValidated(hasSig);
+    setSigPlaceholder(!hasSig);
 
     // Chrono
     if (iv.status === 'en_cours' && iv.hour_start) {
@@ -1021,11 +1023,22 @@ export function InterventionDetailPanel({
                 Signature client
               </label>
 
-              <SignatureCanvas
-                ref={canvasRef}
-                readonly={signatureValidated}
-                existingData={signatureData}
-              />
+              <div className="relative" style={{ touchAction: 'none' }}>
+                <SignatureCanvas
+                  ref={canvasRef}
+                  readonly={signatureValidated}
+                  existingData={signatureData}
+                  onBegin={() => setSigPlaceholder(false)}
+                />
+                {sigPlaceholder && !signatureValidated && (
+                  <div
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                    style={{ touchAction: 'none' }}
+                  >
+                    <span className="select-none text-sm text-slate-400">✍ Signez ici</span>
+                  </div>
+                )}
+              </div>
 
               {!signatureValidated ? (
                 <div className="space-y-2 pt-1">
@@ -1037,7 +1050,7 @@ export function InterventionDetailPanel({
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => canvasRef.current?.clear()}
+                      onClick={() => { canvasRef.current?.clear(); setSigPlaceholder(true); }}
                       className="min-h-[48px] rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
                     >
                       🗑 Effacer
