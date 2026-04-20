@@ -22,11 +22,14 @@ const AUTH_PATHS = ['/login', '/forgot-password', '/setup-password'];
 
 // ─── Accès par rôle ───────────────────────────────────────────────────────────
 
+// ⚠️ IMPORTANT : cette liste doit rester synchronisée avec
+// l'autre fichier (layout.tsx). Si tu ajoutes un module à un rôle
+// ici, fais la même modif dans layout.tsx (et vice-versa).
 const ROLE_MODULES: Record<string, string[]> = {
   dirigeant:   ['/pilotage', '/commerce', '/technicien', '/chef-projet', '/rh'],
-  commercial:  ['/pilotage', '/commerce'],
-  technicien:  ['/technicien'],
-  chef_projet: ['/pilotage', '/chef-projet'],
+  commercial:  ['/pilotage', '/commerce', '/rh'],
+  technicien:  ['/technicien', '/rh'],
+  chef_projet: ['/pilotage', '/chef-projet', '/rh'],
   rh:          ['/pilotage', '/rh'],
 };
 

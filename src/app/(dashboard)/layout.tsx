@@ -6,7 +6,9 @@ import { ensureUserProfile } from '@/lib/ensure-profile';
 import { getProjectNotifications } from '@/app/actions/projects';
 import { getCompanies } from '@/app/actions/companies';
 
-// Modules autorisés par rôle (en sync avec proxy.ts)
+// ⚠️ IMPORTANT : cette liste doit rester synchronisée avec
+// l'autre fichier (proxy.ts). Si tu ajoutes un module à un rôle
+// ici, fais la même modif dans proxy.ts (et vice-versa).
 const ROLE_MODULES: Record<string, string[]> = {
   dirigeant:   ['/pilotage', '/commerce', '/technicien', '/chef-projet', '/rh'],
   commercial:  ['/pilotage', '/commerce', '/rh'],
