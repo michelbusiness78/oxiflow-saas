@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { NoteFraisForm } from './NoteFraisForm';
-import { changeNoteFraisStatutAction, deleteNoteFraisAction } from '@/app/actions/rh';
+import { changeNoteFraisStatutAction, deleteNoteFraisAction, soumettreNdfBrouillonAction } from '@/app/actions/rh';
 import { fmtDate, fmtEur } from '@/lib/format';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ export interface NoteFrais {
   categorie:        'transport' | 'repas' | 'hebergement' | 'fournitures' | 'autre';
   description:      string | null;
   justificatif_url: string | null;
-  statut:           'soumise' | 'approuvee' | 'remboursee' | 'refusee';
+  statut:           'brouillon' | 'soumise' | 'approuvee' | 'remboursee' | 'refusee';
   created_at:       string;
 }
 
@@ -46,15 +46,17 @@ const CAT_ICONS: Record<NoteFrais['categorie'], string> = {
   autre:       '📄',
 };
 
-function statutVariant(s: NoteFrais['statut']): 'warning' | 'success' | 'info' | 'danger' {
-  if (s === 'soumise')   return 'warning';
-  if (s === 'approuvee') return 'info';
+function statutVariant(s: NoteFrais['statut']): 'default' | 'warning' | 'success' | 'info' | 'danger' {
+  if (s === 'brouillon')  return 'default';
+  if (s === 'soumise')    return 'warning';
+  if (s === 'approuvee')  return 'info';
   if (s === 'remboursee') return 'success';
   return 'danger';
 }
 
 function statutLabel(s: NoteFrais['statut']) {
   const map: Record<NoteFrais['statut'], string> = {
+    brouillon:  'Brouillon',
     soumise:    'Soumise',
     approuvee:  'Approuvée',
     remboursee: 'Remboursée',
@@ -212,8 +214,23 @@ export function NoteFraisList({ notes, isManager, userId }: Props) {
                           Remboursée
                         </button>
                       )}
+                      {/* Soumettre brouillon */}
+                      {n.user_id === userId && n.statut === 'brouillon' && (
+                        <button
+                          onClick={() => {
+                            setError('');
+                            startTransition(async () => {
+                              const res = await soumettreNdfBrouillonAction(n.id);
+                              if (res && 'error' in res && res.error) setError(res.error);
+                            });
+                          }}
+                          className="rounded-md bg-[#EDE9FE] px-2 py-1 text-xs font-medium text-[#7C3AED] hover:opacity-80 transition-opacity"
+                        >
+                          Soumettre
+                        </button>
+                      )}
                       {/* Suppression propre */}
-                      {n.user_id === userId && n.statut === 'soumise' && (
+                      {n.user_id === userId && (n.statut === 'soumise' || n.statut === 'brouillon') && (
                         <button
                           onClick={() => { setError(''); setDeleteId(n.id); }}
                           className="rounded-md p-1.5 text-slate-400 hover:bg-oxi-danger-light hover:text-oxi-danger transition-colors"

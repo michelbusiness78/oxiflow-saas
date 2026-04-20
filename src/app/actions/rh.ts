@@ -124,7 +124,30 @@ export async function deleteNoteFraisAction(id: string) {
     .delete()
     .eq('id', id)
     .eq('user_id', user.id)
-    .eq('statut', 'soumise');
+    .in('statut', ['soumise', 'brouillon']);
+
+  if (error) return { error: translateSupabaseError(error.message) };
+  revalidatePath(PATH);
+  return {};
+}
+
+export async function soumettreNdfBrouillonAction(id: string) {
+  const { admin, user } = await getAuthContext();
+
+  const { data: ndf, error: fetchError } = await admin
+    .from('notes_frais')
+    .select('id, user_id, statut')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !ndf) return { error: 'Note de frais introuvable.' };
+  if (ndf.user_id !== user.id) return { error: 'Vous ne pouvez soumettre que vos propres notes de frais.' };
+  if (ndf.statut !== 'brouillon') return { error: "Cette note n'est pas un brouillon." };
+
+  const { error } = await admin
+    .from('notes_frais')
+    .update({ statut: 'soumise' })
+    .eq('id', id);
 
   if (error) return { error: translateSupabaseError(error.message) };
   revalidatePath(PATH);

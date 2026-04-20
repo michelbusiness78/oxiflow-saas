@@ -9,9 +9,9 @@ import { getCompanies } from '@/app/actions/companies';
 // Modules autorisés par rôle (en sync avec proxy.ts)
 const ROLE_MODULES: Record<string, string[]> = {
   dirigeant:   ['/pilotage', '/commerce', '/technicien', '/chef-projet', '/rh'],
-  commercial:  ['/pilotage', '/commerce'],
-  technicien:  ['/technicien'],
-  chef_projet: ['/pilotage', '/chef-projet'],
+  commercial:  ['/pilotage', '/commerce', '/rh'],
+  technicien:  ['/technicien', '/rh'],
+  chef_projet: ['/pilotage', '/chef-projet', '/rh'],
   rh:          ['/pilotage', '/rh'],
 };
 
