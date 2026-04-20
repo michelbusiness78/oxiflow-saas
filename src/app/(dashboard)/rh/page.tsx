@@ -10,18 +10,20 @@ import { Soldes, type SoldeUser, type Mouvement } from '@/components/rh/Soldes';
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
-async function fetchRhData(userId: string, isManager: boolean) {
-  const supabase = await createClient();
+async function fetchRhData(userId: string, tenantId: string, isManager: boolean) {
+  const admin = createAdminClient();
 
-  // Base queries — manager voit tout, employé voit ses propres données
-  const congesQuery = supabase
+  // createAdminClient bypass RLS — on filtre explicitement par tenant_id
+  const congesQuery = admin
     .from('conges')
     .select('id, user_id, type, date_debut, date_fin, nb_jours, commentaire, statut, created_at, users(name)')
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
 
-  const notesQuery = supabase
+  const notesQuery = admin
     .from('notes_frais')
     .select('id, user_id, date, montant, categorie, description, justificatif_url, statut, created_at, users(name)')
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
 
   if (!isManager) {
@@ -29,31 +31,23 @@ async function fetchRhData(userId: string, isManager: boolean) {
     notesQuery.eq('user_id', userId);
   }
 
+  const mouvQuery = admin
+    .from('mouvements_soldes')
+    .select('id, user_id, type, delta, motif, created_at, users(name)')
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(isManager ? 100 : 30);
+
+  if (!isManager) {
+    mouvQuery.eq('user_id', userId);
+  }
+
   const [congesRes, notesRes, usersRes, soldesRes, mouvRes] = await Promise.all([
     congesQuery,
     notesQuery,
-
-    // Tous les utilisateurs pour les soldes
-    supabase.from('users').select('id, name').order('name'),
-
-    supabase.from('soldes_conges').select('user_id, type, solde'),
-
-    supabase
-      .from('mouvements_soldes')
-      .select('id, user_id, type, delta, motif, created_at, users(name)')
-      .order('created_at', { ascending: false })
-      .limit(isManager ? 100 : 30)
-      .then(async (res) => {
-        if (!isManager) {
-          return supabase
-            .from('mouvements_soldes')
-            .select('id, user_id, type, delta, motif, created_at, users(name)')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(30);
-        }
-        return res;
-      }),
+    admin.from('users').select('id, name').eq('tenant_id', tenantId).order('name'),
+    admin.from('soldes_conges').select('user_id, type, solde').eq('tenant_id', tenantId),
+    mouvQuery,
   ]);
 
   const conges: Conge[] = (congesRes.data ?? []).map((c) => ({
@@ -131,7 +125,7 @@ export default async function RhPage({ searchParams }: PageProps) {
   const isManager = role === 'dirigeant' || role === 'rh';
 
   const [rhData, personalTasks] = await Promise.all([
-    fetchRhData(user.id, isManager),
+    fetchRhData(user.id, tenantId, isManager),
     tenantId ? getPersonalTasks(tenantId, user.id) : Promise.resolve([]),
   ]);
   const { conges, notes, soldes, mouvements } = rhData;
