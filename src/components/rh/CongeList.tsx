@@ -18,7 +18,7 @@ export interface Conge {
   date_fin:    string;
   nb_jours:    number;
   commentaire: string | null;
-  statut:      'en_attente' | 'valide' | 'refuse';
+  statut:      'en_attente' | 'approuve' | 'refuse';
   created_at:  string;
 }
 
@@ -39,12 +39,12 @@ const TYPE_LABELS: Record<Conge['type'], string> = {
 
 function statutVariant(s: Conge['statut']): 'warning' | 'success' | 'danger' {
   if (s === 'en_attente') return 'warning';
-  if (s === 'valide')     return 'success';
+  if (s === 'approuve')   return 'success';
   return 'danger';
 }
 function statutLabel(s: Conge['statut']) {
   if (s === 'en_attente') return 'En attente';
-  if (s === 'valide')     return 'Validé';
+  if (s === 'approuve')   return 'Validé';
   return 'Refusé';
 }
 
@@ -72,16 +72,16 @@ export function CongeList({ conges, isManager, userId }: Props) {
   const [, startTransition] = useTransition();
 
   const absentsCetteSemaine = conges.filter(
-    (c) => c.statut === 'valide' && isThisWeek(c.date_debut, c.date_fin),
+    (c) => c.statut === 'approuve' && isThisWeek(c.date_debut, c.date_fin),
   );
 
   const stats = {
     enAttente: conges.filter((c) => c.statut === 'en_attente').length,
-    valide:    conges.filter((c) => c.statut === 'valide').length,
+    approuve:  conges.filter((c) => c.statut === 'approuve').length,
     refuse:    conges.filter((c) => c.statut === 'refuse').length,
   };
 
-  async function handleStatut(id: string, statut: 'valide' | 'refuse') {
+  async function handleStatut(id: string, statut: 'approuve' | 'refuse') {
     setError('');
     startTransition(async () => {
       const res = await changeCongeStatutAction(id, statut);
@@ -104,7 +104,7 @@ export function CongeList({ conges, isManager, userId }: Props) {
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'En attente', value: stats.enAttente, color: 'text-[#D97706]', bg: 'bg-[#FEF3C7]' },
-          { label: 'Validés',    value: stats.valide,    color: 'text-[#16A34A]', bg: 'bg-[#DCFCE7]' },
+          { label: 'Validés',    value: stats.approuve,  color: 'text-[#16A34A]', bg: 'bg-[#DCFCE7]' },
           { label: 'Refusés',    value: stats.refuse,    color: 'text-[#DC2626]', bg: 'bg-[#FEE2E2]' },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 text-center">
@@ -199,7 +199,7 @@ export function CongeList({ conges, isManager, userId }: Props) {
                       {isManager && c.statut === 'en_attente' && (
                         <>
                           <button
-                            onClick={() => handleStatut(c.id, 'valide')}
+                            onClick={() => handleStatut(c.id, 'approuve')}
                             className="rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-oxi-success hover:opacity-80 transition-opacity"
                           >
                             Accepter

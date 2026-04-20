@@ -18,7 +18,7 @@ export interface NoteFrais {
   categorie:        'transport' | 'repas' | 'hebergement' | 'fournitures' | 'autre';
   description:      string | null;
   justificatif_url: string | null;
-  statut:           'soumise' | 'validee' | 'remboursee' | 'rejetee';
+  statut:           'soumise' | 'approuvee' | 'remboursee' | 'refusee';
   created_at:       string;
 }
 
@@ -48,7 +48,7 @@ const CAT_ICONS: Record<NoteFrais['categorie'], string> = {
 
 function statutVariant(s: NoteFrais['statut']): 'warning' | 'success' | 'info' | 'danger' {
   if (s === 'soumise')   return 'warning';
-  if (s === 'validee')   return 'info';
+  if (s === 'approuvee') return 'info';
   if (s === 'remboursee') return 'success';
   return 'danger';
 }
@@ -56,9 +56,9 @@ function statutVariant(s: NoteFrais['statut']): 'warning' | 'success' | 'info' |
 function statutLabel(s: NoteFrais['statut']) {
   const map: Record<NoteFrais['statut'], string> = {
     soumise:    'Soumise',
-    validee:    'Validée',
+    approuvee:  'Approuvée',
     remboursee: 'Remboursée',
-    rejetee:    'Rejetée',
+    refusee:    'Refusée',
   };
   return map[s] ?? s;
 }
@@ -73,10 +73,10 @@ export function NoteFraisList({ notes, isManager, userId }: Props) {
   const [, startTransition] = useTransition();
 
   const totalSoumis  = notes.filter((n) => n.statut === 'soumise').reduce((s, n) => s + n.montant, 0);
-  const totalValide  = notes.filter((n) => n.statut === 'validee' || n.statut === 'remboursee').reduce((s, n) => s + n.montant, 0);
+  const totalValide  = notes.filter((n) => n.statut === 'approuvee' || n.statut === 'remboursee').reduce((s, n) => s + n.montant, 0);
   const aValider     = notes.filter((n) => n.statut === 'soumise').length;
 
-  async function handleStatut(id: string, statut: 'validee' | 'remboursee' | 'rejetee') {
+  async function handleStatut(id: string, statut: 'approuvee' | 'remboursee' | 'refusee') {
     setError('');
     startTransition(async () => {
       const res = await changeNoteFraisStatutAction(id, statut);
@@ -191,20 +191,20 @@ export function NoteFraisList({ notes, isManager, userId }: Props) {
                       {isManager && n.statut === 'soumise' && (
                         <>
                           <button
-                            onClick={() => handleStatut(n.id, 'validee')}
+                            onClick={() => handleStatut(n.id, 'approuvee')}
                             className="rounded-md bg-oxi-info-light px-2 py-1 text-xs font-medium text-oxi-info hover:opacity-80 transition-opacity"
                           >
                             Valider
                           </button>
                           <button
-                            onClick={() => handleStatut(n.id, 'rejetee')}
+                            onClick={() => handleStatut(n.id, 'refusee')}
                             className="rounded-md bg-oxi-danger-light px-2 py-1 text-xs font-medium text-oxi-danger hover:opacity-80 transition-opacity"
                           >
                             Rejeter
                           </button>
                         </>
                       )}
-                      {isManager && n.statut === 'validee' && (
+                      {isManager && n.statut === 'approuvee' && (
                         <button
                           onClick={() => handleStatut(n.id, 'remboursee')}
                           className="rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-oxi-success hover:opacity-80 transition-opacity"

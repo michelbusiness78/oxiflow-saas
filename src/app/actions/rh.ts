@@ -45,7 +45,7 @@ export async function deleteCongeAction(id: string) {
   return {};
 }
 
-export async function changeCongeStatutAction(id: string, statut: 'valide' | 'refuse') {
+export async function changeCongeStatutAction(id: string, statut: 'approuve' | 'refuse') {
   const { admin, user, tenant_id, role } = await getAuthContext();
 
   if (role !== 'dirigeant' && role !== 'rh') return { error: 'Non autorisé' };
@@ -63,7 +63,7 @@ export async function changeCongeStatutAction(id: string, statut: 'valide' | 're
   if (error) return { error: translateSupabaseError(error.message) };
 
   // Déduction automatique du solde si CP ou RTT validé
-  if (statut === 'valide' && conge && (conge.type === 'cp' || conge.type === 'rtt')) {
+  if (statut === 'approuve' && conge && (conge.type === 'cp' || conge.type === 'rtt')) {
     const { data: current } = await admin
       .from('soldes_conges')
       .select('solde')
@@ -133,7 +133,7 @@ export async function deleteNoteFraisAction(id: string) {
 
 export async function changeNoteFraisStatutAction(
   id:     string,
-  statut: 'validee' | 'remboursee' | 'rejetee',
+  statut: 'approuvee' | 'remboursee' | 'refusee',
 ) {
   const { admin, user, role } = await getAuthContext();
 
