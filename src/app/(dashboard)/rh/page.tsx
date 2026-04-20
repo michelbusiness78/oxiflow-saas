@@ -11,6 +11,9 @@ import { Soldes, type SoldeUser, type Mouvement } from '@/components/rh/Soldes';
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchRhData(userId: string, tenantId: string, isManager: boolean) {
+  console.log('[RH-DEBUG] fetchRhData — userId:', userId);
+  console.log('[RH-DEBUG] fetchRhData — tenantId:', tenantId);
+  console.log('[RH-DEBUG] fetchRhData — isManager:', isManager);
   const admin = createAdminClient();
 
   // createAdminClient bypass RLS — on filtre explicitement par tenant_id
@@ -49,6 +52,14 @@ async function fetchRhData(userId: string, tenantId: string, isManager: boolean)
     admin.from('soldes_conges').select('user_id, type, solde').eq('tenant_id', tenantId),
     mouvQuery,
   ]);
+
+  console.log('[RH-DEBUG] congesRes.data?.length:', congesRes.data?.length);
+  console.log('[RH-DEBUG] congesRes.error:', JSON.stringify(congesRes.error));
+  console.log('[RH-DEBUG] congesRes raw (2 first):', JSON.stringify(congesRes.data?.slice(0, 2)));
+  console.log('[RH-DEBUG] notesRes.data?.length:', notesRes.data?.length);
+  console.log('[RH-DEBUG] notesRes.error:', JSON.stringify(notesRes.error));
+  console.log('[RH-DEBUG] soldesRes.data?.length:', soldesRes.data?.length);
+  console.log('[RH-DEBUG] soldesRes.error:', JSON.stringify(soldesRes.error));
 
   const conges: Conge[] = (congesRes.data ?? []).map((c) => ({
     id:          c.id,
@@ -123,6 +134,10 @@ export default async function RhPage({ searchParams }: PageProps) {
   const role      = (profile?.role  as string) ?? 'commercial';
   const tenantId  = profile?.tenant_id as string;
   const isManager = role === 'dirigeant' || role === 'rh';
+
+  console.log('[RH-DEBUG] RhPage — user.id:', user?.id, '| email:', user?.email);
+  console.log('[RH-DEBUG] RhPage — profile.role:', profile?.role, '| isManager:', isManager);
+  console.log('[RH-DEBUG] RhPage — profile.tenant_id:', profile?.tenant_id, '| tenantId var:', tenantId);
 
   const [rhData, personalTasks] = await Promise.all([
     fetchRhData(user.id, tenantId, isManager),
