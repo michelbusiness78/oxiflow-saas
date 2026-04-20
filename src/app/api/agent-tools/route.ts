@@ -1059,59 +1059,106 @@ export async function POST(request: NextRequest) {
 
   // ── creer_ndf ─────────────────────────────────────────────────────────────
   if (tool === 'creer_ndf') {
-    const titre   = String(input.titre ?? '').trim();
-    const montant = Number(input.montant ?? 0);
-    if (!titre)     return NextResponse.json({ result: 'Titre de la note de frais obligatoire.' });
-    if (montant <= 0) return NextResponse.json({ result: 'Montant invalide.' });
+    const description = String(input.titre ?? input.description ?? '').trim();
+    const montant     = Number(input.montant ?? 0);
+    if (!description) return NextResponse.json({ result: 'Description de la note de frais obligatoire.' });
+    if (montant <= 0)  return NextResponse.json({ result: 'Montant invalide.' });
 
-    const categorie = (['deplacement', 'repas', 'hebergement', 'fournitures', 'autre'].includes(String(input.categorie)))
-      ? String(input.categorie) : 'autre';
+    const CAT_MAP: Record<string, string> = {
+      deplacement: 'transport',
+      transport:   'transport',
+      repas:       'repas',
+      hebergement: 'hebergement',
+      fournitures: 'fournitures',
+      autre:       'autre',
+    };
+    const categorie = CAT_MAP[String(input.categorie ?? '').toLowerCase()] ?? 'autre';
+
     const date = input.date ? String(input.date) : new Date().toISOString().split('T')[0];
 
-    const { error } = await admin.from('expense_reports').insert({
-      tenant_id:   tenantId,
-      user_id:     user.id,
-      titre,
-      montant_ttc: montant,
-      categorie,
+    const { error } = await admin.from('notes_frais').insert({
+      tenant_id:        tenantId,
+      user_id:          user.id,
       date,
-      notes:       input.notes ? String(input.notes) : null,
-      statut:      'brouillon',
+      montant,
+      categorie,
+      description,
+      justificatif_url: null,
+      statut:           'brouillon',
     });
 
     if (error) return NextResponse.json({ result: `Erreur création NDF : ${error.message}` });
-    return NextResponse.json({ result: `Note de frais "${titre}" de ${fmtEur(montant)} créée (${categorie}).` });
+    return NextResponse.json({
+      result: `Note de frais "${description}" de ${fmtEur(montant)} créée en brouillon (catégorie ${categorie}). Tu pourras la soumettre depuis ton espace RH.`,
+    });
   }
 
   // ── creer_conge ───────────────────────────────────────────────────────────
   if (tool === 'creer_conge') {
-    const type       = String(input.type ?? 'conge_paye');
+    const typeInput  = String(input.type ?? 'cp').toLowerCase();
     const date_debut = String(input.date_debut ?? '');
     const date_fin   = String(input.date_fin   ?? '');
     if (!date_debut || !date_fin) return NextResponse.json({ result: 'Dates de début et fin obligatoires.' });
 
+    if (typeInput === 'formation') {
+      return NextResponse.json({
+        result: 'Les formations ne sont pas gérées comme congés. Demande au RH ou à ton responsable.',
+      });
+    }
+
+    const TYPE_MAP: Record<string, string> = {
+      conge_paye: 'cp',
+      conge:      'cp',
+      cp:         'cp',
+      rtt:        'rtt',
+      maladie:    'maladie',
+      arret:      'maladie',
+      sans_solde: 'sans_solde',
+      autre:      'autre',
+    };
+    const type = TYPE_MAP[typeInput] ?? 'cp';
+
     const TYPE_FR: Record<string, string> = {
-      conge_paye: 'congé payé',
+      cp:         'congé payé',
       rtt:        'RTT',
       maladie:    'arrêt maladie',
-      formation:  'formation',
+      sans_solde: 'absence sans solde',
       autre:      'absence',
     };
 
-    const { error } = await admin.from('leave_requests').insert({
-      tenant_id:  tenantId,
-      user_id:    user.id,
+    function countJoursOuvres(debut: string, fin: string): number {
+      const d = new Date(debut);
+      const f = new Date(fin);
+      if (f < d) return 0;
+      let count = 0;
+      const cur = new Date(d);
+      while (cur <= f) {
+        const day = cur.getDay();
+        if (day !== 0 && day !== 6) count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return count;
+    }
+    const nb_jours = countJoursOuvres(date_debut, date_fin);
+    if (nb_jours <= 0) return NextResponse.json({ result: 'Période invalide (date de fin antérieure à la date de début, ou aucun jour ouvré).' });
+
+    const { error } = await admin.from('conges').insert({
+      tenant_id:   tenantId,
+      user_id:     user.id,
       type,
       date_debut,
       date_fin,
-      notes:      input.notes ? String(input.notes) : null,
-      statut:     'en_attente',
+      nb_jours,
+      commentaire: input.notes ? String(input.notes) : null,
+      statut:      'en_attente',
     });
 
     if (error) return NextResponse.json({ result: `Erreur création congé : ${error.message}` });
     const debutFr = new Date(date_debut + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
     const finFr   = new Date(date_fin   + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-    return NextResponse.json({ result: `Demande de ${TYPE_FR[type] ?? type} du ${debutFr} au ${finFr} créée (en attente de validation).` });
+    return NextResponse.json({
+      result: `Demande de ${TYPE_FR[type]} du ${debutFr} au ${finFr} (${nb_jours} jour${nb_jours > 1 ? 's' : ''} ouvré${nb_jours > 1 ? 's' : ''}) créée — en attente de validation.`,
+    });
   }
 
   return NextResponse.json({ error: 'Outil inconnu.' }, { status: 400 });
